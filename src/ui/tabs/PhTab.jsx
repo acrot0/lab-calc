@@ -8,12 +8,12 @@ import { recordSummary } from '../summaries.mjs';
 
 /** Common lab acids and bases, so the pKa field is not a blank guess. */
 const PRESETS = [
-  { label: '乙酸 / Acetate', kind: 'acid', value: 4.76 },
-  { label: '碳酸 / Carbonate', kind: 'acid', value: 6.35 },
-  { label: '磷酸 / Phosphate', kind: 'acid', value: 2.15 },
-  { label: 'Tris-HCl', kind: 'acid', value: 8.06 },
-  { label: '氨水 / Ammonia', kind: 'base', value: 4.75 },
-  { label: '吡啶 / Pyridine', kind: 'base', value: 8.77 },
+  { name: 'preset_acetate', kind: 'acid', value: 4.76 },
+  { name: 'preset_carbonate', kind: 'acid', value: 6.35 },
+  { name: 'preset_phosphate', kind: 'acid', value: 2.15 },
+  { name: null, kind: 'acid', value: 8.06, literal: 'Tris-HCl' },
+  { name: 'preset_ammonia', kind: 'base', value: 4.75 },
+  { name: 'preset_pyridine', kind: 'base', value: 8.77 },
 ];
 
 export default function PhTab({ onRecord, restored }) {
@@ -64,7 +64,9 @@ export default function PhTab({ onRecord, restored }) {
         label={kind === 'acid' ? t('ph.pka') : t('ph.pkb')}
         value={pk}
         onChange={setPk}
-        hint={PRESETS.filter((p) => p.kind === kind).map((p) => `${p.label} ${p.value}`).join(' · ')}
+        hint={PRESETS.filter((p) => p.kind === kind)
+          .map((p) => `${p.name ? t(`ph.${p.name}`) : p.literal} ${p.value}`)
+          .join(' · ')}
       />
       <NumField label={t('ph.conc')} value={conc} onChange={setConc} min="0" />
 

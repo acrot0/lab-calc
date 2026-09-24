@@ -18,15 +18,21 @@ import { recordSummary } from '../summaries.mjs';
  */
 const MODES = ['shift', 'osmotic', 'unknown'];
 
-/** Common solutes, with the factor each one dissociates to. */
+/**
+ * Common solutes, with the factor each one dissociates to.
+ *
+ * `name` is null for the ones whose formula is their name — NaCl is written the
+ * same way in every language, so translating it would add a key that says
+ * nothing. Only the three that have an ordinary-language name carry one.
+ */
 const SOLUTES = [
-  { label: 'NaCl', i: 2 },
-  { label: 'KCl', i: 2 },
-  { label: 'CaCl₂', i: 3 },
-  { label: 'MgSO₄', i: 2 },
-  { label: '葡萄糖 glucose', i: 1 },
-  { label: '蔗糖 sucrose', i: 1 },
-  { label: '尿素 urea', i: 1 },
+  { formula: 'NaCl', name: null, i: 2 },
+  { formula: 'KCl', name: null, i: 2 },
+  { formula: 'CaCl₂', name: null, i: 3 },
+  { formula: 'MgSO₄', name: null, i: 2 },
+  { formula: 'C₆H₁₂O₆', name: 'solute_glucose', i: 1 },
+  { formula: 'C₁₂H₂₂O₁₁', name: 'solute_sucrose', i: 1 },
+  { formula: 'CO(NH₂)₂', name: 'solute_urea', i: 1 },
 ];
 
 export default function ColligativeTab({ onRecord, restored }) {
@@ -116,8 +122,8 @@ export default function ColligativeTab({ onRecord, restored }) {
 
       <div className="stock-chips">
         {SOLUTES.map((s) => (
-          <button key={s.label} className="chip" onClick={() => setIFactor(String(s.i))}>
-            {s.label} · i = {s.i}
+          <button key={s.formula} className="chip" onClick={() => setIFactor(String(s.i))}>
+            {s.name ? `${s.formula} ${t(`colligative.${s.name}`)}` : s.formula} · i = {s.i}
           </button>
         ))}
       </div>

@@ -14,13 +14,15 @@ import { recordSummary } from '../summaries.mjs';
  * The density is the value people leave out, and leaving it out turns 37% HCl
  * into a 10 M guess instead of 12 M.
  */
+// The formula and the percentage are language-independent; only the name is
+// translated, so the chip is composed from both rather than stored whole.
 const STOCKS = [
-  { label: '盐酸 HCl 37%', formula: 'HCl', percent: 37, density: 1.19 },
-  { label: '硫酸 H₂SO₄ 98%', formula: 'H2SO4', percent: 98, density: 1.84 },
-  { label: '硝酸 HNO₃ 70%', formula: 'HNO3', percent: 70, density: 1.42 },
-  { label: '氨水 NH₃ 28%', formula: 'NH3', percent: 28, density: 0.90 },
-  { label: '磷酸 H₃PO₄ 85%', formula: 'H3PO4', percent: 85, density: 1.69 },
-  { label: '乙酸 CH₃COOH 99.7%', formula: 'C2H4O2', percent: 99.7, density: 1.05 },
+  { name: 'stock_hcl', display: 'HCl', formula: 'HCl', percent: 37, density: 1.19 },
+  { name: 'stock_h2so4', display: 'H₂SO₄', formula: 'H2SO4', percent: 98, density: 1.84 },
+  { name: 'stock_hno3', display: 'HNO₃', formula: 'HNO3', percent: 70, density: 1.42 },
+  { name: 'stock_nh3', display: 'NH₃', formula: 'NH3', percent: 28, density: 0.90 },
+  { name: 'stock_h3po4', display: 'H₃PO₄', formula: 'H3PO4', percent: 85, density: 1.69 },
+  { name: 'stock_acetate', display: 'CH₃COOH', formula: 'C2H4O2', percent: 99.7, density: 1.05 },
 ];
 
 const MODES = ['stock', 'volume', 'normality', 'molality', 'ionic'];
@@ -113,7 +115,9 @@ export default function ReagentTab({ onRecord, restored }) {
         <>
           <div className="stock-chips">
             {STOCKS.map((s) => (
-              <button key={s.label} className="chip" onClick={() => applyStock(s)}>{s.label}</button>
+              <button key={s.name} className="chip" onClick={() => applyStock(s)}>
+                {`${t(`reagent.${s.name}`)} ${s.display} ${s.percent}%`}
+              </button>
             ))}
           </div>
           <TextField label={t('common.formula')} value={formula} onChange={setFormula}
