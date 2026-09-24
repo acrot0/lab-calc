@@ -22,6 +22,12 @@ const KIND_NAMES = {
   phCalc: 'pH 计算',
   percentSolution: '百分比配制',
   titrationCurve: '滴定曲线',
+  reagent: '浓试剂',
+  spectro: '分光光度',
+  lab: '实验台计算',
+  colligative: '依数性',
+  reaction: '反应计量',
+  electro: '电化学',
 };
 
 /**

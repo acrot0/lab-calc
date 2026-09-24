@@ -66,6 +66,117 @@ export function recordSummary(record, t) {
       });
     }
 
+    case 'reagent': {
+      // Five directions share one kind, so the summary branches on `mode`.
+      // Without that branch every reagent calculation would read as a stock
+      // conversion, which is wrong for four of the five.
+      switch (i.mode) {
+        case 'volume':
+          return t('summaries.reagentVolume', {
+            volume: fmt(o.volumeMl), percent: i.percent, formula: i.formula,
+            target: i.targetVolumeMl, molarity: i.targetMolarity,
+          });
+        case 'normality':
+          return t('summaries.reagentNormality', {
+            molarity: i.molarity, formula: i.formula, n: i.n, normality: fmt(o.normality, 3),
+          });
+        case 'molality':
+          return t('summaries.reagentMolality', {
+            moles: i.moles, solvent: i.solventKg, molality: fmt(o.molality, 4),
+          });
+        case 'ionic':
+          return t('summaries.reagentIonic', {
+            ionicStrength: fmt(o.ionicStrength, 4), n: i.ions?.length ?? 0,
+          });
+        default:
+          return t('summaries.reagentStock', {
+            percent: i.percent, formula: i.formula, density: i.density, molarity: fmt(o.molarity),
+          });
+      }
+    }
+
+    case 'spectro':
+      if (i.mode === 'curve') {
+        return t('summaries.spectroCurve', {
+          n: o.fit?.n ?? 0, r2: fmt(o.fit?.r2, 4), conc: fmt(o.pred?.value, 6),
+        });
+      }
+      return i.mode === 'concentration'
+        ? t('summaries.spectroConc', { absorbance: fmt(o.absorbance, 4), conc: fmt(o.conc, 8) })
+        : t('summaries.spectroAbs', {
+            epsilon: i.epsilon, conc: i.conc, path: i.pathCm, absorbance: fmt(o.absorbance, 4),
+          });
+
+    case 'lab': {
+      // Four directions share one kind, so the summary branches on `mode`.
+      switch (i.mode) {
+        case 'cfu':
+          return t('summaries.labCfu', {
+            colonies: i.colonies, factor: i.dilutionFactor, cfu: fmt(o.cfuPerMl, 4),
+          });
+        case 'nucleic':
+          return t('summaries.labNucleic', {
+            length: i.lengthBp, kind: t(`lab.na_${i.kind}`),
+            pmol: fmt(o.pmolPerUl, 4), copies: fmt(o.copiesPerUl, 4),
+          });
+        case 'mix':
+          return t('summaries.labMix', {
+            reactions: i.reactions, excess: i.excessPercent,
+            volume: fmt(o.totalVolume, 1), n: o.rows?.length ?? 0,
+          });
+        default:
+          return t('summaries.labMoles', {
+            formula: i.formula, mass: fmt(o.massG, 4), moles: fmt(o.moles, 6),
+          });
+      }
+    }
+
+    case 'colligative': {
+      switch (i.mode) {
+        case 'osmotic':
+          return t('summaries.colligativeOsmotic', {
+            molarity: i.molarity, i: i.i, atm: fmt(o.atm, 4),
+          });
+        case 'unknown':
+          return t('summaries.colligativeUnknown', {
+            drop: i.deltaTf, solvent: t(`colligative.solvent_${i.solvent}`), molarMass: fmt(o.molarMass, 2),
+          });
+        default:
+          return t('summaries.colligativeShift', {
+            solvent: t(`colligative.solvent_${i.solvent}`), molality: i.molality,
+            deltaTf: fmt(o.deltaTf, 4), freezingPoint: fmt(o.freezingPoint, 3),
+          });
+      }
+    }
+
+    case 'reaction': {
+      switch (i.mode) {
+        case 'limiting':
+          return t('summaries.reactionLimiting', {
+            equation: i.equation, limiting: o.limiting ?? '—', extent: fmt(o.extent, 5),
+          });
+        case 'formula':
+          return t('summaries.reactionFormula', {
+            formula: o.formula, M: fmt(o.molarMass, 3), n: i.entries?.length ?? 0,
+          });
+        default:
+          return t('summaries.reactionBalance', { equation: o.equation ?? i.equation });
+      }
+    }
+
+    case 'electro': {
+      // Both directions report a potential; only the cell mode knows which
+      // electrode is which, so the summary names them when they are present.
+      if (i.mode === 'cell') {
+        return t('summaries.electroCell', {
+          cathode: i.cathode, anode: i.anode, e: fmt(o.e, 4),
+        });
+      }
+      return t('summaries.electroNernst', {
+        e0: i.e0, n: i.n, q: i.q, e: fmt(o.e, 4),
+      });
+    }
+
     default:
       // An unknown kind renders as its translated name rather than throwing:
       // a history list that dies on one bad row loses all of them.

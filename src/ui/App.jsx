@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   FlaskConical, Droplets, TestTube2, ArrowLeftRight, Activity, Percent, LineChart,
-  Languages, ShieldAlert,
+  Languages, ShieldAlert, Beaker, Sun, Calculator, Thermometer, Scale, Zap,
 } from 'lucide-react';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
@@ -18,6 +18,12 @@ import ConvertTab from './tabs/ConvertTab.jsx';
 import PhTab from './tabs/PhTab.jsx';
 import PercentTab from './tabs/PercentTab.jsx';
 import CurveTab from './tabs/CurveTab.jsx';
+import ReagentTab from './tabs/ReagentTab.jsx';
+import SpectroTab from './tabs/SpectroTab.jsx';
+import LabTab from './tabs/LabTab.jsx';
+import ColligativeTab from './tabs/ColligativeTab.jsx';
+import ReactionTab from './tabs/ReactionTab.jsx';
+import ElectroTab from './tabs/ElectroTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 
@@ -29,6 +35,12 @@ const TABS = [
   { id: 'ph', icon: Activity, Component: PhTab },
   { id: 'percent', icon: Percent, Component: PercentTab },
   { id: 'curve', icon: LineChart, Component: CurveTab },
+  { id: 'reagent', icon: Beaker, Component: ReagentTab },
+  { id: 'spectro', icon: Sun, Component: SpectroTab },
+  { id: 'lab', icon: Calculator, Component: LabTab },
+  { id: 'colligative', icon: Thermometer, Component: ColligativeTab },
+  { id: 'reaction', icon: Scale, Component: ReactionTab },
+  { id: 'electro', icon: Zap, Component: ElectroTab },
   { id: 'convert', icon: ArrowLeftRight, Component: ConvertTab },
 ];
 

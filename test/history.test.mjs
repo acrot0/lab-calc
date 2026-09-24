@@ -219,7 +219,11 @@ describe('planReplay', () => {
 
   it('should cover every kind the calculators actually record', () => {
     // Guards against a new calculator being added without a replay route.
-    for (const kind of ['massForMolarity', 'stockFromSolid', 'dilution', 'bufferRecipe', 'dilutionSeries']) {
+    for (const kind of [
+      'massForMolarity', 'stockFromSolid', 'dilution', 'bufferRecipe', 'dilutionSeries',
+      'phCalc', 'percentSolution', 'titrationCurve', 'reagent', 'spectro',
+      'lab', 'colligative', 'reaction', 'electro',
+    ]) {
       expect(KIND_TO_TAB[kind], `${kind} must have a tab`).toBeTruthy();
     }
   });

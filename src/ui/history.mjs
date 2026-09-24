@@ -121,6 +121,12 @@ export const KIND_TO_TAB = {
   phCalc: 'ph',
   percentSolution: 'percent',
   titrationCurve: 'curve',
+  reagent: 'reagent',
+  spectro: 'spectro',
+  lab: 'lab',
+  colligative: 'colligative',
+  reaction: 'reaction',
+  electro: 'electro',
 };
 
 /**

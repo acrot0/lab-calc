@@ -297,17 +297,21 @@ select.control {
    Tabs
    ========================================================================== */
 
+/*
+ * Wraps rather than scrolls. With fourteen tabs a single row overflows, and a
+ * scrollbar hidden with `scrollbar-width: none` leaves the last tabs reachable
+ * only by a horizontal swipe most desktop users never try — the tab is simply
+ * missing as far as they are concerned.
+ */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--s1);
   margin: var(--s6) 0;
   padding-bottom: var(--s1);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
+  row-gap: 0;
 }
-
-.tabs::-webkit-scrollbar { display: none; }
 
 .tab {
   position: relative;
@@ -376,12 +380,53 @@ select.control {
 
 .field { margin-bottom: var(--s4); }
 
-.field > label {
+.field > label,
+.field > .field-label {
   display: block;
   margin-bottom: var(--s2);
   color: var(--text-mid);
   font-size: var(--t-sm);
   font-weight: 500;
+}
+
+/*
+ * Segmented radio: for a two-way direction choice the two options belong next
+ * to each other, so the selected one is visible without opening anything. The
+ * selected state uses the accent's soft fill rather than a border, so it reads
+ * at a glance without competing with the input borders below it.
+ */
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.seg-btn {
+  padding: var(--s2) var(--s4);
+  border: none;
+  border-radius: calc(var(--r-sm) - 2px);
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.seg-btn:hover { color: var(--text-mid); }
+
+.seg-btn.is-on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.seg-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring) var(--accent-soft);
 }
 
 .field input,
@@ -782,6 +827,120 @@ button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--surface-2);
+}
+
+/* ==========================================================================
+   Concentrated-reagent presets and the ion list
+   ========================================================================== */
+
+/*
+ * Preset chips. The label carries the reagent's own name in both languages
+ * (the formula is the same either way), so these are not translated — but the
+ * percentage and density they load are what the chip is really for.
+ */
+.stock-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+
+.chip {
+  padding: 5px var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+
+.chip:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.chip:active { transform: translateY(0.5px); }
+
+.ion-list { margin-bottom: var(--s3); }
+
+/*
+ * The charge field is narrow and the concentration field is not, so the two
+ * are sized explicitly rather than sharing the 1fr/1fr row grid — a charge of
+ * "-1" in a half-width box is a lot of empty space.
+ */
+.ion-row {
+  display: grid;
+  grid-template-columns: 1fr 88px auto;
+  gap: var(--s3);
+  align-items: start;
+  padding: var(--s3);
+  margin-bottom: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.ion-row .field { margin-bottom: 0; }
+
+/*
+ * A master-mix row is name + per-reaction volume + remove, so the name field
+ * takes the slack and the volume is fixed at the width a µL figure needs.
+ */
+.mix-row {
+  display: grid;
+  grid-template-columns: 1fr 110px auto;
+  gap: var(--s3);
+  align-items: start;
+  padding: var(--s3);
+  margin-bottom: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.mix-row .field { margin-bottom: 0; }
+
+@media (max-width: 560px) {
+  .mix-row { grid-template-columns: 1fr 88px auto; }
+}
+
+.ion-del {
+  align-self: center;
+  margin-top: var(--s4);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.points-input {
+  width: 100%;
+  padding: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+  resize: vertical;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.points-input:hover:not(:focus) { border-color: var(--border-strong); }
+
+.points-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring) var(--accent-soft);
+}
+
+@media (max-width: 560px) {
+  .ion-row { grid-template-columns: 1fr 72px auto; }
 }
 
 /* ==========================================================================

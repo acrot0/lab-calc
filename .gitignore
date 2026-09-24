@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.local
 .DS_Store
+__pycache__/
+.playwright-mcp/
