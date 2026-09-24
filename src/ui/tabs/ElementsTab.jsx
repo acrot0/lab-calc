@@ -69,7 +69,19 @@ export default function ElementsTab() {
   const [colorBy, setColorBy] = useState('category');
   const [selected, setSelected] = useState(() => elementBySymbol('Na'));
   const [query, setQuery] = useState('');
+  const [hover, setHover] = useState(null);
   const gridRef = useRef(null);
+
+  // The table scrolls horizontally, so a tooltip positioned inside it would be
+  // clipped at the edge. Fixed positioning escapes that, at the cost of going
+  // stale when the page moves — hence hiding it on scroll rather than trying to
+  // track the cell.
+  useEffect(() => {
+    if (!hover) return undefined;
+    const hide = () => setHover(null);
+    globalThis.addEventListener('scroll', hide, { passive: true, capture: true });
+    return () => globalThis.removeEventListener('scroll', hide, { capture: true });
+  }, [hover]);
 
   const ranges = useMemo(() => {
     const out = {};
@@ -247,6 +259,10 @@ export default function ElementsTab() {
               aria-label={`${el.number} ${el.symbol} ${el.zh}`}
               aria-pressed={selected?.symbol === el.symbol}
               onClick={() => setSelected(el)}
+              onMouseEnter={(e) => setHover({ el, rect: e.currentTarget.getBoundingClientRect() })}
+              onMouseLeave={() => setHover(null)}
+              onFocus={(e) => setHover({ el, rect: e.currentTarget.getBoundingClientRect() })}
+              onBlur={() => setHover(null)}
             >
               <span className="pcell-z">{el.number}</span>
               <span className="pcell-sym">{el.symbol}</span>
@@ -255,6 +271,29 @@ export default function ElementsTab() {
           ))}
         </div>
       </div>
+
+      {/* Hover/focus readout. Placed above the cell when there is room, below
+          when there is not, so it never runs off the top of the viewport. */}
+      {hover && (() => {
+        const { el, rect } = hover;
+        const above = rect.top > 120;
+        return (
+          <div
+            className="eltip"
+            style={{
+              left: Math.min(Math.max(rect.left + rect.width / 2, 90), globalThis.innerWidth - 90),
+              top: above ? rect.top - 8 : rect.bottom + 8,
+              transform: above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+            }}
+          >
+            <strong>{el.symbol}</strong> {el.zh} · {el.name}
+            <span className="eltip-row">
+              {t('elements.mass')} {fmt(el.mass, 4)} g/mol
+            </span>
+            <span className="eltip-row">{t(`elements.cat_${categoryOf(el)}`)}</span>
+          </div>
+        );
+      })()}
 
       {matched && matched.size === 0 && (
         <div className="hint">{t('elements.noMatch', { query })}</div>
