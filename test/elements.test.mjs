@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { ELEMENTS, elementBySymbol, ELEMENT_COUNT, gridPosition } from '../src/calc/elements.mjs';
+import {
+  ELEMENTS, elementBySymbol, ELEMENT_COUNT, gridPosition,
+  categoryOf, ELEMENT_CATEGORIES, CATEGORY_COLOR, blockOf,
+} from '../src/calc/elements.mjs';
 import { ATOMIC_WEIGHTS, molarMass } from '../src/calc/solution.mjs';
 
 describe('element table', () => {
@@ -91,6 +94,134 @@ describe('element table', () => {
     for (const e of ELEMENTS) {
       expect(['iupac', 'library'], `${e.symbol} source`).toContain(e.massSource);
     }
+  });
+});
+
+describe('categoryOf', () => {
+  it('should classify the non-metal staircase by chemistry, not by column', () => {
+    // These five are the regression. Deriving the category from group and
+    // period files them as post-transition metals because they share groups
+    // 14-16 with Sn, Pb and Bi. The staircase cuts diagonally across those
+    // columns, so no positional rule can get them right.
+    expect(categoryOf('C')).toBe('nonmetal');
+    expect(categoryOf('N')).toBe('nonmetal');
+    expect(categoryOf('O')).toBe('nonmetal');
+    expect(categoryOf('P')).toBe('nonmetal');
+    expect(categoryOf('S')).toBe('nonmetal');
+  });
+
+  it('should classify the metalloids straddling the staircase', () => {
+    for (const s of ['B', 'Si', 'Ge', 'As', 'Sb', 'Te']) {
+      expect(categoryOf(s), s).toBe('metalloid');
+    }
+  });
+
+  it('should call astatine a metalloid even though it sits in group 17', () => {
+    // Same trap as carbon: column 17 is mostly halogens, but astatine's
+    // properties put it on the metalloid side of the line.
+    expect(categoryOf('At')).toBe('metalloid');
+    expect(categoryOf('I')).toBe('halogen');
+  });
+
+  it('should classify the main-group families', () => {
+    expect(categoryOf('Li')).toBe('alkali');
+    expect(categoryOf('Mg')).toBe('alkaline');
+    expect(categoryOf('Fe')).toBe('transition');
+    expect(categoryOf('Al')).toBe('postTransition');
+    expect(categoryOf('Cl')).toBe('halogen');
+    expect(categoryOf('He')).toBe('noble');
+    expect(categoryOf('H')).toBe('nonmetal');
+  });
+
+  it('should place hydrogen as a non-metal despite sitting in group 1', () => {
+    // Hydrogen is the classic exception: group 1 by electron count, non-metal
+    // by behaviour.
+    expect(categoryOf('H')).toBe('nonmetal');
+    expect(categoryOf('Na')).toBe('alkali');
+  });
+
+  it('should classify the f-block by row, which is its definition', () => {
+    expect(categoryOf('La')).toBe('lanthanide');
+    expect(categoryOf('Lu')).toBe('lanthanide');
+    expect(categoryOf('Ac')).toBe('actinide');
+    expect(categoryOf('Lr')).toBe('actinide');
+  });
+
+  it('should accept an element object as well as a symbol', () => {
+    expect(categoryOf(elementBySymbol('Fe'))).toBe('transition');
+  });
+
+  it('should give every one of the 118 elements a category', () => {
+    for (const e of ELEMENTS) {
+      expect(ELEMENT_CATEGORIES, `${e.symbol}`).toContain(categoryOf(e));
+    }
+  });
+
+  it('should throw for an unassigned element rather than guessing', () => {
+    // A plausible default is how the thirteen wrong labels shipped unnoticed.
+    expect(() => categoryOf('Xx')).toThrow(/no category/);
+    expect(() => categoryOf(null)).toThrow(/no category/);
+  });
+
+  it('should give every category a distinct colour', () => {
+    const colors = ELEMENT_CATEGORIES.map((c) => CATEGORY_COLOR[c]);
+    expect(new Set(colors).size).toBe(ELEMENT_CATEGORIES.length);
+    for (const c of ELEMENT_CATEGORIES) {
+      expect(CATEGORY_COLOR[c], c).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it('should assign each element to exactly one category', () => {
+    // The membership lists are hand-written, so a duplicate would silently
+    // drop whichever came first.
+    const counts = new Map();
+    for (const e of ELEMENTS) {
+      const c = categoryOf(e);
+      counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+    const total = [...counts.values()].reduce((a, b) => a + b, 0);
+    expect(total).toBe(118);
+    // Every category should have at least one member; an empty one would show
+    // as a legend entry with nothing behind it.
+    for (const c of ELEMENT_CATEGORIES) expect(counts.get(c), c).toBeGreaterThan(0);
+  });
+});
+
+describe('blockOf', () => {
+  it('should put the first two columns in the s-block', () => {
+    expect(blockOf('Li')).toBe('s');
+    expect(blockOf('Mg')).toBe('s');
+    expect(blockOf('K')).toBe('s');
+  });
+
+  it('should call helium an s-block element despite its group', () => {
+    // The one exception in the table: helium sits in group 18 with the p-block
+    // gases, but its configuration is 1s², so it is an s-block element.
+    expect(blockOf('He')).toBe('s');
+    expect(blockOf('Ne')).toBe('p');
+  });
+
+  it('should put the middle columns in the d-block', () => {
+    expect(blockOf('Fe')).toBe('d');
+    expect(blockOf('Cu')).toBe('d');
+    expect(blockOf('Zn')).toBe('d');
+  });
+
+  it('should put the right-hand columns in the p-block', () => {
+    expect(blockOf('B')).toBe('p');
+    expect(blockOf('C')).toBe('p');
+    expect(blockOf('Cl')).toBe('p');
+  });
+
+  it('should put both detached rows in the f-block', () => {
+    expect(blockOf('La')).toBe('f');
+    expect(blockOf('Lu')).toBe('f');
+    expect(blockOf('Ac')).toBe('f');
+    expect(blockOf('Lr')).toBe('f');
+  });
+
+  it('should throw for an unknown element', () => {
+    expect(() => blockOf('Xx')).toThrow(/unknown/);
   });
 });
 

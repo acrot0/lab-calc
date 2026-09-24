@@ -143,6 +143,106 @@ export const ELEMENTS = [
   { number: 118, symbol: 'Og', name: "Oganesson", zh: '鿫', mass: 294, group: 18, period: 7, rcow: 1.57, rvdw: 2, color: '#B30DA6', color2: '#9595A9', massSource: 'library' },
 ];
 
+/**
+ * Element categories, as explicit data rather than a rule over the grid.
+ *
+ * Deriving these from group and period looks tidy and is wrong. Carbon,
+ * nitrogen, oxygen, phosphorus and sulfur sit in groups 14-16 alongside tin and
+ * lead, so a positional rule files them as post-transition metals; astatine in
+ * group 17 comes out a halogen when it is a metalloid. The staircase separating
+ * metals from non-metals does not follow the column boundaries — it cuts
+ * diagonally through them. Thirteen of the 118 were mislabelled that way.
+ *
+ * The f-block is the one case where position *is* the definition: periods 9 and
+ * 10 exist in this table solely to hold the lanthanides and actinides.
+ */
+const CATEGORY_MEMBERS = {
+  alkali: ['Li', 'Na', 'K', 'Rb', 'Cs', 'Fr'],
+  alkaline: ['Be', 'Mg', 'Ca', 'Sr', 'Ba', 'Ra'],
+  transition: [
+    'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+    'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
+    'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+    'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn',
+  ],
+  postTransition: ['Al', 'Ga', 'In', 'Sn', 'Tl', 'Pb', 'Bi', 'Po', 'Nh', 'Fl', 'Mc', 'Lv'],
+  metalloid: ['B', 'Si', 'Ge', 'As', 'Sb', 'Te', 'At'],
+  nonmetal: ['H', 'C', 'N', 'O', 'P', 'S', 'Se'],
+  halogen: ['F', 'Cl', 'Br', 'I', 'Ts'],
+  noble: ['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn', 'Og'],
+  lanthanide: [],
+  actinide: [],
+};
+
+/** Category names in the order they read best across a legend. */
+export const ELEMENT_CATEGORIES = Object.keys(CATEGORY_MEMBERS);
+
+/**
+ * One colour per category, for the "colour by category" view.
+ *
+ * The per-element CPK colours elsewhere in this file cannot serve here: they
+ * distinguish 118 individual elements, so colouring by them produces 118 hues
+ * and shows no grouping at all. These are the same hues as the conventional
+ * periodic-table colouring, which is what a reader already recognises.
+ */
+export const CATEGORY_COLOR = {
+  alkali: '#ff7a6b',
+  alkaline: '#ffb15c',
+  transition: '#8fa4bd',
+  postTransition: '#7fb69b',
+  metalloid: '#62c9c3',
+  nonmetal: '#4ea1ff',
+  halogen: '#8ee06a',
+  noble: '#c78cf0',
+  lanthanide: '#e08fc0',
+  actinide: '#d9708a',
+};
+
+const CATEGORY_BY_SYMBOL = new Map();
+for (const [category, symbols] of Object.entries(CATEGORY_MEMBERS)) {
+  for (const symbol of symbols) CATEGORY_BY_SYMBOL.set(symbol, category);
+}
+for (const el of ELEMENTS) {
+  if (el.period === 9) CATEGORY_BY_SYMBOL.set(el.symbol, 'lanthanide');
+  else if (el.period === 10) CATEGORY_BY_SYMBOL.set(el.symbol, 'actinide');
+}
+
+/**
+ * Category for an element, by symbol or by element object.
+ *
+ * Throws on an unassigned element rather than falling back to a default. A
+ * quietly plausible default is exactly how the thirteen wrong labels above
+ * shipped: nothing failed, the table just said something untrue.
+ */
+export function categoryOf(el) {
+  const symbol = typeof el === 'string' ? el : el?.symbol;
+  const category = CATEGORY_BY_SYMBOL.get(symbol);
+  if (category === undefined) {
+    throw new Error(`elements: no category assigned for ${String(symbol)}`);
+  }
+  return category;
+}
+
+/**
+ * Block (s/p/d/f) — the one property where grid position really is the
+ * definition, because the block names the subshell being filled and the grid
+ * is laid out to show exactly that.
+ *
+ * Helium is the exception, and only helium: it sits in group 18 with the p-block
+ * gases but its configuration is 1s², so it belongs to the s-block.
+ */
+export function blockOf(el) {
+  const symbol = typeof el === 'string' ? el : el?.symbol;
+  const found = typeof el === 'string' ? elementBySymbol(el) : el;
+  if (!found) throw new Error(`elements: unknown element ${String(symbol)}`);
+  if (found.period === 9 || found.period === 10) return 'f';
+  if (symbol === 'He') return 's';
+  const g = found.group;
+  if (g <= 2) return 's';
+  if (g >= 13) return 'p';
+  return 'd';
+}
+
 /** Symbol to element. Returns null rather than throwing: callers render tables. */
 export function elementBySymbol(symbol) {
   if (typeof symbol !== 'string' || symbol.length === 0) return null;
