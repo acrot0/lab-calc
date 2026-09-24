@@ -3,6 +3,7 @@ import {
   ELEMENTS, elementBySymbol, categoryOf, blockOf, periodOf, isFBlock,
   ELEMENT_CATEGORIES, CATEGORY_COLOR,
 } from '../../calc/elements.mjs';
+import { electronConfig } from '../../calc/config.mjs';
 import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 
@@ -178,6 +179,7 @@ export default function ElementsTab() {
   // and the f-block's group numbers are layout coordinates rather than chemistry.
   const chemPeriod = selected ? periodOf(selected) : null;
   const onDetachedRow = selected ? isFBlock(selected) : false;
+  const cfg = selected ? electronConfig(selected.number) : null;
 
   return (
     <div className="card">
@@ -346,6 +348,13 @@ export default function ElementsTab() {
               <span>{t('elements.category')}</span>
               <strong>{t(`elements.cat_${cat}`)}</strong>
             </div>
+            <div>
+              <span>{t('elements.valence')}</span>
+              <strong>{cfg.valence}</strong>
+            </div>
+          </div>
+          <div className="hint">
+            {t('elements.config')} <code className="cfg">{cfg.shorthand}</code>
           </div>
           <div className="hint">
             {t('elements.massSourceNote', {

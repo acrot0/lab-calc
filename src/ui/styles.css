@@ -1198,6 +1198,19 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .eltip strong { font-size: var(--t-sm); margin-right: 3px; }
 .eltip-row { color: var(--text-dim); }
 
+/* Electron configuration: monospace and letter-spaced, because the subshell
+   groups are read as units and a proportional font runs them together. */
+.cfg {
+  font-family: var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
+  font-size: var(--t-xs);
+  letter-spacing: 0.02em;
+  color: var(--text-mid);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .pcell {
   display: flex;
   flex-direction: column;

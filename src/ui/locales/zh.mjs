@@ -442,6 +442,8 @@ export const zh = {
     rcow: '共价半径',
     rvdw: '范德华半径',
     category: '类别',
+    config: '电子排布',
+    valence: '价电子数',
     cat_alkali: '碱金属',
     cat_alkaline: '碱土金属',
     cat_transition: '过渡金属',

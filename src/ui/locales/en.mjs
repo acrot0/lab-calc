@@ -446,6 +446,8 @@ export const en = {
     rcow: 'Covalent radius',
     rvdw: 'Van der Waals radius',
     category: 'Category',
+    config: 'Electron configuration',
+    valence: 'Valence electrons',
     cat_alkali: 'Alkali metal',
     cat_alkaline: 'Alkaline earth metal',
     cat_transition: 'Transition metal',
