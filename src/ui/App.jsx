@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   FlaskConical, Droplets, TestTube2, ArrowLeftRight, Activity, Percent, LineChart,
-  Languages, ShieldAlert, Beaker, Sun, Calculator, Thermometer, Scale, Zap,
+  Languages, ShieldAlert, Beaker, Sun, Calculator, Thermometer, Scale, Zap, Atom,
 } from 'lucide-react';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
@@ -24,6 +24,7 @@ import LabTab from './tabs/LabTab.jsx';
 import ColligativeTab from './tabs/ColligativeTab.jsx';
 import ReactionTab from './tabs/ReactionTab.jsx';
 import ElectroTab from './tabs/ElectroTab.jsx';
+import ElementsTab from './tabs/ElementsTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 
@@ -41,6 +42,7 @@ const TABS = [
   { id: 'colligative', icon: Thermometer, Component: ColligativeTab },
   { id: 'reaction', icon: Scale, Component: ReactionTab },
   { id: 'electro', icon: Zap, Component: ElectroTab },
+  { id: 'elements', icon: Atom, Component: ElementsTab },
   { id: 'convert', icon: ArrowLeftRight, Component: ConvertTab },
 ];
 
@@ -138,7 +140,7 @@ export default function App() {
         ))}
       </div>
 
-      <div className="split">
+      <div className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
         <div>
           <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
         </div>

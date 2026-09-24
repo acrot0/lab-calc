@@ -360,6 +360,20 @@ select.control {
   .app { padding: var(--s6) var(--s4) var(--s10); }
 }
 
+/*
+ * The periodic table needs the full width: 18 columns do not fit in the ~660px
+ * left over once the history panel takes its 400px, and a periodic table you
+ * have to scroll horizontally is a worse periodic table — the trends it exists
+ * to show are exactly what falls off the edge.
+ *
+ * So the panel moves below the table rather than beside it. Order matters: the
+ * table is the content here, and putting an empty history box above it pushes
+ * the thing the user came for off the first screen.
+ */
+.split.is-wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* ==========================================================================
    Cards
    ========================================================================== */
@@ -1046,3 +1060,85 @@ button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
 .footer .sep { opacity: 0.4; }
 .footer .grow { margin-left: auto; }
+
+/* ==========================================================================
+   Periodic table
+   ========================================================================== */
+
+/*
+ * The grid is 18 columns wide. On a narrow viewport 18 cells cannot be legible,
+ * so the wrapper scrolls horizontally — the table keeps its shape, which is the
+ * whole point of a periodic table, rather than reflowing into something that no
+ * longer shows the periodic trends.
+ */
+.ptable-wrap {
+  overflow-x: auto;
+  padding-bottom: var(--s2);
+  margin-bottom: var(--s4);
+  -webkit-overflow-scrolling: touch;
+}
+
+.ptable {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(38px, 1fr));
+  grid-auto-rows: 46px;
+  /* Row 8 stays empty: that gap is what detaches the f-block rows below. */
+  gap: 3px;
+  min-width: 720px;
+}
+
+.pcell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-mid);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.05;
+  transition: transform var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.pcell:hover { transform: translateY(-1px); border-color: var(--accent); }
+
+.pcell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pcell.is-on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Search results: everything that does not match fades back but stays readable,
+   so the table's shape is still visible around the hits. */
+.pcell.is-dim { opacity: 0.18; }
+
+.pcell-z {
+  font-size: 9px;
+  color: var(--text-dim);
+  align-self: flex-start;
+  padding-left: 3px;
+}
+
+.pcell-sym { font-size: var(--t-sm); font-weight: 600; color: var(--text); }
+
+.pcell-name {
+  font-size: 9px;
+  color: var(--text-dim);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .ptable { grid-auto-rows: 40px; }
+  .pcell-name { display: none; }
+}
