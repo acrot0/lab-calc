@@ -4,3 +4,9 @@ dist/
 .DS_Store
 __pycache__/
 .playwright-mcp/
+
+# Harness telemetry (compact snapshots, per-agent cost logs) — byproducts of a
+# session, not part of the app. src/calc/docs/ is the same thing written to the
+# wrong directory by an earlier run.
+docs/maintain-logs/
+src/calc/docs/
