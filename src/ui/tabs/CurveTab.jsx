@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { titrationCurve, findEquivalencePoint, equivalenceVolumes } from '../../calc/curve.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
 import { fmt, n } from '../format.mjs';
@@ -15,12 +15,25 @@ function parsePkaList(text) {
 }
 
 /**
+ * Canvas cannot read CSS custom properties, so the palette is passed in.
+ * Hardcoding dark values made the grid invisible in the light theme — the
+ * chart still drew, it just lost its reference lines.
+ */
+const CHART_COLORS = {
+  dark: { grid: 'rgba(255,255,255,0.08)', label: '#9aa3b2', curve: '#5aa9ff', eq: 'rgba(240,180,41,0.55)' },
+  light: { grid: 'rgba(16,24,40,0.1)', label: '#6b7688', curve: '#1f6feb', eq: 'rgba(165,106,0,0.5)' },
+};
+
+/**
  * Draw the curve on a canvas. SVG would need ~160 nodes and per-point
  * interaction this chart never uses; a canvas is cheaper and simpler.
  */
-function CurveChart({ points, eqVolumes, width = 560, height = 280 }) {
+function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dark' }) {
   const { t } = useI18n();
   const ref = useRef(null);
+  // Memoised: a fresh object each render would re-run the draw effect on every
+  // parent render, redrawing an unchanged chart.
+  const palette = useMemo(() => CHART_COLORS[theme] ?? CHART_COLORS.dark, [theme]);
 
   useEffect(() => {
     const canvas = ref.current;
@@ -44,8 +57,8 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280 }) {
     const x = (v) => pad.l + (v / maxV) * plotW;
     const y = (ph) => pad.t + plotH - (Math.min(Math.max(ph, 0), 14) / 14) * plotH;
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.fillStyle = '#9aa3b2';
+    ctx.strokeStyle = palette.grid;
+    ctx.fillStyle = palette.label;
     ctx.font = '11px Inter, system-ui, sans-serif';
     ctx.lineWidth = 1;
     for (let ph = 0; ph <= 14; ph += 2) {
@@ -69,7 +82,7 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280 }) {
 
     // One dashed marker per equivalence point — a polyprotic acid has several,
     // and drawing only the first would misrepresent the curve.
-    ctx.strokeStyle = 'rgba(240,180,41,0.5)';
+    ctx.strokeStyle = palette.eq;
     ctx.setLineDash([4, 4]);
     for (const v of eqVolumes) {
       if (v > maxV) continue;
@@ -80,16 +93,16 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280 }) {
     }
     ctx.setLineDash([]);
 
-    ctx.strokeStyle = '#4ea1ff';
+    ctx.strokeStyle = palette.curve;
     ctx.lineWidth = 2;
     ctx.beginPath();
     points.forEach((p, i) => (i === 0 ? ctx.moveTo(x(p.volumeMl), y(p.ph)) : ctx.lineTo(x(p.volumeMl), y(p.ph))));
     ctx.stroke();
 
-    ctx.fillStyle = '#9aa3b2';
+    ctx.fillStyle = palette.label;
     ctx.textAlign = 'center';
     ctx.fillText(t('curve.axisX'), pad.l + plotW / 2, height - 1);
-  }, [points, eqVolumes, width, height, t]);
+  }, [points, eqVolumes, width, height, t, palette]);
 
   const eq = eqVolumes[0] ?? 0;
   return <canvas ref={ref} className="curve-canvas" role="img"
@@ -98,7 +111,7 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280 }) {
 
 const ACID_TYPES = ['weakAcid', 'strongAcid', 'polyprotic'];
 
-export default function CurveTab({ onRecord, restored }) {
+export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [acidType, setAcidType] = useState(restored?.acidType ?? 'weakAcid');
   const [pka, setPka] = useState(restored?.pKa != null ? String(restored.pKa) : '4.76');
@@ -176,7 +189,7 @@ export default function CurveTab({ onRecord, restored }) {
 
       {out && (
         <div className="result">
-          <CurveChart points={out.points} eqVolumes={out.eqVolumes} />
+          <CurveChart points={out.points} eqVolumes={out.eqVolumes} theme={theme} />
           <Result
             value={fmt(out.first.volumeMl, 2)}
             unit={t('curve.equivalenceUnit')}

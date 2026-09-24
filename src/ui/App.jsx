@@ -1,8 +1,15 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { FlaskConical, Droplets, TestTube2, ArrowLeftRight, Activity, Percent, LineChart } from 'lucide-react';
+import {
+  FlaskConical, Droplets, TestTube2, ArrowLeftRight, Activity, Percent, LineChart,
+  Languages, ShieldAlert,
+} from 'lucide-react';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
 } from './history.mjs';
+import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
+import { useI18n } from './LocaleContext.jsx';
+import { useTheme, ThemeToggle } from './ThemeContext.jsx';
+import { LOCALES } from './i18n.mjs';
 import WeighTab from './tabs/WeighTab.jsx';
 import DiluteTab from './tabs/DiluteTab.jsx';
 import BufferTab from './tabs/BufferTab.jsx';
@@ -12,7 +19,7 @@ import PhTab from './tabs/PhTab.jsx';
 import PercentTab from './tabs/PercentTab.jsx';
 import CurveTab from './tabs/CurveTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
-import { useI18n, LocaleSwitcher } from './LocaleContext.jsx';
+import NoticeModal from './components/NoticeModal.jsx';
 
 const TABS = [
   { id: 'weigh', icon: FlaskConical, Component: WeighTab },
@@ -25,24 +32,49 @@ const TABS = [
   { id: 'convert', icon: ArrowLeftRight, Component: ConvertTab },
 ];
 
+function LocaleSelect() {
+  const { locale, setLocale, t } = useI18n();
+  return (
+    <span className="control-group">
+      <Languages size={14} aria-hidden="true" />
+      <label className="sr-only" htmlFor="locale-select">{t('app.langLabel')}</label>
+      <select
+        id="locale-select"
+        className="control"
+        value={locale}
+        onChange={(e) => setLocale(e.target.value)}
+      >
+        {Object.entries(LOCALES).map(([code, name]) => (
+          <option key={code} value={code}>{name}</option>
+        ))}
+      </select>
+    </span>
+  );
+}
+
 export default function App() {
   const { t } = useI18n();
+  const { resolved } = useTheme();
   const [tab, setTab] = useState('weigh');
   const [entries, setEntries] = useState([]);
-  // `restored` is handed to the active tab as initial values. Bumping `nonce`
-  // forces a remount, so restoring the same calculation twice still resets the
-  // form rather than being ignored as an unchanged prop.
   const [restored, setRestored] = useState(null);
   const [nonce, setNonce] = useState(0);
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [ackd, setAckd] = useState(true);
   const store = useMemo(() => resolveStore(), []);
 
   useEffect(() => { setEntries(loadHistory(store)); }, [store]);
   useEffect(() => { saveHistory(store, entries); }, [store, entries]);
 
-  const record = useCallback((entry) => {
-    setEntries((prev) => addEntry(prev, entry));
-  }, []);
+  // Show the notice on first visit. Deferred to an effect rather than initial
+  // state so it never flashes for a returning user.
+  useEffect(() => {
+    const acked = hasAcknowledged(store);
+    setAckd(acked);
+    if (!acked) setNoticeOpen(true);
+  }, [store]);
 
+  const record = useCallback((entry) => setEntries((prev) => addEntry(prev, entry)), []);
   const remove = useCallback((id) => setEntries((prev) => removeEntry(prev, id)), []);
   const clear = useCallback(() => setEntries(clearHistory()), []);
 
@@ -54,16 +86,30 @@ export default function App() {
     setNonce((k) => k + 1);
   }, []);
 
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const acceptNotice = useCallback(() => {
+    acknowledge(store);
+    setAckd(true);
+    setNoticeOpen(false);
+  }, [store]);
+
+  const active = TABS.find((x) => x.id === tab) ?? TABS[0];
   const ActiveTab = active.Component;
 
   return (
     <div className="app">
-      <header className="app-head">
-        <h1>{t('app.title')}</h1>
-        <LocaleSwitcher />
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true"><FlaskConical size={19} /></span>
+          <div className="brand-text">
+            <h1>{t('app.title')}</h1>
+            <p className="brand-sub">{t('app.tagline')}</p>
+          </div>
+        </div>
+        <div className="topbar-actions">
+          <LocaleSelect />
+          <ThemeToggle />
+        </div>
       </header>
-      <p className="tagline">{t('app.tagline')}</p>
 
       <div className="tabs" role="tablist">
         {TABS.map(({ id, icon: Icon }) => (
@@ -82,10 +128,28 @@ export default function App() {
 
       <div className="split">
         <div>
-          <ActiveTab key={nonce} onRecord={record} restored={restored} />
+          <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
         </div>
         <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear} />
       </div>
+
+      <footer className="footer">
+        <ShieldAlert size={12} aria-hidden="true" />
+        <span>{t('disclaimer.footer')}</span>
+        <span className="sep">·</span>
+        <button className="link-btn" onClick={() => setNoticeOpen(true)}>
+          {t('disclaimer.footerLink')}
+        </button>
+        <span className="grow" />
+        <span>{t('app.footerVersion')}</span>
+      </footer>
+
+      <NoticeModal
+        open={noticeOpen}
+        mustAcknowledge={!ackd}
+        onAcknowledge={acceptNotice}
+        onClose={() => setNoticeOpen(false)}
+      />
     </div>
   );
 }

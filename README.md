@@ -4,7 +4,7 @@
 
 **在线使用：<https://acrot0.github.io/lab-calc/>** —— 无需安装，可离线使用（PWA），数据只存在你自己的浏览器里。
 
-中文 / English 双语，右上角切换。
+中文 / English 双语，深色 / 浅色 / 跟随系统三种主题，右上角切换。
 
 ```bash
 npm install
@@ -14,6 +14,18 @@ npm test         # 90 个测试
 ```
 
 ---
+
+## ⚠️ 仅供教学与学习
+
+**本工具用于教学演示与日常学习，不可用于临床、诊断、生产或任何有法规要求的场景。**
+
+首次打开会显示完整的使用须知，确认后可随时从页脚重新打开。须知里写明了具体的模型局限，而不是笼统的免责声明：
+
+- 按**理想溶液**处理：不考虑活度系数、温度、离子强度、CO₂ 溶解、溶剂体积收缩与杂质
+- 滴定曲线在**等当点附近为近似值**
+- 任何实际配制前，请与教材、药典或试剂说明书**对照核对**
+
+写明这些不是为了免责，是因为一个看起来权威、实则按理想溶液计算的结果，会被信任到超出它应得的程度。
 
 ## 为什么做这个
 
@@ -85,13 +97,19 @@ src/
 │   ├── curve.mjs        滴定曲线（单元/强酸/多元酸）
 │   └── errors.mjs       错误码（计算层不抛用户可见文案）
 └── ui/
-    ├── App.jsx          界面
-    ├── LocaleContext.jsx 语言 context + 切换器
-    ├── i18n.mjs         翻译层
-    ├── locales/         zh.mjs / en.mjs
-    ├── summaries.mjs    历史摘要（渲染时派生，非持久化）
-    ├── history.mjs      历史记录（存储接口注入）
-    └── export.mjs       CSV / Markdown 导出
+    ├── App.jsx           界面外壳
+    ├── LocaleContext.jsx 语言 context
+    ├── ThemeContext.jsx  主题 context + 切换器
+    ├── i18n.mjs          翻译层
+    ├── theme.mjs         主题解析（深/浅/跟随系统）
+    ├── disclaimer.mjs    教学用途须知（内容 + 确认状态）
+    ├── locales/          zh.mjs / en.mjs
+    ├── summaries.mjs     历史摘要（渲染时派生，非持久化）
+    ├── history.mjs       历史记录（存储接口注入）
+    ├── export.mjs        CSV / Markdown 导出
+    ├── styles.css        设计 token + 组件样式
+    ├── tabs/             8 个计算标签页
+    └── components/       表单原语、历史面板、须知弹窗
 ```
 
 三处刻意的分层：

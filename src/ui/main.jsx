@@ -6,6 +6,7 @@ import '@fontsource/inter/600.css';
 import './styles.css';
 import App from './App.jsx';
 import { LocaleProvider } from './LocaleContext.jsx';
+import { ThemeProvider } from './ThemeContext.jsx';
 import { resolveStore } from './history.mjs';
 
 // The locale store and the history store are the same localStorage; resolving
@@ -15,7 +16,9 @@ const store = resolveStore();
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <LocaleProvider store={store}>
-      <App />
+      <ThemeProvider store={store}>
+        <App />
+      </ThemeProvider>
     </LocaleProvider>
   </React.StrictMode>,
 );

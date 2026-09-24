@@ -8,6 +8,7 @@ export const en = {
     title: 'Lab Calc',
     tagline: 'Solution chemistry, with every calculation kept',
     langLabel: 'Language',
+    footerVersion: 'v0.4.0 · open source · MIT',
   },
   tabs: {
     weigh: 'Weigh out',
@@ -177,6 +178,17 @@ export const en = {
     percentPrepare: 'Prepare {percent}% (w/v) {formula}, {volume} mL',
     percentConvert: '{molarity} mol/L {formula} as a percentage',
     curve: 'Titration curve: {conc} mol/L {acidKind}, {volume} mL, equivalence {eqVolume} mL / pH {eqPh}',
+  },
+  disclaimer: {
+    title: 'Before you use this',
+    subtitle: 'Please read — it affects what you prepare from these numbers',
+    ack: 'I have read and understood this',
+    ackNote: 'Shown once. Reopen it any time from the footer.',
+    footer: 'Educational use only · not for clinical, diagnostic, or production use',
+    footerLink: 'Read the notice',
+    reopen: 'Read the notice',
+    close: 'Close',
+    ackFailed: 'Browser storage is unavailable, so this acknowledgement will not be remembered.',
   },
   fields: {
     molarity: 'Concentration',
