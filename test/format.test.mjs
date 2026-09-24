@@ -79,6 +79,22 @@ describe('fmtSci', () => {
     // exponent path and print "0×10⁰".
     expect(fmtSci(0)).toBe('0');
   });
+
+  it('should not collapse a tiny concentration to zero', () => {
+    // A serial dilution reaches 1e-16 by the eighth 1:100 tube. fmt rounds
+    // that to "0", so the row claimed there was no solute in the tube — the
+    // one number in the table a reader must not get wrong.
+    expect(fmt(1e-16, 4)).toBe('0');
+    expect(fmtSci(1e-16, 4)).toBe('1×10⁻¹⁶');
+  });
+
+  it('should keep every step of a real dilution series distinguishable', () => {
+    // Eight 1:100 steps span 1e-16; under fmt the last several all read "0".
+    const series = Array.from({ length: 8 }, (_, i) => 1 / 100 ** (i + 1));
+    const rendered = series.map((c) => fmtSci(c, 4));
+    expect(new Set(rendered).size).toBe(8);
+    expect(rendered).not.toContain('0');
+  });
 });
 
 describe('shownFor', () => {

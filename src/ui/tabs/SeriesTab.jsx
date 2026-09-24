@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dilutionSeries } from '../../calc/buffer.mjs';
 import { NumField, Err } from '../components/Fields.jsx';
-import { fmt, n } from '../format.mjs';
+import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -66,7 +66,9 @@ export default function SeriesTab({ onRecord, restored }) {
               {out.map((s) => (
                 <tr key={s.step}>
                   <th scope="row">{s.step}</th>
-                  <td>{fmt(s.conc, 4)}</td>
+                  {/* A 1:100 series reaches 1e-16 by tube 8, and fmt would
+                      render that as 0 — a row claiming no solute at all. */}
+                  <td>{fmtSci(s.conc, 4)}</td>
                   <td>{s.step === 1 ? t('series.stock') : t('series.fromTube', { n: s.step - 1 })}</td>
                   <td>{fmt(s.stockVolumeMl, 2)} mL</td>
                   <td>{fmt(s.diluentVolumeMl, 2)} mL</td>
