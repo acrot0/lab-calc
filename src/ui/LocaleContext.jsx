@@ -15,6 +15,14 @@ export function LocaleProvider({ store, children }) {
 
   useEffect(() => { if (store) saveLocale(store, locale); }, [store, locale]);
 
+  // index.html ships lang="zh-CN", so switching to English left the document
+  // claiming to be Chinese. A screen reader picks its pronunciation from this
+  // attribute, which means English text was being read with Chinese phonetics.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+  }, [locale]);
+
   // `t` falls back to Chinese for any key English is missing, so a gap in the
   // translation degrades to a readable string rather than a raw key.
   const value = useMemo(() => ({
