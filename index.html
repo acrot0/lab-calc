@@ -10,10 +10,16 @@
     />
     <meta name="theme-color" content="#0f1115" />
     <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
+    <!-- `mobile-web-app-capable` is the current name; the apple-prefixed one is
+         deprecated and logs a console warning in Chromium. Both are kept
+         because older iOS Safari only honours the apple one. -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Lab Calc" />
   </head>
   <body>
     <div id="root"></div>

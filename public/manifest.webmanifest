@@ -1,15 +1,25 @@
 {
   "name": "Lab Calc — 实验室溶液计算器",
   "short_name": "Lab Calc",
-  "description": "称量、稀释、缓冲液、pH、滴定曲线。每次计算自动留存。",
+  "description": "称量、稀释、缓冲液、pH、滴定曲线、反应计量、电化学、元素周期表。每次计算自动留存，可导出 CSV，可离线使用。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0f1115",
   "theme_color": "#0f1115",
-  "lang": "zh",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["education", "productivity", "utilities"],
   "icons": [
-    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "称量配制", "short_name": "称量", "url": "./?tab=weigh" },
+    { "name": "稀释", "short_name": "稀释", "url": "./?tab=dilute" },
+    { "name": "元素周期表", "short_name": "周期表", "url": "./?tab=elements" }
   ]
 }

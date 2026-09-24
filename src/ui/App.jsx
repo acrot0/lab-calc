@@ -66,10 +66,27 @@ function LocaleSelect() {
   );
 }
 
+/**
+ * Which tab to open on load.
+ *
+ * The manifest's `shortcuts` link to `?tab=...`, so the value arrives from
+ * outside the app. Anything unrecognised falls back to the default rather than
+ * being trusted — an unknown id would leave the view blank, and a shortcut is
+ * exactly the kind of thing that goes stale when a tab is renamed.
+ */
+function initialTab() {
+  try {
+    const want = new URLSearchParams(globalThis.location?.search ?? '').get('tab');
+    return TABS.some((x) => x.id === want) ? want : 'weigh';
+  } catch {
+    return 'weigh';
+  }
+}
+
 export default function App() {
   const { t } = useI18n();
   const { resolved } = useTheme();
-  const [tab, setTab] = useState('weigh');
+  const [tab, setTab] = useState(initialTab);
   const [entries, setEntries] = useState([]);
   const [restored, setRestored] = useState(null);
   const [nonce, setNonce] = useState(0);

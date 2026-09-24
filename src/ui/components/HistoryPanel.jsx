@@ -4,6 +4,7 @@ import { filterHistory } from '../history.mjs';
 import { downloadCsv, downloadMarkdown } from '../export.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { recordSummary } from '../summaries.mjs';
+import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 
 export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
   const { t } = useI18n();
@@ -73,12 +74,16 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
 
       {entries.length === 0 ? (
         <div className="empty">
+          <ArtEmptyHistory />
           {t('history.empty')}<br />
           {t('history.emptyHint1')}<br />
           {t('history.emptyHint2')}
         </div>
       ) : shown.length === 0 ? (
-        <div className="empty">{t('history.noMatch', { query })}</div>
+        <div className="empty">
+          <ArtEmptySearch />
+          {t('history.noMatch', { query })}
+        </div>
       ) : (
         <div className="history-list">
           {shown.map((e) => {

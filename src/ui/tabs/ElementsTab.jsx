@@ -108,13 +108,15 @@ export default function ElementsTab() {
 
       <div className="ptable-wrap">
         <div className="ptable" role="grid" aria-label={t('elements.tableLabel')}>
-          {ELEMENTS.map((el) => (
+          {ELEMENTS.map((el, idx) => (
             <button
               key={el.symbol}
               type="button"
               role="gridcell"
               className={`pcell${dim(el)}${selected?.symbol === el.symbol ? ' is-on' : ''}`}
-              style={{ gridColumn: el.group, gridRow: el.period, ...cellStyle(el) }}
+              // --i drives the staggered entrance; it is capped so the last
+              // element does not arrive visibly late behind the first.
+              style={{ gridColumn: el.group, gridRow: el.period, '--i': Math.min(idx, 40), ...cellStyle(el) }}
               aria-label={`${el.number} ${el.symbol} ${el.zh}`}
               aria-pressed={selected?.symbol === el.symbol}
               onClick={() => setSelected(el)}

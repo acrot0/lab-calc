@@ -1142,3 +1142,95 @@ button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
   .ptable { grid-auto-rows: 40px; }
   .pcell-name { display: none; }
 }
+
+/* ==========================================================================
+   Illustrations
+   ========================================================================== */
+
+/*
+ * Strokes inherit from the theme rather than being baked into the SVG, so one
+ * drawing serves both light and dark. `vector-effect` keeps the line weight
+ * constant when the art is scaled down in the narrow layout.
+ */
+.art { display: block; margin: 0 auto var(--s3); }
+.art-line { stroke: var(--text-dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.art-faint { stroke: var(--border-strong, var(--text-dim)); opacity: 0.55; }
+.art-accent { stroke: var(--accent); stroke-width: 2; fill: var(--accent); stroke-linecap: round; }
+
+.empty .art { opacity: 0.9; }
+
+/* ==========================================================================
+   Motion
+   ========================================================================== */
+
+/*
+ * Motion here is deliberately small: a few pixels and a couple of hundred
+ * milliseconds. The point is to make the interface feel responsive, not to be
+ * noticed. Anything longer reads as latency on a tool people use repeatedly in
+ * a lab, and anything that moves on every keystroke becomes an irritant.
+ *
+ * Every rule below is disabled by the reduced-motion block further down.
+ */
+
+/* Cards and results settle in rather than snapping. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The active tab's underline grows from the centre instead of appearing. */
+@keyframes tab-underline {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.tab[aria-selected="true"]::after {
+  animation: tab-underline var(--dur) var(--ease);
+  transform-origin: center;
+}
+
+/* Primary buttons press in. A 1px shift is enough to feel physical without
+   moving the button out from under the cursor. */
+.primary { transition: background var(--dur-fast) var(--ease), transform 80ms var(--ease), box-shadow var(--dur-fast) var(--ease); }
+.primary:hover { box-shadow: var(--shadow-2, var(--shadow-1)); }
+.primary:active { transform: translateY(1px); }
+
+/* Inputs lift their border on focus rather than only recolouring it. */
+input, select, textarea { transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(78, 161, 255, 0.18));
+}
+
+/* History entries slide in as they are recorded. */
+.history-item { animation: rise-in var(--dur) var(--ease); }
+
+/* Periodic-table cells: a short, staggered settle on first paint. The delay is
+   capped so the last element does not arrive noticeably late. */
+@keyframes cell-in {
+  from { opacity: 0; transform: scale(0.86); }
+  to { opacity: 1; transform: none; }
+}
+
+.pcell {
+  animation: cell-in 220ms var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 4ms);
+}
+
+/* The selected element's detail panel re-settles when the selection changes. */
+.result { animation: rise-in var(--dur) var(--ease); }
+
+/*
+ * Reduced motion: collapse everything to near-zero rather than removing it.
+ * Removing the animation outright can leave elements stuck at their `from`
+ * state in some browsers; a 0.01ms duration lets them land on `to` instantly.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pcell:hover, .primary:active { transform: none; }
+}
