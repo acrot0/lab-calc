@@ -39,7 +39,7 @@ describe('recordSummary — reagent', () => {
       inputs: { mode: 'normality', formula: 'H2SO4', molarity: 0.5, n: 2 },
       outputs: { normality: 1, equivalentWeight: 49.04 },
     });
-    expect(s).toContain('1.000 N');
+    expect(s).toContain('1 N');
     expect(s).toContain('n = 2');
   });
 
@@ -88,7 +88,9 @@ describe('recordSummary — spectro', () => {
       inputs: { mode: 'concentration', epsilon: 15000, absorbance: 0.75, pathCm: 1 },
       outputs: { conc: 5e-5, absorbance: 0.75 },
     });
-    expect(s).toContain('0.00005');
+    // 5e-5 is below fmtSci's plain-decimal floor, so it reads as a mantissa
+    // and exponent — the same form the result panel uses for this value.
+    expect(s).toContain('5×10⁻⁵');
   });
 
   it('should report the point count and R² for a standard curve', () => {
@@ -110,8 +112,21 @@ describe('recordSummary — lab', () => {
       outputs: { massG: 5.844, moles: 0.1 },
     });
     expect(s).toContain('NaCl');
-    expect(s).toContain('5.8440');
-    expect(s).toContain('0.100000');
+    expect(s).toContain('5.844');
+    expect(s).toContain('0.1');
+  });
+
+  it('should not render a trace amount as zero in the history line', () => {
+    // The history line had its own toFixed formatter, so a 1 µM preparation
+    // recorded "称取 0.00 g NaCl" while the result panel beside it showed
+    // 5.844×10⁻⁸ g. Both now go through fmtSci.
+    const s = sum({
+      kind: 'lab',
+      inputs: { mode: 'moles', formula: 'NaCl', massG: 5.844e-8 },
+      outputs: { massG: 5.844e-8, moles: 1e-9 },
+    });
+    expect(s).not.toContain('0.00 g');
+    expect(s).toContain('5.844×10⁻⁸');
   });
 
   it('should show the plate count scaled by the dilution', () => {
@@ -227,7 +242,7 @@ describe('recordSummary — reaction', () => {
       outputs: { limiting: 'O2', extent: 0.5 },
     });
     expect(s).toContain('O2');
-    expect(s).toContain('0.50000');
+    expect(s).toContain('0.5');
   });
 
   it('should name the empirical formula and count the elements', () => {

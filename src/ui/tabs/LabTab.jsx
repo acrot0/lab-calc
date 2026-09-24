@@ -216,15 +216,17 @@ export default function LabTab({ onRecord, restored }) {
       {err && <Err>{err}</Err>}
 
       {shown?.mode === 'moles' && (
-        <Result value={fmt(shown.moles, 6)} unit="mol"
+        <Result value={fmtSci(shown.moles, 4)} unit="mol"
           note={t('lab.molesNote', { molarMass: fmt(shown.molarMass, 2) })}
           rows={[
-            [t('lab.mass'), `${fmt(shown.massG, 4)} g`],
+            [t('lab.mass'), `${fmtSci(shown.massG, 4)} g`],
             // Particles and copy numbers run to 1e22, where a plain decimal is
             // a wall of digits and Number#toString falls back to "6.02e+22".
+            // The same is true downwards: a nanogram of solute is 1e-11 mol,
+            // which fmt rounds to "0" and reads as an empty tube.
             [t('lab.particles'), fmtSci(shown.particles)],
             ...(shown.molarity != null
-              ? [[t('lab.molarity'), `${fmt(shown.molarity, 4)} mol/L`]]
+              ? [[t('lab.molarity'), `${fmtSci(shown.molarity, 4)} mol/L`]]
               : []),
           ]} />
       )}
@@ -238,13 +240,13 @@ export default function LabTab({ onRecord, restored }) {
       )}
 
       {shown?.mode === 'nucleic' && (
-        <Result value={fmt(shown.pmolPerUl, 4)} unit="pmol/µL"
+        <Result value={fmtSci(shown.pmolPerUl, 4)} unit="pmol/µL"
           note={t('lab.naNote', { kind: t(`lab.na_${naKind}`), residue: shown.residueMass })}
           rows={[
-            [t('lab.concNg'), `${fmt(shown.concNgPerUl, 3)} ng/µL`],
+            [t('lab.concNg'), `${fmtSci(shown.concNgPerUl, 3)} ng/µL`],
             [t('lab.copies'), `${fmtSci(shown.copiesPerUl)} copies/µL`],
             ...(shown.totalNg != null
-              ? [[t('lab.totalMass'), `${fmt(shown.totalNg, 2)} ng`], [t('lab.totalPmol'), `${fmt(shown.totalPmol, 3)} pmol`]]
+              ? [[t('lab.totalMass'), `${fmtSci(shown.totalNg, 3)} ng`], [t('lab.totalPmol'), `${fmtSci(shown.totalPmol, 3)} pmol`]]
               : []),
           ]} />
       )}

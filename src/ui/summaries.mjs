@@ -1,3 +1,5 @@
+import { fmtSci } from './format.mjs';
+
 /**
  * Human-readable one-line summaries for the history list.
  *
@@ -10,7 +12,21 @@
  * The record itself stores only `kind`, `inputs` and `outputs` — the summary is
  * derived, never persisted. That is what makes a language switch retroactive.
  */
-const fmt = (v, digits = 2) => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(digits) : '?');
+/**
+ * Format a number for a history line.
+ *
+ * This used to be its own `v.toFixed(digits)`, which meant the summary and the
+ * result panel could disagree about the same number — and for a trace amount
+ * the summary said "0.00 g" while the panel said "5.844×10⁻⁸ g". One formatter
+ * for both, so a value reads the same wherever it appears.
+ *
+ * The only difference from the panel is the fallback: a history line has to
+ * stay legible when a field is missing, so a non-number renders as "?" rather
+ * than the panel's em dash.
+ */
+const fmt = (v, digits = 2) => (
+  typeof v === 'number' && Number.isFinite(v) ? fmtSci(v, digits) : '?'
+);
 
 export function recordSummary(record, t) {
   const kind = record?.kind ?? 'unknown';

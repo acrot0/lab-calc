@@ -4,7 +4,7 @@ import {
   molality, moleFraction, ionicStrength, activityCoefficient,
 } from '../../calc/reagent.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n, shownFor } from '../format.mjs';
+import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -191,6 +191,8 @@ export default function ReagentTab({ onRecord, restored }) {
       {err && <Err>{err}</Err>}
 
       {shown?.mode === 'stock' && (
+        /* Bounded: this is the molarity of a concentrated stock, so the
+           percentage input floors it around 1 M. fmt is correct here. */
         <Result value={fmt(shown.molarity, 2)} unit="mol/L"
           note={t('reagent.stockNote', { percent, density })}
           rows={[
@@ -218,20 +220,20 @@ export default function ReagentTab({ onRecord, restored }) {
       )}
 
       {shown?.mode === 'molality' && (
-        <Result value={fmt(shown.molality, 4)} unit="mol/kg"
+        <Result value={fmtSci(shown.molality, 4)} unit="mol/kg"
           note={t('reagent.molalityNote')}
           rows={[
-            [t('reagent.molality'), `${fmt(shown.molality, 4)} mol/kg`],
-            [t('reagent.moleFraction'), fmt(shown.moleFraction, 5)],
-            [t('reagent.solventMoles'), `${fmt(n(solventKg) * 55.51, 2)} mol`],
+            [t('reagent.molality'), `${fmtSci(shown.molality, 4)} mol/kg`],
+            [t('reagent.moleFraction'), fmtSci(shown.moleFraction, 5)],
+            [t('reagent.solventMoles'), `${fmtSci(n(solventKg) * 55.51, 3)} mol`],
           ]} />
       )}
 
       {shown?.mode === 'ionic' && (
-        <Result value={fmt(shown.ionicStrength, 4)} unit="mol/L"
+        <Result value={fmtSci(shown.ionicStrength, 4)} unit="mol/L"
           note={t('reagent.ionicNote')}
           rows={[
-            [t('reagent.ionicStrength'), `${fmt(shown.ionicStrength, 4)} mol/L`],
+            [t('reagent.ionicStrength'), `${fmtSci(shown.ionicStrength, 4)} mol/L`],
             [t('reagent.gammaMono'), fmt(shown.gammaMono, 4)],
             [t('reagent.gammaDi'), fmt(shown.gammaDi, 4)],
           ]} />

@@ -4,7 +4,7 @@ import {
 } from '../../calc/reaction.mjs';
 import { ATOMIC_WEIGHTS } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n, shownFor } from '../format.mjs';
+import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -203,17 +203,17 @@ export default function ReactionTab({ onRecord, restored }) {
       {shown?.mode === 'limiting' && (
         <>
           <Result value={shown.limiting} unit={t('reaction.limitingUnit')}
-            note={t('reaction.extentNote', { extent: fmt(shown.extent, 5) })}
+            note={t('reaction.extentNote', { extent: fmtSci(shown.extent, 5) })}
             rows={shown.products.map((p) => [
               `${p.formula} ${t('reaction.theoretical')}`,
-              `${fmt(p.massG, 4)} g / ${fmt(p.moles, 5)} mol`,
+              `${fmtSci(p.massG, 4)} g / ${fmtSci(p.moles, 5)} mol`,
             ])} />
           {shown.excess.length > 0 && (
             <div className="result-grid">
               {shown.excess.map((x) => (
                 <div key={x.formula}>
                   <span>{t('reaction.excessLeft', { formula: x.formula })}</span>
-                  <strong>{fmt(x.massG, 4)} g / {fmt(x.molesLeft, 5)} mol</strong>
+                  <strong>{fmtSci(x.massG, 4)} g / {fmtSci(x.molesLeft, 5)} mol</strong>
                 </div>
               ))}
             </div>

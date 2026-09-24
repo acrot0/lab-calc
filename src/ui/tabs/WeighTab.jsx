@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { stockFromSolid, molarMass } from '../../calc/solution.mjs';
 import { TextField, NumField, Result, Err } from '../components/Fields.jsx';
-import { fmt, n } from '../format.mjs';
+import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -55,12 +55,12 @@ export default function WeighTab({ onRecord, restored }) {
       <button className="primary" onClick={run} disabled={!M}>{t('common.calc')}</button>
       {err && <Err>{err}</Err>}
       <Result
-        value={out ? fmt(out.massG, 3) : null}
+        value={out ? fmtSci(out.massG, 3) : null}
         unit={t('weigh.unit')}
         note={out ? t('weigh.note', { volume: out.finalVolumeMl }) : null}
         rows={out ? [
           [t('common.molarMass'), `${fmt(out.molarMass, 3)} g/mol`],
-          [t('weigh.amount'), `${fmt(out.moles, 5)} mol`],
+          [t('weigh.amount'), `${fmtSci(out.moles, 4)} mol`],
           [t('weigh.finalVolume'), `${out.finalVolumeMl} mL`],
         ] : null}
       />

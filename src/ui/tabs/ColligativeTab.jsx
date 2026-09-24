@@ -3,7 +3,7 @@ import {
   colligative, osmoticPressure, molarMassFromFreezingPoint, SOLVENTS, DILUTE_LIMIT,
 } from '../../calc/colligative.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n, shownFor } from '../format.mjs';
+import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -152,10 +152,10 @@ export default function ColligativeTab({ onRecord, restored }) {
 
       {shown?.mode === 'osmotic' && (
         <Result value={fmt(shown.atm, 4)} unit="atm"
-          note={t('colligative.osmoticNote', { osmolarity: fmt(shown.osmolarity, 4), tempK: fmt(shown.tempK, 2) })}
+          note={t('colligative.osmoticNote', { osmolarity: fmtSci(shown.osmolarity, 4), tempK: fmt(shown.tempK, 2) })}
           rows={[
             [t('colligative.kPa'), `${fmt(shown.kPa, 3)} kPa`],
-            [t('colligative.osmolarity'), `${fmt(shown.osmolarity, 4)} osmol/L`],
+            [t('colligative.osmolarity'), `${fmtSci(shown.osmolarity, 4)} osmol/L`],
           ]} />
       )}
 
@@ -163,8 +163,8 @@ export default function ColligativeTab({ onRecord, restored }) {
         <Result value={fmt(shown.molarMass, 3)} unit="g/mol"
           note={t('colligative.unknownNote', { kf: fmt(shown.kf, 2), solvent: solventName })}
           rows={[
-            [t('colligative.molality'), `${fmt(shown.molality, 5)} mol/kg`],
-            [t('colligative.moles'), `${fmt(shown.moles, 6)} mol`],
+            [t('colligative.molality'), `${fmtSci(shown.molality, 5)} mol/kg`],
+            [t('colligative.moles'), `${fmtSci(shown.moles, 5)} mol`],
           ]} />
       )}
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { beerLambert, standardCurve, predictFromCurve, LINEAR_ABSORBANCE_MAX } from '../../calc/reagent.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n, shownFor } from '../format.mjs';
+import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -186,11 +186,14 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
 
       {shown?.mode === 'concentration' && (
         <>
-          <Result value={fmt(shown.conc, 8)} unit="mol/L"
+          {/* A weak absorber at a short path gives a concentration far below
+              1e-8, which fmt rounds to "0" — the reading would say the sample
+              is blank. fmtSci keeps the magnitude visible. */}
+          <Result value={fmtSci(shown.conc, 4)} unit="mol/L"
             note={t('spectro.concNote')}
             rows={[
-              [t('spectro.conc'), `${fmt(shown.conc, 8)} mol/L`],
-              [t('spectro.concUm'), `${fmt(shown.conc * 1e6, 4)} µmol/L`],
+              [t('spectro.conc'), `${fmtSci(shown.conc, 4)} mol/L`],
+              [t('spectro.concUm'), `${fmtSci(shown.conc * 1e6, 4)} µmol/L`],
             ]} />
           {warnMsg(shown.linearityWarning) && <Warn>{warnMsg(shown.linearityWarning)}</Warn>}
         </>
@@ -201,7 +204,7 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
           <div className="result">
             <CurvePlot points={shown.points} fit={shown.fit} reading={n(reading)} theme={theme} />
             <div className="result-main">
-              {fmt(shown.pred.value, 6)}<span className="unit">{t('spectro.predictedConc')}</span>
+              {fmtSci(shown.pred.value, 6)}<span className="unit">{t('spectro.predictedConc')}</span>
             </div>
             <div className="result-note">{t('spectro.curveNote', { r2: fmt(shown.fit.r2, 5) })}</div>
             <div className="result-grid">

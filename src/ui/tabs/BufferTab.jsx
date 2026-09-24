@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { bufferRecipe } from '../../calc/buffer.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n } from '../format.mjs';
+import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -47,8 +47,8 @@ export default function BufferTab({ onRecord, restored }) {
         unit={t('buffer.ratioUnit')}
         note={out ? t('buffer.equation', { pka: fmt(out.pKa, 2), log: fmt(Math.log10(out.ratio), 3) }) : null}
         rows={out ? [
-          [t('buffer.acid'), `${fmt(out.acidConc, 4)} mol/L`],
-          [t('buffer.base'), `${fmt(out.baseConc, 4)} mol/L`],
+          [t('buffer.acid'), `${fmtSci(out.acidConc, 4)} mol/L`],
+          [t('buffer.base'), `${fmtSci(out.baseConc, 4)} mol/L`],
           [t('buffer.range'), out.inRange ? t('buffer.inRange') : t('buffer.outOfRange')],
         ] : null}
       />

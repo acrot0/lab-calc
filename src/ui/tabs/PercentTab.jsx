@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { percentToMolarity, molarityToPercent, preparePercentSolution } from '../../calc/titration.mjs';
 import { molarMass } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n, shownFor } from '../format.mjs';
+import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -94,12 +94,12 @@ export default function PercentTab({ onRecord, restored }) {
 
       {mode === 'prepare' ? (
         <Result
-          value={shown ? fmt(shown.massG, 3) : null}
+          value={shown ? fmtSci(shown.massG, 3) : null}
           unit={t('percent.unit')}
-          note={shown ? t('percent.notePrepare', { volume: shown.volumeMl, molarity: fmt(shown.molarity, 4) }) : null}
+          note={shown ? t('percent.notePrepare', { volume: shown.volumeMl, molarity: fmtSci(shown.molarity, 4) }) : null}
           rows={shown ? [
-            [t('percent.unit'), `${fmt(shown.massG, 4)} g`],
-            [t('percent.equivalentConc'), `${fmt(shown.molarity, 4)} mol/L`],
+            [t('percent.unit'), `${fmtSci(shown.massG, 4)} g`],
+            [t('percent.equivalentConc'), `${fmtSci(shown.molarity, 4)} mol/L`],
             [t('common.molarMass'), `${fmt(shown.molarMass, 3)} g/mol`],
           ] : null}
         />
