@@ -96,14 +96,20 @@ export default function ElementsTab() {
     const q = query.trim().toLowerCase();
     if (q.length === 0) return null;
     return new Set(
-      ELEMENTS.filter((e) =>
-        e.symbol.toLowerCase().includes(q)
-        || e.name.toLowerCase().includes(q)
-        || e.zh.includes(query.trim())
-        || String(e.number) === q)
-        .map((e) => e.symbol),
+      ELEMENTS.filter((e) => {
+        const cat = categoryOf(e);
+        return e.symbol.toLowerCase().includes(q)
+          || e.name.toLowerCase().includes(q)
+          || e.zh.includes(query.trim())
+          || String(e.number) === q
+          // "卤素" or "halogen" lists the family, which is how the table is
+          // usually queried — by group rather than by one element.
+          || t(`elements.cat_${cat}`).toLowerCase().includes(q)
+          || cat.toLowerCase().includes(q)
+          || t(`elements.block_${blockOf(e)}`).toLowerCase().includes(q);
+      }).map((e) => e.symbol),
     );
-  }, [query]);
+  }, [query, t]);
 
   /** Bring the first search hit into view once, when the query settles. */
   useEffect(() => {
