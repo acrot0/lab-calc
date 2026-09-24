@@ -536,6 +536,36 @@ button.primary:hover:not(:disabled) { background: var(--accent-hover); box-shado
 button.primary:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--shadow-1); }
 button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
+/* Secondary action: present and clickable, but never competing with the
+   primary button for attention. */
+button.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 36px;
+  padding: 0 var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-mid);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+
+button.ghost:hover:not(:disabled) {
+  background: var(--surface-3, var(--surface-2));
+  border-color: var(--border-strong, var(--accent));
+  color: var(--text);
+}
+
+button.ghost:active:not(:disabled) { transform: translateY(1px); }
+button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .link-btn {
   display: inline-flex;
   align-items: center;
