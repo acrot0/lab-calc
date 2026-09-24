@@ -17,7 +17,21 @@
  * app's own static assets.
  */
 
-const CACHE = 'lab-calc-v1';
+/*
+ * The cache name is the build id, injected at build time.
+ *
+ * A fixed name looks harmless but breaks the offline path it exists for: the
+ * shell is cached at install and refreshed only opportunistically, and
+ * `activate` purges every cache whose name differs from CACHE. With a constant
+ * name nothing is ever purged, so a browser that cached an old index.html can
+ * fall back to a shell referencing hashed assets from a previous build — files
+ * that were never in this cache and are gone from the server. The app then
+ * fails to boot, offline, which is exactly when it is supposed to work.
+ *
+ * Versioning the name makes each deploy a fresh cache: `activate` drops the old
+ * one, and the fallback shell always matches the assets beside it.
+ */
+const CACHE = `lab-calc-${__BUILD_ID__}`;
 
 // The shell is discovered at install time rather than hardcoded, because the
 // hashed asset filenames change on every build.
