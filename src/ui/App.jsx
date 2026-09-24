@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { FlaskConical, Droplets, TestTube2, ArrowLeftRight, Activity, Percent } from 'lucide-react';
+import { FlaskConical, Droplets, TestTube2, ArrowLeftRight, Activity, Percent, LineChart } from 'lucide-react';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
 } from './history.mjs';
@@ -10,6 +10,7 @@ import SeriesTab from './tabs/SeriesTab.jsx';
 import ConvertTab from './tabs/ConvertTab.jsx';
 import PhTab from './tabs/PhTab.jsx';
 import PercentTab from './tabs/PercentTab.jsx';
+import CurveTab from './tabs/CurveTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 
 const TABS = [
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'series', label: '梯度稀释', icon: Droplets, Component: SeriesTab },
   { id: 'ph', label: 'pH 计算', icon: Activity, Component: PhTab },
   { id: 'percent', label: '百分比配制', icon: Percent, Component: PercentTab },
+  { id: 'curve', label: '滴定曲线', icon: LineChart, Component: CurveTab },
   { id: 'convert', label: '单位换算', icon: ArrowLeftRight, Component: ConvertTab },
 ];
 

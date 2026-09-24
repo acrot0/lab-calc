@@ -120,6 +120,7 @@ export const KIND_TO_TAB = {
   dilutionSeries: 'series',
   phCalc: 'ph',
   percentSolution: 'percent',
+  titrationCurve: 'curve',
 };
 
 /**

@@ -225,6 +225,8 @@ export function summarizeRecord(record) {
       return `缓冲液 pH ${i.targetPh}（pKa ${i.pKa}）`;
     case 'phCalc':
       return `${i.kind === 'acid' ? '弱酸' : '弱碱'} pK ${i.pk}、${i.conc} mol/L`;
+    case 'titrationCurve':
+      return `滴定曲线 弱酸 pKa ${i.pKa}、${i.conc} mol/L ${i.volumeMl} mL`;
     case 'percentSolution':
       return o.massG != null
         ? `配制 ${i.percent}% (w/v) ${i.formula} ${i.volumeMl} mL`

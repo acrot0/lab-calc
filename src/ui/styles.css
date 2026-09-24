@@ -316,3 +316,49 @@ button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .series-table tbody tr:last-child td { border-bottom: none; }
 
 .result-note em { font-style: normal; color: var(--text); font-weight: 500; }
+
+/* Export menu */
+.head-actions { display: flex; align-items: center; gap: 12px; }
+.export-wrap { position: relative; }
+
+.export-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 4px;
+  z-index: 20;
+}
+
+.export-menu button {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 13px;
+  gap: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.export-menu button:hover { background: var(--border); }
+
+/* Titration curve canvas */
+.curve-canvas {
+  display: block;
+  margin: 0 auto 16px;
+  max-width: 100%;
+  border-radius: 8px;
+  background: var(--surface-2);
+}

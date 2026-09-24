@@ -1,17 +1,50 @@
 import React, { useState, useMemo } from 'react';
-import { History, Search, Trash2, RotateCcw } from 'lucide-react';
+import { History, Search, Trash2, RotateCcw, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { filterHistory } from '../history.mjs';
+import { downloadCsv, downloadMarkdown } from '../export.mjs';
 
 export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
   const [query, setQuery] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const shown = useMemo(() => filterHistory(entries, query), [entries, query]);
+
+  // Export what is currently visible, not the whole history — after a search,
+  // "export" plainly means "export these results".
+  function doExport(format) {
+    setMenuOpen(false);
+    if (format === 'csv') downloadCsv(shown);
+    else downloadMarkdown(shown);
+  }
 
   return (
     <div className="card">
       <div className="history-head">
         <h2><History size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} aria-hidden="true" />计算记录</h2>
         {entries.length > 0 && (
-          <button className="link-btn" onClick={onClear}>全部清除</button>
+          <div className="head-actions">
+            <div className="export-wrap">
+              <button
+                className="link-btn"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+              >
+                <Download size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} aria-hidden="true" />
+                导出
+              </button>
+              {menuOpen && (
+                <div className="export-menu" role="menu">
+                  <button role="menuitem" onClick={() => doExport('csv')}>
+                    <FileSpreadsheet size={13} aria-hidden="true" /> CSV（Excel 可开）
+                  </button>
+                  <button role="menuitem" onClick={() => doExport('markdown')}>
+                    <FileText size={13} aria-hidden="true" /> Markdown（贴记录本）
+                  </button>
+                </div>
+              )}
+            </div>
+            <button className="link-btn" onClick={onClear}>全部清除</button>
+          </div>
         )}
       </div>
 
