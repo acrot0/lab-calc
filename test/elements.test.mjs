@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ELEMENTS, elementBySymbol, ELEMENT_COUNT, gridPosition,
-  categoryOf, ELEMENT_CATEGORIES, CATEGORY_COLOR, blockOf,
+  categoryOf, ELEMENT_CATEGORIES, CATEGORY_COLOR, blockOf, periodOf, isFBlock,
 } from '../src/calc/elements.mjs';
 import { ATOMIC_WEIGHTS, molarMass } from '../src/calc/solution.mjs';
 
@@ -222,6 +222,60 @@ describe('blockOf', () => {
 
   it('should throw for an unknown element', () => {
     expect(() => blockOf('Xx')).toThrow(/unknown/);
+  });
+});
+
+describe('periodOf', () => {
+  it('should report the chemical period for a main-table element', () => {
+    expect(periodOf('H')).toBe(1);
+    expect(periodOf('Na')).toBe(3);
+    expect(periodOf('Fe')).toBe(4);
+    expect(periodOf('Rn')).toBe(6);
+  });
+
+  it('should report period 6 for every lanthanide, not the drawing row', () => {
+    // The f-block is drawn on rows 9 and 10 so it can be detached below the
+    // grid. Reporting the stored row would tell a reader that lanthanum sits
+    // in period 9 — a period that does not exist.
+    for (const s of ['La', 'Ce', 'Gd', 'Lu']) {
+      expect(periodOf(s), s).toBe(6);
+    }
+  });
+
+  it('should report period 7 for every actinide', () => {
+    for (const s of ['Ac', 'U', 'Cm', 'Lr']) {
+      expect(periodOf(s), s).toBe(7);
+    }
+  });
+
+  it('should never report a period outside 1-7', () => {
+    for (const e of ELEMENTS) {
+      const p = periodOf(e);
+      expect(p, `${e.symbol} period`).toBeGreaterThanOrEqual(1);
+      expect(p, `${e.symbol} period`).toBeLessThanOrEqual(7);
+    }
+  });
+
+  it('should throw for an unknown element', () => {
+    expect(() => periodOf('Xx')).toThrow(/unknown/);
+  });
+});
+
+describe('isFBlock', () => {
+  it('should be true only for the two detached rows', () => {
+    const f = ELEMENTS.filter((e) => isFBlock(e)).map((e) => e.symbol);
+    expect(f).toHaveLength(30);
+    expect(f).toContain('La');
+    expect(f).toContain('U');
+    expect(f).not.toContain('Hf');
+    expect(f).not.toContain('Rf');
+  });
+
+  it('should agree with blockOf on which elements are f-block', () => {
+    // Two ways of asking the same question must not disagree.
+    for (const e of ELEMENTS) {
+      expect(isFBlock(e), e.symbol).toBe(blockOf(e) === 'f');
+    }
   });
 });
 

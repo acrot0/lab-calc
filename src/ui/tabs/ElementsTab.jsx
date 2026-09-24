@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
-  ELEMENTS, elementBySymbol, categoryOf, blockOf,
+  ELEMENTS, elementBySymbol, categoryOf, blockOf, periodOf, isFBlock,
   ELEMENT_CATEGORIES, CATEGORY_COLOR,
 } from '../../calc/elements.mjs';
 import { fmt } from '../format.mjs';
@@ -174,6 +174,10 @@ export default function ElementsTab() {
 
   const cat = selected ? categoryOf(selected) : null;
   const blk = selected ? blockOf(selected) : null;
+  // Both live in the data module: the drawing row is not the chemical period,
+  // and the f-block's group numbers are layout coordinates rather than chemistry.
+  const chemPeriod = selected ? periodOf(selected) : null;
+  const onDetachedRow = selected ? isFBlock(selected) : false;
 
   return (
     <div className="card">
@@ -316,7 +320,13 @@ export default function ElementsTab() {
           </div>
           <div className="result-note">
             {selected.name} · {t('elements.number')} {selected.number} ·{' '}
-            {t('elements.period')} {selected.period} · {t('elements.group')} {selected.group} ·{' '}
+            {t('elements.period')} {chemPeriod} ·{' '}
+            {/* The f-block rows are drawn at groups 3-17 on this table, so the
+                stored group is a drawing coordinate, not chemistry: cerium is
+                not in group 4, which is Ti/Zr/Hf/Rf. Name the family instead. */}
+            {onDetachedRow
+              ? t(`elements.cat_${cat}`)
+              : `${t('elements.group')} ${selected.group}`} ·{' '}
             {t(`elements.block_${blk}`)}
           </div>
           <div className="result-grid">

@@ -243,6 +243,35 @@ export function blockOf(el) {
   return 'd';
 }
 
+/**
+ * Chemical period, which is not the same as the drawing row.
+ *
+ * The f-block occupies rows 9 and 10 so it can be drawn detached below the main
+ * grid. Those are coordinates, not chemistry: every lanthanide is in period 6
+ * and every actinide in period 7. Reporting the stored value would tell a
+ * reader that lanthanum sits in period 9, a period that does not exist.
+ */
+export function periodOf(el) {
+  const found = typeof el === 'string' ? elementBySymbol(el) : el;
+  if (!found) throw new Error(`elements: unknown element ${String(el)}`);
+  if (found.period === 9) return 6;
+  if (found.period === 10) return 7;
+  return found.period;
+}
+
+/**
+ * Whether the element belongs to the f-block, and so is drawn on a detached row.
+ *
+ * Callers use this to decide whether a group number is meaningful: the f-block
+ * rows span groups 3-17 for layout, so a lanthanide's stored group is a drawing
+ * coordinate — cerium is not in group 4, which holds Ti, Zr, Hf and Rf.
+ */
+export function isFBlock(el) {
+  const found = typeof el === 'string' ? elementBySymbol(el) : el;
+  if (!found) throw new Error(`elements: unknown element ${String(el)}`);
+  return found.period === 9 || found.period === 10;
+}
+
 /** Symbol to element. Returns null rather than throwing: callers render tables. */
 export function elementBySymbol(symbol) {
   if (typeof symbol !== 'string' || symbol.length === 0) return null;
