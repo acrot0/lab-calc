@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
   detectLocale,
   lookup,
@@ -183,6 +184,25 @@ describe('locale dictionaries', () => {
     for (const key of ['unit_mass', 'unit_rcow', 'unit_rvdw', 'matchCount']) {
       expect(zh.elements[key], `zh elements.${key}`).toBeTruthy();
       expect(en.elements[key], `en elements.${key}`).toBeTruthy();
+    }
+  });
+
+  it('should translate every error code the calc layer can throw', () => {
+    // A code with no translation renders as the raw code to the user, which is
+    // how an untranslated error reaches someone mid-experiment. The calc layer
+    // is scanned rather than listed, so a new fail() call is covered the moment
+    // it is written.
+    const dir = new URL('../src/calc/', import.meta.url);
+    const codes = new Set();
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.mjs'))) {
+      const src = readFileSync(new URL(file, dir), 'utf8');
+      for (const m of src.matchAll(/fail\(\s*'([a-zA-Z]+)'/g)) codes.add(m[1]);
+      for (const m of src.matchAll(/code:\s*'([a-zA-Z]+)'/g)) codes.add(m[1]);
+    }
+    expect(codes.size).toBeGreaterThan(20);
+    for (const code of codes) {
+      expect(zh.errors[code], `zh errors.${code}`).toBeTruthy();
+      expect(en.errors[code], `en errors.${code}`).toBeTruthy();
     }
   });
 
