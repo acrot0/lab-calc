@@ -136,6 +136,46 @@ describe('unitConvert', () => {
     );
   });
 
+  it('should refuse to convert mass to volume', () => {
+    // Both g and mL have a factor of 1 against their own base, so dividing one
+    // by the other returned the input unchanged — a confident, meaningless
+    // answer that nothing downstream could flag. Grams and millilitres are not
+    // the same kind of quantity; relating them needs a density this function
+    // has no way to know.
+    expect(() => unitConvert(1, 'g', 'mL')).toThrow(
+      expect.objectContaining({ code: 'incompatibleUnits' }),
+    );
+  });
+
+  it('should reject every cross-dimension pair', () => {
+    const cross = [
+      ['g', 'mL'], ['g', 'L'], ['kg', 'uL'], ['mg', 'M'],
+      ['mL', 'g'], ['L', 'mg'], ['uL', 'kg'], ['M', 'mL'],
+      ['mM', 'g'], ['uM', 'L'],
+    ];
+    for (const [a, b] of cross) {
+      expect(() => unitConvert(1, a, b), `${a} -> ${b}`).toThrow(
+        expect.objectContaining({ code: 'incompatibleUnits' }),
+      );
+    }
+  });
+
+  it('should still convert within each dimension after the guard', () => {
+    expect(unitConvert(2, 'kg', 'g')).toBeCloseTo(2000, 6);
+    expect(unitConvert(2, 'L', 'mL')).toBeCloseTo(2000, 6);
+    expect(unitConvert(2, 'mM', 'uM')).toBeCloseTo(2000, 6);
+  });
+
+  it('should report which dimensions collided, so the message can explain', () => {
+    try {
+      unitConvert(1, 'g', 'mL');
+      throw new Error('should have thrown');
+    } catch (e) {
+      expect(e.params.fromDim).toBe('mass');
+      expect(e.params.toDim).toBe('volume');
+    }
+  });
+
   it('should return the same value for identical units', () => {
     expect(unitConvert(3.5, 'mg', 'mg')).toBeCloseTo(3.5, 9);
   });

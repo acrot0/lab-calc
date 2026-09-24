@@ -91,9 +91,20 @@ export const CONC_UNITS = { M: 1, mM: 1e-3, uM: 1e-6, nM: 1e-9, pM: 1e-12 };
 
 const TABLES = [MASS_UNITS, VOLUME_UNITS, CONC_UNITS];
 
-function factorOf(unit) {
-  for (const t of TABLES) {
-    if (unit in t) return t[unit];
+/**
+ * Which dimension a unit belongs to, plus its factor to that dimension's base.
+ *
+ * The dimension matters as much as the factor. Mass and volume are separate
+ * tables with unrelated scales — 1 g and 1 mL both have a factor of 1 against
+ * their own base — so dividing one factor by the other converts grams to
+ * millilitres and returns a confident, meaningless number. Nothing downstream
+ * can tell that it was nonsense.
+ */
+function unitInfo(unit) {
+  for (const [dimension, table] of Object.entries({
+    mass: MASS_UNITS, volume: VOLUME_UNITS, concentration: CONC_UNITS,
+  })) {
+    if (unit in table) return { dimension, factor: table[unit] };
   }
   fail('unknownUnit', { unit });
 }
@@ -101,12 +112,17 @@ function factorOf(unit) {
 /**
  * Convert between units within one dimension.
  *
- * Looks the unit up across all tables; an unrecognised symbol throws rather
- * than defaulting to a factor of 1, which would silently return the input.
+ * An unrecognised symbol throws rather than defaulting to a factor of 1, and a
+ * cross-dimension request throws too: grams and millilitres are not the same
+ * kind of quantity, and a mass-to-volume answer would need a density that this
+ * function has no way to know.
  */
 export function unitConvert(value, from, to) {
   requireFinite(value, 'value');
-  const f = factorOf(from);
-  const t = factorOf(to);
-  return (value * f) / t;
+  const a = unitInfo(from);
+  const b = unitInfo(to);
+  if (a.dimension !== b.dimension) {
+    fail('incompatibleUnits', { from, to, fromDim: a.dimension, toDim: b.dimension });
+  }
+  return (value * a.factor) / b.factor;
 }
