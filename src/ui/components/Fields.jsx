@@ -3,8 +3,14 @@ import { AlertTriangle } from 'lucide-react';
 
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
 
-export function NumField({ label, value, onChange, hint, error, step = 'any', min }) {
-  const id = `f-${label}`;
+/**
+ * `id` is overridable because the default is derived from the label, and a
+ * repeated label (a dynamic list of ions, say) then emits the same id twice.
+ * Two inputs sharing an id means the label points at whichever the browser
+ * found first — the second field loses its name and its click target.
+ */
+export function NumField({ label, value, onChange, hint, error, step = 'any', min, id: idProp }) {
+  const id = idProp ?? `f-${label}`;
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
@@ -26,8 +32,8 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
   );
 }
 
-export function TextField({ label, value, onChange, hint, error, placeholder }) {
-  const id = `f-${label}`;
+export function TextField({ label, value, onChange, hint, error, placeholder, id: idProp }) {
+  const id = idProp ?? `f-${label}`;
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>

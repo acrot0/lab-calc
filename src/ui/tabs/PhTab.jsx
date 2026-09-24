@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { weakAcidPh, weakBasePh } from '../../calc/titration.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n } from '../format.mjs';
+import { fmt, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -45,6 +45,11 @@ export default function PhTab({ onRecord, restored }) {
     }
   }
 
+  // Gate the result on the acid/base kind that produced it — the reset effect
+  // runs after render, so a kind switch would otherwise show the previous
+  // direction's number under the new direction's label for one frame.
+  const shown = shownFor(out, 'kind', kind);
+
   return (
     <div className="card">
       <div className="field">
@@ -69,16 +74,16 @@ export default function PhTab({ onRecord, restored }) {
       <Warn>{t('ph.warning')}</Warn>
 
       <Result
-        value={out ? fmt(out.ph, 2) : null}
+        value={shown ? fmt(shown.ph, 2) : null}
         unit="pH"
-        note={out ? t('ph.note', {
-          kind: out.kind === 'acid' ? t('ph.weakAcid') : t('ph.weakBase'),
-          pk: out.pk,
+        note={shown ? t('ph.note', {
+          kind: shown.kind === 'acid' ? t('ph.weakAcid') : t('ph.weakBase'),
+          pk: shown.pk,
         }) : null}
-        rows={out ? [
-          ['pH', fmt(out.ph, 3)],
-          ['pOH', fmt(out.pOH, 3)],
-          [t('common.concentration'), `${out.conc} mol/L`],
+        rows={shown ? [
+          ['pH', fmt(shown.ph, 3)],
+          ['pOH', fmt(shown.pOH, 3)],
+          [t('common.concentration'), `${shown.conc} mol/L`],
         ] : null}
       />
     </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { percentToMolarity, molarityToPercent, preparePercentSolution } from '../../calc/titration.mjs';
 import { molarMass } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n } from '../format.mjs';
+import { fmt, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -27,7 +27,7 @@ export default function PercentTab({ onRecord, restored }) {
         const inputs = { percent: n(percent), volumeMl: n(volume), formula };
         const r = preparePercentSolution(inputs);
         const conv = percentToMolarity({ percent: inputs.percent, formula });
-        setOut({ ...r, molarity: conv, molarMass: M });
+        setOut({ ...r, mode, molarity: conv, molarMass: M });
         setErr(null);
         onRecord({
           kind: 'percentSolution', inputs,
@@ -37,7 +37,7 @@ export default function PercentTab({ onRecord, restored }) {
       } else {
         const inputs = { molarity: n(molarity), formula };
         const pct = molarityToPercent(inputs);
-        setOut({ percent: pct, molarity: inputs.molarity, molarMass: M });
+        setOut({ percent: pct, mode, molarity: inputs.molarity, molarMass: M });
         setErr(null);
         onRecord({
           kind: 'percentSolution', inputs,
@@ -51,10 +51,15 @@ export default function PercentTab({ onRecord, restored }) {
     }
   }
 
+  // Gate the output on the mode that produced it: the reset effect runs after
+  // render, so a mode switch would otherwise paint the previous direction's
+  // result under the new direction's labels for one frame.
+  const shown = shownFor(out, 'mode', mode);
+
   // The solubility check returns a code plus params, so the message follows the
   // UI language rather than being frozen in whichever language produced it.
-  const solubilityMsg = out?.solubilityWarning
-    ? errorMessage({ code: out.solubilityWarning.code, params: out.solubilityWarning.params }, t)
+  const solubilityMsg = shown?.solubilityWarning
+    ? errorMessage({ code: shown.solubilityWarning.code, params: shown.solubilityWarning.params }, t)
     : null;
 
   return (
@@ -89,24 +94,24 @@ export default function PercentTab({ onRecord, restored }) {
 
       {mode === 'prepare' ? (
         <Result
-          value={out ? fmt(out.massG, 3) : null}
+          value={shown ? fmt(shown.massG, 3) : null}
           unit={t('percent.unit')}
-          note={out ? t('percent.notePrepare', { volume: out.volumeMl, molarity: fmt(out.molarity, 4) }) : null}
-          rows={out ? [
-            [t('percent.unit'), `${fmt(out.massG, 4)} g`],
-            [t('percent.equivalentConc'), `${fmt(out.molarity, 4)} mol/L`],
-            [t('common.molarMass'), `${fmt(out.molarMass, 3)} g/mol`],
+          note={shown ? t('percent.notePrepare', { volume: shown.volumeMl, molarity: fmt(shown.molarity, 4) }) : null}
+          rows={shown ? [
+            [t('percent.unit'), `${fmt(shown.massG, 4)} g`],
+            [t('percent.equivalentConc'), `${fmt(shown.molarity, 4)} mol/L`],
+            [t('common.molarMass'), `${fmt(shown.molarMass, 3)} g/mol`],
           ] : null}
         />
       ) : (
         <Result
-          value={out ? fmt(out.percent, 3) : null}
+          value={shown ? fmt(shown.percent, 3) : null}
           unit={t('percent.unitPercent')}
-          note={out ? t('percent.notePercent', { percent: fmt(out.percent, 3), formula }) : null}
-          rows={out ? [
-            [t('percent.unitPercent'), `${fmt(out.percent, 4)} %`],
-            [t('common.concentration'), `${out.molarity} mol/L`],
-            [t('common.molarMass'), `${fmt(out.molarMass, 3)} g/mol`],
+          note={shown ? t('percent.notePercent', { percent: fmt(shown.percent, 3), formula }) : null}
+          rows={shown ? [
+            [t('percent.unitPercent'), `${fmt(shown.percent, 4)} %`],
+            [t('common.concentration'), `${shown.molarity} mol/L`],
+            [t('common.molarMass'), `${fmt(shown.molarMass, 3)} g/mol`],
           ] : null}
         />
       )}
