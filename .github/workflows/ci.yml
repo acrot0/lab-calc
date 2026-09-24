@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['22.x', '24.x']
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Assert LF line endings
+        # Not cosmetic: with Git for Windows' default core.autocrlf=true a clone
+        # rewrites source files to CRLF, and the vitest/esbuild transform then
+        # fails to parse them.
+        shell: bash
+        run: |
+          if grep -rlU $'\r' src test 2>/dev/null | head -1 | grep -q .; then
+            echo "::error::CRLF found in src/ or test/ — .gitattributes is not being honoured"
+            grep -rlU $'\r' src test
+            exit 1
+          fi
+          echo "OK: LF only"
+
+      - run: npm ci
+
+      - name: No unused imports
+        # Guards the refactor mistake that broke this app once already: moving
+        # code between modules and losing an import still BUILDS fine, and only
+        # fails at runtime with a blank page.
+        run: node scripts/check-imports.mjs src
+
+      - run: npm test
+
+      - run: npm run build
+
+      - name: Built output is a working app, not just files
+        # A successful build proves the bundler ran, not that the app renders.
+        # This loads the bundle in a DOM and asserts the calculators produce
+        # known answers — the same check a browser would make.
+        run: node scripts/smoke.mjs

@@ -1,0 +1,42 @@
+{
+  "name": "lab-calc",
+  "version": "0.1.0",
+  "description": "实验室溶液计算器：称量、稀释、缓冲液、pH、梯度稀释。每次计算自动留存，随时可查。",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run --pool=forks",
+    "test:watch": "vitest",
+    "dev": "vite",
+    "build": "vite build",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "node scripts/check-imports.mjs src"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.1",
+    "vitest": "^3.2.1"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "lucide-react": "^1.48.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "keywords": [
+    "chemistry",
+    "laboratory",
+    "calculator",
+    "molarity",
+    "dilution",
+    "buffer",
+    "ph",
+    "titration",
+    "lab",
+    "science"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/acrot0/lab-calc.git"
+  }
+}
