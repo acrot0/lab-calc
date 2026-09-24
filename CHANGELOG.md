@@ -15,6 +15,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   post-transition metals; astatine in group 17 came out a halogen. Categories
   are now explicit membership lists, and `categoryOf` throws on an unassigned
   element rather than falling back to a plausible default.
+- **The element detail panel reported the drawing row as the period** — it said
+  lanthanum was in "period 9, group 4". The f-block is drawn on rows 9 and 10
+  and spans groups 3–17 for layout, so both numbers were coordinates rather than
+  chemistry; lanthanum is in period 6 and is not in group 4, which holds Ti, Zr,
+  Hf and Rf.
 - **Cross-dimension unit conversion returned a confident wrong answer** —
   `unitConvert(1, 'g', 'mL')` returned `1`, because grams and millilitres both
   have a factor of 1 against their own base. A mass-to-volume conversion needs a
@@ -34,6 +39,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Electron configuration and valence count** for every element, with the
+  twenty Madelung-rule exceptions as explicit data rather than generated —
+  chromium is `[Ar] 3d5 4s1` and palladium is `[Kr] 4d10`, and a generated table
+  would have been wrong in twenty places while looking right everywhere.
 - **Periodic table legend, axis labels and keyboard navigation** — the
   "colour by category" view used the per-element CPK colours, so it produced 118
   hues and showed no grouping at all; it now uses one colour per category with a
