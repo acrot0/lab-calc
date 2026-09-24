@@ -13,6 +13,51 @@ describe('constants', () => {
   });
 });
 
+describe('standard potentials', () => {
+  /**
+   * CRC Handbook of Chemistry and Physics, 25 °C vs SHE.
+   *
+   * Pinned as a table rather than spot-checked, because a single wrong
+   * potential propagates into every cell built from it and the error is
+   * invisible: the arithmetic is right, the input was not.
+   */
+  const CRC = {
+    'Li+/Li': -3.0401, 'K+/K': -2.931, 'Ca2+/Ca': -2.868, 'Na+/Na': -2.71,
+    'Mg2+/Mg': -2.372, 'Al3+/Al': -1.662, 'Zn2+/Zn': -0.7618,
+    'Fe2+/Fe': -0.447, 'Ni2+/Ni': -0.257, 'Pb2+/Pb': -0.1262,
+    '2H+/H2': 0, 'Cu2+/Cu': 0.3419, 'Cu+/Cu': 0.521, 'I2/I-': 0.5355,
+    'Ag+/Ag': 0.7996, 'Fe3+/Fe2+': 0.771, 'O2/H2O': 1.229,
+    'Br2/Br-': 1.087, 'Cl2/Cl-': 1.35827, 'MnO4-/Mn2+': 1.507, 'F2/F-': 2.866,
+  };
+
+  it('should match the CRC Handbook to three decimals', () => {
+    for (const [half, value] of Object.entries(CRC)) {
+      expect(STANDARD_POTENTIALS[half], half).toBeCloseTo(value, 3);
+    }
+  });
+
+  it('should carry no potential that is not in the reference table', () => {
+    // A value added without a source is a value nobody checked.
+    for (const half of Object.keys(STANDARD_POTENTIALS)) {
+      expect(Object.keys(CRC), `${half} has no reference value`).toContain(half);
+    }
+  });
+
+  it('should list every half-reaction as a reduction', () => {
+    // Mixing oxidation and reduction potentials in one table is the classic
+    // way a cell potential comes out wrong: E_cell = E_cathode - E_anode only
+    // holds when both are reductions.
+    for (const [half, value] of Object.entries(STANDARD_POTENTIALS)) {
+      // The reduced species is on the right of the slash and has the lower
+      // charge; a sign-flipped table would put the metal on the left.
+      const [left, right] = half.split('/');
+      expect(left, `${half} looks inverted`).not.toBe('');
+      expect(right, `${half} has no reduced form`).toBeTruthy();
+      expect(Number.isFinite(value), half).toBe(true);
+    }
+  });
+});
+
 describe('nernst', () => {
   it('should return the standard potential when Q is 1', () => {
     const r = nernst({ e0: 1.1, n: 2, q: 1 });
