@@ -1080,12 +1080,67 @@ button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
 .ptable {
   display: grid;
-  grid-template-columns: repeat(18, minmax(38px, 1fr));
-  grid-auto-rows: 46px;
-  /* Row 8 stays empty: that gap is what detaches the f-block rows below. */
+  /* Column 1 is the gutter for period numbers and the f-block labels; groups
+     1-18 follow, so a cell lands at gridColumn group + 1. */
+  grid-template-columns: 26px repeat(18, minmax(38px, 1fr));
+  grid-template-rows: 16px repeat(7, 46px) 12px 46px 46px;
+  /* Row 9 (the 12px band) stays empty: that gap is what detaches the f-block
+     rows below it. Row 1 holds the group numbers. */
   gap: 3px;
-  min-width: 720px;
+  min-width: 750px;
 }
+
+/* Axis labels: group numbers across the top, period numbers down the gutter.
+   Kept out of the tab order — they label the grid, they are not cells. */
+.paxis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+/* The f-block rows are named rather than numbered: periods 9 and 10 are this
+   table's internal coordinates and mean nothing to a reader. */
+.paxis-f {
+  justify-content: flex-end;
+  padding-right: 3px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.08em;
+  color: var(--text-mid);
+}
+
+/* Legend. Without it the colouring is decorative — a reader can see the table
+   is shaded but not what any shade means. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+}
+
+.legend-item { display: inline-flex; align-items: center; gap: 5px; }
+
+.legend-sw {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.legend-ramp {
+  width: 74px;
+  height: 9px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, hsl(200 72% 52%), hsl(100 72% 52%), hsl(0 72% 52%));
+}
+
+.legend-unit { opacity: 0.75; }
 
 .pcell {
   display: flex;

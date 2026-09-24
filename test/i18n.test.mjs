@@ -11,6 +11,7 @@ import {
 } from '../src/ui/i18n.mjs';
 import { zh } from '../src/ui/locales/zh.mjs';
 import { en } from '../src/ui/locales/en.mjs';
+import { ELEMENT_CATEGORIES } from '../src/calc/elements.mjs';
 
 describe('detectLocale', () => {
   it('should prefer a stored choice over the browser language', () => {
@@ -159,6 +160,30 @@ describe('locale dictionaries', () => {
     };
     walk(zh);
     walk(en);
+  });
+
+  it('should translate every category the element table can produce', () => {
+    // The element module grew a `metalloid` category and the label was missed,
+    // so the legend rendered the raw key `elements.cat_metalloid` to users.
+    // Tying the two together makes that omission a test failure.
+    for (const c of ELEMENT_CATEGORIES) {
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        const label = dict.elements[`cat_${c}`];
+        expect(label, `${name} elements.cat_${c}`).toBeTruthy();
+        expect(label, `${name} elements.cat_${c}`).not.toBe(`elements.cat_${c}`);
+      }
+    }
+  });
+
+  it('should translate every block and colour-by option the table offers', () => {
+    for (const key of ['block_s', 'block_p', 'block_d', 'block_f', 'by_block']) {
+      expect(zh.elements[key], `zh elements.${key}`).toBeTruthy();
+      expect(en.elements[key], `en elements.${key}`).toBeTruthy();
+    }
+    for (const key of ['unit_mass', 'unit_rcow', 'unit_rvdw', 'matchCount']) {
+      expect(zh.elements[key], `zh elements.${key}`).toBeTruthy();
+      expect(en.elements[key], `en elements.${key}`).toBeTruthy();
+    }
   });
 
   it('should have identical placeholder sets for each key', () => {
