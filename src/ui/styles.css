@@ -362,3 +362,18 @@ button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
   border-radius: 8px;
   background: var(--surface-2);
 }
+
+/* Language switcher */
+.locale-switch { margin-left: auto; }
+.locale-switch select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 4px 8px;
+  width: auto;
+}
+.locale-switch select:hover { color: var(--text); border-color: var(--accent-dim); }

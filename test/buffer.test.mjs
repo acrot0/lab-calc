@@ -131,7 +131,9 @@ describe('unitConvert', () => {
   });
 
   it('should reject a unit it does not know, rather than assuming a factor', () => {
-    expect(() => unitConvert(1, 'g', 'furlong')).toThrow(/unknown unit/i);
+    expect(() => unitConvert(1, 'g', 'furlong')).toThrow(
+      expect.objectContaining({ code: 'unknownUnit' }),
+    );
   });
 
   it('should return the same value for identical units', () => {

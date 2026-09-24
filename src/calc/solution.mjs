@@ -1,3 +1,5 @@
+import { fail, requirePositive, requireNonNegative } from './errors.mjs';
+
 /**
  * Solution chemistry — molar mass, mass-to-weigh, dilution.
  *
@@ -40,11 +42,11 @@ export const ATOMIC_WEIGHTS = {
  */
 export function parseFormula(formula) {
   if (typeof formula !== 'string' || formula.trim().length === 0) {
-    throw new Error('Formula is empty');
+    fail('formulaEmpty');
   }
   const src = formula.trim();
   if (/^\d/.test(src)) {
-    throw new Error(`Formula must not start with a digit: "${src}"`);
+    fail('formulaStartsWithDigit', { formula: src });
   }
 
   // Counts are accumulated per segment; a hydrate dot starts a new segment
@@ -82,7 +84,7 @@ function parseSegment(body, whole) {
     }
 
     if (ch === ')') {
-      if (stack.length === 1) throw new Error(`Unbalanced parentheses in "${whole}"`);
+      if (stack.length === 1) fail('unbalancedParens', { formula: whole });
       const inner = stack.pop();
       i++;
       let numStart = i;
@@ -101,7 +103,7 @@ function parseSegment(body, whole) {
         i++;
       }
       if (!(sym in ATOMIC_WEIGHTS)) {
-        throw new Error(`Unknown element "${sym}" in "${whole}"`);
+        fail('unknownElement', { element: sym, formula: whole });
       }
       let numStart = i + 1;
       let j = numStart;
@@ -113,10 +115,10 @@ function parseSegment(body, whole) {
       continue;
     }
 
-    throw new Error(`Unexpected character "${ch}" in "${whole}"`);
+    fail('unexpectedChar', { char: ch, formula: whole });
   }
 
-  if (stack.length !== 1) throw new Error(`Unbalanced parentheses in "${whole}"`);
+  if (stack.length !== 1) fail('unbalancedParens', { formula: whole });
   return out;
 }
 
@@ -128,18 +130,6 @@ export function molarMass(formula) {
   );
 }
 
-function requirePositive(value, name) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-    throw new Error(`${name} must be a positive number (got ${value})`);
-  }
-}
-
-function requireNonNegative(value, name) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new Error(`${name} must not be negative (got ${value})`);
-  }
-}
-
 /**
  * Mass to weigh out to reach a target molarity in a given volume.
  *
@@ -147,8 +137,8 @@ function requireNonNegative(value, name) {
  */
 export function massForMolarity({ formula, molarity, volumeMl }) {
   const M = molarMass(formula);
-  requireNonNegative(molarity, 'Molarity');
-  requirePositive(volumeMl, 'Volume');
+  requireNonNegative(molarity, 'molarity');
+  requirePositive(volumeMl, 'volume');
   const massG = molarity * (volumeMl / 1000) * M;
   return { massG, molarMass: M, moles: molarity * (volumeMl / 1000) };
 }
@@ -161,13 +151,11 @@ export function massForMolarity({ formula, molarity, volumeMl }) {
  * user pipette something that cannot work.
  */
 export function dilution({ stockConc, targetConc, targetVolumeMl }) {
-  requirePositive(stockConc, 'Stock concentration');
-  requireNonNegative(targetConc, 'Target concentration');
-  requirePositive(targetVolumeMl, 'Target volume');
+  requirePositive(stockConc, 'stockConc');
+  requireNonNegative(targetConc, 'targetConc');
+  requirePositive(targetVolumeMl, 'targetVolumeMl');
   if (targetConc > stockConc) {
-    throw new Error(
-      `Target (${targetConc}) is more concentrated than the stock (${stockConc}) — you cannot dilute up.`,
-    );
+    fail('diluteUp', { target: targetConc, stock: stockConc });
   }
   const stockVolumeMl = (targetConc * targetVolumeMl) / stockConc;
   return {

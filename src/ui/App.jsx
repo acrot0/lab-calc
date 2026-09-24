@@ -12,19 +12,21 @@ import PhTab from './tabs/PhTab.jsx';
 import PercentTab from './tabs/PercentTab.jsx';
 import CurveTab from './tabs/CurveTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
+import { useI18n, LocaleSwitcher } from './LocaleContext.jsx';
 
 const TABS = [
-  { id: 'weigh', label: '称量配制', icon: FlaskConical, Component: WeighTab },
-  { id: 'dilute', label: '稀释', icon: Droplets, Component: DiluteTab },
-  { id: 'buffer', label: '缓冲液', icon: TestTube2, Component: BufferTab },
-  { id: 'series', label: '梯度稀释', icon: Droplets, Component: SeriesTab },
-  { id: 'ph', label: 'pH 计算', icon: Activity, Component: PhTab },
-  { id: 'percent', label: '百分比配制', icon: Percent, Component: PercentTab },
-  { id: 'curve', label: '滴定曲线', icon: LineChart, Component: CurveTab },
-  { id: 'convert', label: '单位换算', icon: ArrowLeftRight, Component: ConvertTab },
+  { id: 'weigh', icon: FlaskConical, Component: WeighTab },
+  { id: 'dilute', icon: Droplets, Component: DiluteTab },
+  { id: 'buffer', icon: TestTube2, Component: BufferTab },
+  { id: 'series', icon: Droplets, Component: SeriesTab },
+  { id: 'ph', icon: Activity, Component: PhTab },
+  { id: 'percent', icon: Percent, Component: PercentTab },
+  { id: 'curve', icon: LineChart, Component: CurveTab },
+  { id: 'convert', icon: ArrowLeftRight, Component: ConvertTab },
 ];
 
 export default function App() {
+  const { t } = useI18n();
   const [tab, setTab] = useState('weigh');
   const [entries, setEntries] = useState([]);
   // `restored` is handed to the active tab as initial values. Bumping `nonce`
@@ -58,12 +60,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-head">
-        <h1>Lab Calc</h1>
+        <h1>{t('app.title')}</h1>
+        <LocaleSwitcher />
       </header>
-      <p className="tagline">实验室溶液计算 · 每次计算自动留存，随时可查</p>
+      <p className="tagline">{t('app.tagline')}</p>
 
       <div className="tabs" role="tablist">
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {TABS.map(({ id, icon: Icon }) => (
           <button
             key={id}
             role="tab"
@@ -72,7 +75,7 @@ export default function App() {
             onClick={() => setTab(id)}
           >
             <Icon size={15} aria-hidden="true" />
-            {label}
+            {t(`tabs.${id}`)}
           </button>
         ))}
       </div>

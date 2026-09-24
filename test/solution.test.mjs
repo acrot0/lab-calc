@@ -64,7 +64,9 @@ describe('parseFormula', () => {
   it('should reject an unknown element instead of silently ignoring it', () => {
     // A silent skip would produce a plausible-but-wrong molar mass — the worst
     // possible failure for a tool a chemist relies on.
-    expect(() => parseFormula('Xx2O')).toThrow(/unknown element/i);
+    expect(() => parseFormula('Xx2O')).toThrow(
+      expect.objectContaining({ code: 'unknownElement' }),
+    );
   });
 
   it('should reject unbalanced parentheses rather than guessing', () => {
@@ -164,7 +166,7 @@ describe('dilution', () => {
     // You cannot dilute up. Silently returning a number here would have the
     // user pipette something impossible.
     expect(() => dilution({ stockConc: 0.1, targetConc: 1, targetVolumeMl: 100 }))
-      .toThrow(/more concentrated|concentrated than/i);
+      .toThrow(expect.objectContaining({ code: 'diluteUp' }));
   });
 
   it('should reject a zero or negative stock concentration', () => {

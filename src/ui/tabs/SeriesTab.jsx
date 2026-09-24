@@ -1,9 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { dilutionSeries } from '../../calc/buffer.mjs';
 import { NumField, Err } from '../components/Fields.jsx';
 import { fmt, n } from '../format.mjs';
+import { useI18n } from '../LocaleContext.jsx';
+import { errorMessage } from '../errors.mjs';
+import { recordSummary } from '../summaries.mjs';
 
 export default function SeriesTab({ onRecord, restored }) {
+  const { t } = useI18n();
   const [stock, setStock] = useState(restored?.stockConc != null ? String(restored.stockConc) : '1000');
   const [factor, setFactor] = useState(restored?.factor != null ? String(restored.factor) : '10');
   const [steps, setSteps] = useState(restored?.steps != null ? String(restored.steps) : '5');
@@ -21,10 +25,10 @@ export default function SeriesTab({ onRecord, restored }) {
       setErr(null);
       onRecord({
         kind: 'dilutionSeries', inputs, outputs: { series: r },
-        summary: `${inputs.steps} 级 ${inputs.factor}× 梯度稀释（母液 ${inputs.stockConc}）`,
+        summary: recordSummary({ kind: 'dilutionSeries', inputs, outputs: { series: r } }, t),
       });
     } catch (e) {
-      setErr(e.message);
+      setErr(errorMessage(e, t));
       setOut(null);
     }
   }
@@ -32,28 +36,30 @@ export default function SeriesTab({ onRecord, restored }) {
   return (
     <div className="card">
       <div className="row">
-        <NumField label="母液浓度" value={stock} onChange={setStock} min="0" />
-        <NumField label="稀释倍数" value={factor} onChange={setFactor} min="1" hint="须大于 1" />
+        <NumField label={t('series.stockConc')} value={stock} onChange={setStock} min="0" />
+        <NumField label={t('series.factor')} value={factor} onChange={setFactor} min="1" hint={t('series.factorHint')} />
       </div>
       <div className="row">
-        <NumField label="级数" value={steps} onChange={setSteps} min="1" step="1" />
-        <NumField label="每管终体积 (mL)" value={vol} onChange={setVol} min="0" />
+        <NumField label={t('series.steps')} value={steps} onChange={setSteps} min="1" step="1" />
+        <NumField label={t('series.stepVolume')} value={vol} onChange={setVol} min="0" />
       </div>
-      <button className="primary" onClick={run}>计算</button>
+      <button className="primary" onClick={run}>{t('common.calc')}</button>
       {err && <Err>{err}</Err>}
       {out && (
         <div className="result">
+          {/* The note carries inline markup, so it is rendered as HTML rather
+              than as a translated string with an <em> baked into it. */}
           <div className="result-note">
-            每管取 <em>上一管溶液</em>（第 1 管取母液），加溶剂至终体积：
+            {t('series.note').split(/<\/?em>/).map((part, i) => (i === 1 ? <em key={i}>{part}</em> : part))}
           </div>
           <table className="series-table">
             <thead>
               <tr>
-                <th scope="col">管号</th>
-                <th scope="col">终浓度</th>
-                <th scope="col">取液来源</th>
-                <th scope="col">取液量</th>
-                <th scope="col">加溶剂</th>
+                <th scope="col">{t('series.colTube')}</th>
+                <th scope="col">{t('series.colConc')}</th>
+                <th scope="col">{t('series.colSource')}</th>
+                <th scope="col">{t('series.colTake')}</th>
+                <th scope="col">{t('series.colDiluent')}</th>
               </tr>
             </thead>
             <tbody>
@@ -61,7 +67,7 @@ export default function SeriesTab({ onRecord, restored }) {
                 <tr key={s.step}>
                   <th scope="row">{s.step}</th>
                   <td>{fmt(s.conc, 4)}</td>
-                  <td>{s.step === 1 ? '母液' : `第 ${s.step - 1} 管`}</td>
+                  <td>{s.step === 1 ? t('series.stock') : t('series.fromTube', { n: s.step - 1 })}</td>
                   <td>{fmt(s.stockVolumeMl, 2)} mL</td>
                   <td>{fmt(s.diluentVolumeMl, 2)} mL</td>
                 </tr>
@@ -73,4 +79,3 @@ export default function SeriesTab({ onRecord, restored }) {
     </div>
   );
 }
-

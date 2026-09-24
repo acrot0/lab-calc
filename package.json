@@ -1,7 +1,7 @@
 {
   "name": "lab-calc",
-  "version": "0.2.0",
-  "description": "实验室溶液计算器：称量、稀释、缓冲液、pH、梯度稀释。每次计算自动留存，随时可查。",
+  "version": "0.3.0",
+  "description": "实验室溶液计算器：称量、稀释、缓冲液、pH、滴定曲线。每次计算自动留存，可导出。中英双语，可离线。",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -11,7 +11,8 @@
     "build": "vite build",
     "smoke": "node scripts/smoke.mjs",
     "check": "node scripts/check-imports.mjs src",
-    "verify": "node scripts/check-imports.mjs src && node scripts/smoke.mjs"
+    "verify": "node scripts/check-imports.mjs src && node scripts/smoke.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.1",

@@ -1,72 +1,108 @@
 /**
- * Weak acid / strong base titration curve.
+ * Titration curves: weak, strong, and polyprotic acids against a strong base.
  *
- * Why the exact treatment instead of the sqrt(Ka·C) approximation used
- * elsewhere: that approximation assumes the acid is barely dissociated, which
- * is true at the start of a titration and catastrophically false near the
- * equivalence point. The curve exists precisely to show that region, so it has
- * to solve the equilibrium properly.
+ * Why the exact equilibrium treatment instead of the sqrt(Ka·C) approximation
+ * used for a single pH reading: that approximation assumes the acid is barely
+ * dissociated. It is true at the start of a titration and catastrophically
+ * false near an equivalence point — which is exactly the region a curve exists
+ * to show.
  *
- * The model solves, at each added titrant volume, the charge balance:
+ * At every point the model solves the charge balance
  *
- *   [Na+] + [H+] = [OH-] + [A-]
+ *   [Na+] + [H+] = [OH-] + C_acid · z̄([H+])
  *
- * with [A-] = C_acid · Ka / (Ka + [H+]), which is exact for a monoprotic weak
- * acid. Rearranged into a polynomial in [H+] and solved by bisection — slower
- * than a closed form but numerically robust across the whole curve, including
- * the steep part where a closed form loses precision.
+ * where z̄ is the average charge on the acid, computed from the full
+ * distribution over its protonation states. For a monoprotic acid this reduces
+ * to the familiar [A-] = C·Ka/(Ka+[H+]).
  */
 
-const requirePositive = (v, name) => {
-  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
-    throw new Error(`${name}必须大于 0（当前为 ${v}）`);
-  }
-};
+import { fail, requirePositive, requireFinite } from './errors.mjs';
 
 export const KW = 1e-14;
 
-/** Derive the working parameters of a weak-acid titration. */
-export function weakAcidCurveParams({ pKa, conc, volumeMl }) {
-  if (typeof pKa !== 'number' || !Number.isFinite(pKa)) {
-    throw new Error('pKa 必须是有效数字');
+/** Most protons a single acid can realistically have. Phosphoric (3) is common;
+ *  6 is already exotic, and beyond that the inputs are almost certainly wrong. */
+export const MAX_PROTONS = 6;
+
+/**
+ * Accept the several shapes callers use for "what acid is this".
+ *
+ *   { pKa: 4.76 }                     monoprotic
+ *   { pKas: [2.15, 7.20, 12.35] }     polyprotic
+ *   { strongAcid: true }              fully dissociated
+ */
+export function normalizeAcid(spec) {
+  if (!spec || typeof spec !== 'object') fail('acidParamsMissing');
+
+  if (spec.strongAcid === true) return { pKas: [], strong: true };
+
+  const raw = spec.pKas ?? (spec.pKa !== undefined ? [spec.pKa] : null);
+  if (!Array.isArray(raw) || raw.length === 0) {
+    fail('acidSpecMissing');
   }
-  requirePositive(conc, '浓度');
-  requirePositive(volumeMl, '体积');
-  return {
-    ka: 10 ** -pKa,
-    pKa,
-    conc,
-    volumeMl,
-    molesAnalyte: conc * (volumeMl / 1000),
-  };
+  for (const v of raw) {
+    requireFinite(v, 'pka');
+  }
+  if (raw.length > MAX_PROTONS) {
+    fail('tooManyProtons', { max: MAX_PROTONS, n: raw.length });
+  }
+
+  const pKas = [...raw].sort((a, b) => a - b);
+  for (let i = 1; i < pKas.length; i++) {
+    if (pKas[i] === pKas[i - 1]) {
+      // Two identical pKa values would collapse two equivalence points into
+      // one and quietly halve the titrant volume the curve implies.
+      fail('duplicatePka');
+    }
+  }
+  return { pKas, strong: false };
 }
 
 /**
- * Solve for [H+] at a given point in the titration by bisection.
+ * Average charge on the acid at a given [H+].
  *
- * f is the charge-balance residual:
+ *   z̄ = Σ i·α_i,  α_i = (Π_{j≤i} Ka_j · h^(n-i)) / D
+ *   D = h^n + Ka_1·h^(n-1) + Ka_1Ka_2·h^(n-2) + ... + Π Ka_j
  *
- *   f([H+]) = [Na+] + [H+] - [OH-] - [A-]
- *
- * It is monotonically INCREASING in [H+]: more free protons means more
- * positive charge that the other terms must offset. Verified numerically —
- * f(1e-15) ≈ -10 and f(1) ≈ +1.1 at the equivalence point of a 0.1 M acetic
- * acid titration. An earlier version assumed it decreased and bracketed the
- * wrong way, which converged confidently on a pH of 16.
- *
- * Bracket is [1e-15, 1] M, i.e. pH 15 down to pH 0 — wider than any titration
- * curve reaches. Bisection on the geometric midpoint because pH is a log scale,
- * so this converges in pH rather than in concentration.
+ * A strong acid is fully dissociated at every pH we model, so z̄ = 1.
  */
-function solveH({ ka, molesAnalyte, molesTitrant, totalVolumeL }) {
-  const cAcid = molesAnalyte / totalVolumeL;
-  const cBase = molesTitrant / totalVolumeL;
+function zBar(h, kas, strong) {
+  if (strong) return 1;
+  const n = kas.length;
 
-  const f = (h) => {
-    const aMinus = (cAcid * ka) / (ka + h);
-    const ohMinus = KW / h;
-    return cBase + h - ohMinus - aMinus;
-  };
+  let D = h ** n;
+  let term = 1;
+  for (let i = 0; i < n; i++) {
+    term *= kas[i];
+    D += term * h ** (n - 1 - i);
+  }
+
+  let sum = 0;
+  term = 1;
+  for (let i = 1; i <= n; i++) {
+    term *= kas[i - 1];
+    sum += (i * term * h ** (n - i)) / D;
+  }
+  return sum;
+}
+
+/**
+ * Solve for [H+] by bisection on the charge-balance residual
+ *
+ *   f([H+]) = [Na+] + [H+] − [OH−] − C_acid·z̄([H+])
+ *
+ * f is monotonically INCREASING in [H+]: every term either grows with [H+] or
+ * shrinks in a way that increases f. Verified numerically — f(1e-15) is large
+ * and negative, f(1) is positive, at every point of every curve tested. An
+ * earlier version assumed f decreased and bracketed the wrong way, which
+ * converged confidently on a pH of 16.
+ *
+ * Bisection on the geometric midpoint because pH is a log scale: this converges
+ * in pH rather than in concentration, so the steep region gets the same
+ * relative precision as the flat ones.
+ */
+function solveH({ kas, strong, cAcid, cBase }) {
+  const f = (h) => cBase + h - KW / h - cAcid * zBar(h, kas, strong);
 
   let lo = 1e-15; // f(lo) < 0
   let hi = 1.0;   // f(hi) > 0
@@ -77,53 +113,104 @@ function solveH({ ka, molesAnalyte, molesTitrant, totalVolumeL }) {
   return Math.sqrt(lo * hi);
 }
 
-/** Volume of titrant at the equivalence point, and the pH there. */
-export function findEquivalencePoint({ pKa, conc, volumeMl, titrantConc }) {
-  const p = weakAcidCurveParams({ pKa, conc, volumeMl });
-  requirePositive(titrantConc, '滴定液浓度');
-  const volumeEqMl = (p.molesAnalyte / titrantConc) * 1000;
-  const ph = phAt(p, p.molesAnalyte, volumeMl + volumeEqMl);
-  return { volumeMl: volumeEqMl, ph };
-}
-
-/** pH after adding `molesTitrant` to the analyte, given total volume in mL. */
+/** pH after adding a given number of moles of titrant to the analyte. */
 function phAt(p, molesTitrant, totalVolumeMl) {
+  const totalVolumeL = totalVolumeMl / 1000;
   const h = solveH({
-    ka: p.ka,
-    molesAnalyte: p.molesAnalyte,
-    molesTitrant,
-    totalVolumeL: totalVolumeMl / 1000,
+    kas: p.kas,
+    strong: p.strong,
+    cAcid: p.molesAnalyte / totalVolumeL,
+    cBase: molesTitrant / totalVolumeL,
   });
   return -Math.log10(h);
 }
 
+/** Shared validation for everything that takes a titration specification. */
+function prepare({ pKa, pKas, strongAcid, conc, volumeMl, titrantConc }) {
+  const acid = normalizeAcid({ pKa, pKas, strongAcid });
+  requirePositive(conc, 'concentration');
+  requirePositive(volumeMl, 'volume');
+  requirePositive(titrantConc, 'titrantConc');
+  return {
+    kas: acid.pKas.map((v) => 10 ** -v),
+    pKas: acid.pKas,
+    strong: acid.strong,
+    conc,
+    volumeMl,
+    titrantConc,
+    molesAnalyte: conc * (volumeMl / 1000),
+  };
+}
+
+/**
+ * Working parameters of a monoprotic weak-acid titration.
+ *
+ * Kept as a named export for callers that predate polyprotic support.
+ */
+export function weakAcidCurveParams({ pKa, conc, volumeMl }) {
+  requireFinite(pKa, 'pka');
+  requirePositive(conc, 'concentration');
+  requirePositive(volumeMl, 'volume');
+  return {
+    ka: 10 ** -pKa,
+    pKa,
+    conc,
+    volumeMl,
+    molesAnalyte: conc * (volumeMl / 1000),
+  };
+}
+
+/**
+ * Every equivalence point, in order.
+ *
+ * A monoprotic acid has one; phosphoric acid has three, at 1×, 2× and 3× the
+ * first volume. A strong acid has one.
+ */
+export function equivalenceVolumes(spec) {
+  const p = prepare(spec);
+  const count = p.strong ? 1 : p.kas.length;
+  const perProtonMl = (p.molesAnalyte / p.titrantConc) * 1000;
+  return Array.from({ length: count }, (_, i) => perProtonMl * (i + 1));
+}
+
+/** The first equivalence point, with the pH there. */
+export function findEquivalencePoint(spec) {
+  const p = prepare(spec);
+  const volumeMl = equivalenceVolumes(spec)[0];
+  return { volumeMl, ph: phAt(p, p.molesAnalyte, p.volumeMl + volumeMl) };
+}
+
 /**
  * The full curve, sampled evenly in titrant volume from 0 to `overshoot`× the
- * equivalence volume.
+ * LAST equivalence volume.
  *
  * Sampling evenly in volume (not pH) is deliberate: a real burette adds volume
  * at a constant rate, so the x-axis is what the person at the bench controls.
+ *
+ * Overshooting the final equivalence point matters more for a polyprotic acid —
+ * stopping at the first one would hide two thirds of the chemistry.
  */
-export function titrationCurve({
-  pKa, conc, volumeMl, titrantConc, points = 120, overshoot = 1.8,
-}) {
-  const p = weakAcidCurveParams({ pKa, conc, volumeMl });
-  requirePositive(titrantConc, '滴定液浓度');
-  if (!Number.isInteger(points) || points <= 0) {
-    throw new Error(`采样点数必须是正整数（当前为 ${points}）`);
-  }
-  requirePositive(overshoot, '过量倍数');
+export function titrationCurve(spec, legacyPoints) {
+  // Accept both titrationCurve({...spec, points}) and the older
+  // titrationCurve({...spec}, points) form.
+  const points = typeof legacyPoints === 'number' ? legacyPoints : spec.points ?? 120;
+  const overshoot = spec.overshoot ?? 1.8;
 
-  const volumeEqMl = (p.molesAnalyte / titrantConc) * 1000;
-  const maxVolumeMl = volumeEqMl * overshoot;
+  const p = prepare(spec);
+  if (!Number.isInteger(points) || points <= 0) {
+    fail('pointsNotPositive', { points });
+  }
+  requirePositive(overshoot, 'overshoot');
+
+  const lastEq = equivalenceVolumes(spec).slice(-1)[0];
+  const maxVolumeMl = lastEq * overshoot;
 
   const out = [];
   for (let i = 0; i < points; i++) {
     const v = (maxVolumeMl * i) / (points - 1);
-    const molesTitrant = titrantConc * (v / 1000);
     out.push({
       volumeMl: v,
-      ph: phAt(p, molesTitrant, volumeMl + v),
+      ph: phAt(p, p.titrantConc * (v / 1000), p.volumeMl + v),
     });
   }
   return out;

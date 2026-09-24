@@ -12,44 +12,29 @@
  * pretend otherwise.
  */
 import { molarMass } from './solution.mjs';
-
-const requirePositive = (v, name) => {
-  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
-    throw new Error(`${name}必须大于 0（当前为 ${v}）`);
-  }
-};
-
-const requireNonNegative = (v, name) => {
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
-    throw new Error(`${name}不能为负数（当前为 ${v}）`);
-  }
-};
+import { requirePositive, requireNonNegative, requireFinite } from './errors.mjs';
 
 /** pH of a weak acid from its pKa and formal concentration. */
 export function weakAcidPh({ pKa, conc }) {
-  if (typeof pKa !== 'number' || !Number.isFinite(pKa)) {
-    throw new Error('pKa 必须是有效数字');
-  }
-  requirePositive(conc, '浓度');
+  requireFinite(pKa, 'pka');
+  requirePositive(conc, 'concentration');
   // [H+] = sqrt(Ka·C);  pH = 0.5·(pKa - log10(C))
   return 0.5 * (pKa - Math.log10(conc));
 }
 
 /** pH of a weak base from its pKb and formal concentration. */
 export function weakBasePh({ pKb, conc }) {
-  if (typeof pKb !== 'number' || !Number.isFinite(pKb)) {
-    throw new Error('pKb 必须是有效数字');
-  }
-  requirePositive(conc, '浓度');
+  requireFinite(pKb, 'pkb');
+  requirePositive(conc, 'concentration');
   const pOH = 0.5 * (pKb - Math.log10(conc));
   return 14 - pOH;
 }
 
 /** Volume of titrant needed to reach the equivalence point. */
 export function equivalenceVolume({ analyteConc, analyteVolumeMl, titrantConc }) {
-  requirePositive(analyteConc, '待测液浓度');
-  requirePositive(analyteVolumeMl, '待测液体积');
-  requirePositive(titrantConc, '滴定液浓度');
+  requirePositive(analyteConc, 'analyteConc');
+  requirePositive(analyteVolumeMl, 'analyteVolumeMl');
+  requirePositive(titrantConc, 'titrantConc');
   const molesAnalyte = analyteConc * (analyteVolumeMl / 1000);
   return {
     titrantVolumeMl: (molesAnalyte / titrantConc) * 1000,
@@ -61,7 +46,7 @@ export function equivalenceVolume({ analyteConc, analyteVolumeMl, titrantConc })
  * w/v percentage to molarity: 1% w/v is 1 g per 100 mL, i.e. 10 g/L.
  */
 export function percentToMolarity({ percent, formula }) {
-  requireNonNegative(percent, '百分比');
+  requireNonNegative(percent, 'percent');
   const M = molarMass(formula);
   const gramsPerL = percent * 10;
   return gramsPerL / M;
@@ -69,7 +54,7 @@ export function percentToMolarity({ percent, formula }) {
 
 /** Molarity to w/v percentage. Inverse of percentToMolarity. */
 export function molarityToPercent({ molarity, formula }) {
-  requireNonNegative(molarity, '浓度');
+  requireNonNegative(molarity, 'molarity');
   const M = molarMass(formula);
   return (molarity * M) / 10;
 }
@@ -100,8 +85,8 @@ export const SOLUBILITY_G_PER_100ML = {
  * check when the compound is one we have data for.
  */
 export function preparePercentSolution({ percent, volumeMl, formula }) {
-  requireNonNegative(percent, '百分比');
-  requirePositive(volumeMl, '体积');
+  requireNonNegative(percent, 'percent');
+  requirePositive(volumeMl, 'volume');
 
   const massG = (percent / 100) * volumeMl;
 
@@ -109,8 +94,7 @@ export function preparePercentSolution({ percent, volumeMl, formula }) {
   if (formula) {
     const limit = SOLUBILITY_G_PER_100ML[formula];
     if (limit !== undefined && percent > limit) {
-      solubilityWarning =
-        `${percent}% w/v 超过了 ${formula} 在室温下的溶解度（约 ${limit} g/100 mL），该浓度无法直接配出。`;
+      solubilityWarning = { code: 'solubilityExceeded', params: { percent, formula, limit } };
     }
   }
 

@@ -1,3 +1,5 @@
+import { fail, requirePositive, requireFinite } from './errors.mjs';
+
 /**
  * Buffer chemistry, dilution series, and unit conversion.
  *
@@ -17,14 +19,9 @@
  * in a UI that does not check.
  */
 export function hendersonHasselbalch({ pKa, acidConc, baseConc }) {
-  if (typeof pKa !== 'number' || !Number.isFinite(pKa)) {
-    throw new Error('pKa must be a finite number');
-  }
-  for (const [name, v] of [['Acid concentration', acidConc], ['Base concentration', baseConc]]) {
-    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
-      throw new Error(`${name} must be greater than zero (got ${v})`);
-    }
-  }
+  requireFinite(pKa, 'pka');
+  requirePositive(acidConc, 'acidConc');
+  requirePositive(baseConc, 'baseConc');
   return pKa + Math.log10(baseConc / acidConc);
 }
 
@@ -37,12 +34,8 @@ export const USEFUL_RANGE = 1;
  *   [A-]/[HA] = 10^(pH - pKa)
  */
 export function bufferRecipe({ pKa, targetPh, totalConc }) {
-  if (typeof pKa !== 'number' || !Number.isFinite(pKa)) {
-    throw new Error('pKa must be a finite number');
-  }
-  if (typeof targetPh !== 'number' || !Number.isFinite(targetPh)) {
-    throw new Error('Target pH must be a finite number');
-  }
+  requireFinite(pKa, 'pka');
+  requireFinite(targetPh, 'targetPh');
   const ratio = 10 ** (targetPh - pKa);
   const out = {
     ratio,
@@ -51,9 +44,7 @@ export function bufferRecipe({ pKa, targetPh, totalConc }) {
     inRange: Math.abs(targetPh - pKa) <= USEFUL_RANGE,
   };
   if (typeof totalConc === 'number') {
-    if (!Number.isFinite(totalConc) || totalConc <= 0) {
-      throw new Error(`Total concentration must be greater than zero (got ${totalConc})`);
-    }
+    requirePositive(totalConc, 'totalConc');
     // [HA] = C / (1 + ratio), [A-] = C - [HA]
     out.acidConc = totalConc / (1 + ratio);
     out.baseConc = totalConc - out.acidConc;
@@ -68,18 +59,14 @@ export function bufferRecipe({ pKa, targetPh, totalConc }) {
  * remaining volume of diluent.
  */
 export function dilutionSeries({ stockConc, factor, steps, stepVolumeMl = 100 }) {
-  if (typeof stockConc !== 'number' || !Number.isFinite(stockConc) || stockConc <= 0) {
-    throw new Error(`Stock concentration must be greater than zero (got ${stockConc})`);
-  }
+  requirePositive(stockConc, 'stockConc');
   if (typeof factor !== 'number' || !Number.isFinite(factor) || factor <= 1) {
-    throw new Error(`Dilution factor must be greater than 1 (got ${factor})`);
+    fail('factorTooSmall', { factor });
   }
   if (!Number.isInteger(steps) || steps <= 0) {
-    throw new Error(`Steps must be a positive integer (got ${steps})`);
+    fail('stepsNotPositive', { steps });
   }
-  if (typeof stepVolumeMl !== 'number' || !Number.isFinite(stepVolumeMl) || stepVolumeMl <= 0) {
-    throw new Error(`Step volume must be greater than zero (got ${stepVolumeMl})`);
-  }
+  requirePositive(stepVolumeMl, 'stepVolume');
 
   const out = [];
   let conc = stockConc;
@@ -108,7 +95,7 @@ function factorOf(unit) {
   for (const t of TABLES) {
     if (unit in t) return t[unit];
   }
-  throw new Error(`Unknown unit "${unit}"`);
+  fail('unknownUnit', { unit });
 }
 
 /**
@@ -118,9 +105,7 @@ function factorOf(unit) {
  * than defaulting to a factor of 1, which would silently return the input.
  */
 export function unitConvert(value, from, to) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new Error(`Value must be a finite number (got ${value})`);
-  }
+  requireFinite(value, 'value');
   const f = factorOf(from);
   const t = factorOf(to);
   return (value * f) / t;

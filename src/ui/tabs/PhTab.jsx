@@ -2,18 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { weakAcidPh, weakBasePh } from '../../calc/titration.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
 import { fmt, n } from '../format.mjs';
+import { useI18n } from '../LocaleContext.jsx';
+import { errorMessage } from '../errors.mjs';
+import { recordSummary } from '../summaries.mjs';
 
-/** Common lab acids and bases, so the pKa/pKb field is not a blank guess. */
+/** Common lab acids and bases, so the pKa field is not a blank guess. */
 const PRESETS = [
-  { label: '乙酸', kind: 'acid', value: 4.76 },
-  { label: '碳酸', kind: 'acid', value: 6.35 },
-  { label: '磷酸（一级）', kind: 'acid', value: 2.15 },
+  { label: '乙酸 / Acetate', kind: 'acid', value: 4.76 },
+  { label: '碳酸 / Carbonate', kind: 'acid', value: 6.35 },
+  { label: '磷酸 / Phosphate', kind: 'acid', value: 2.15 },
   { label: 'Tris-HCl', kind: 'acid', value: 8.06 },
-  { label: '氨水', kind: 'base', value: 4.75 },
-  { label: '吡啶', kind: 'base', value: 8.77 },
+  { label: '氨水 / Ammonia', kind: 'base', value: 4.75 },
+  { label: '吡啶 / Pyridine', kind: 'base', value: 8.77 },
 ];
 
 export default function PhTab({ onRecord, restored }) {
+  const { t } = useI18n();
   const [kind, setKind] = useState(restored?.kind ?? 'acid');
   const [pk, setPk] = useState(restored?.pk != null ? String(restored.pk) : '4.76');
   const [conc, setConc] = useState(restored?.conc != null ? String(restored.conc) : '0.1');
@@ -33,10 +37,10 @@ export default function PhTab({ onRecord, restored }) {
       setErr(null);
       onRecord({
         kind: 'phCalc', inputs, outputs: { ph },
-        summary: `${kind === 'acid' ? '弱酸' : '弱碱'} pK${kind === 'acid' ? 'a' : 'b'} ${inputs.pk}、${inputs.conc} mol/L → pH ${fmt(ph, 2)}`,
+        summary: recordSummary({ kind: 'phCalc', inputs, outputs: { ph } }, t),
       });
     } catch (e) {
-      setErr(e.message);
+      setErr(errorMessage(e, t));
       setOut(null);
     }
   }
@@ -44,37 +48,37 @@ export default function PhTab({ onRecord, restored }) {
   return (
     <div className="card">
       <div className="field">
-        <label htmlFor="ph-kind">类型</label>
+        <label htmlFor="ph-kind">{t('ph.kind')}</label>
         <select id="ph-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-          <option value="acid">弱酸（已知 pKa）</option>
-          <option value="base">弱碱（已知 pKb）</option>
+          <option value="acid">{t('ph.acidOption')}</option>
+          <option value="base">{t('ph.baseOption')}</option>
         </select>
       </div>
 
       <NumField
-        label={kind === 'acid' ? 'pKa' : 'pKb'}
+        label={kind === 'acid' ? t('ph.pka') : t('ph.pkb')}
         value={pk}
         onChange={setPk}
         hint={PRESETS.filter((p) => p.kind === kind).map((p) => `${p.label} ${p.value}`).join(' · ')}
       />
-      <NumField label="浓度 (mol/L)" value={conc} onChange={setConc} min="0" />
+      <NumField label={t('ph.conc')} value={conc} onChange={setConc} min="0" />
 
-      <button className="primary" onClick={run}>计算</button>
+      <button className="primary" onClick={run}>{t('common.calc')}</button>
       {err && <Err>{err}</Err>}
 
-      <Warn>
-        采用近似式 [H⁺] ≈ √(Ka·C)，适用于弱酸/弱碱且解离度较小的情况。
-        强酸强碱、极稀溶液或等当点附近不适用。
-      </Warn>
+      <Warn>{t('ph.warning')}</Warn>
 
       <Result
         value={out ? fmt(out.ph, 2) : null}
         unit="pH"
-        note={out ? `${out.kind === 'acid' ? '弱酸' : '弱碱'}，pK${out.kind === 'acid' ? 'a' : 'b'} = ${out.pk}` : null}
+        note={out ? t('ph.note', {
+          kind: out.kind === 'acid' ? t('ph.weakAcid') : t('ph.weakBase'),
+          pk: out.pk,
+        }) : null}
         rows={out ? [
           ['pH', fmt(out.ph, 3)],
           ['pOH', fmt(out.pOH, 3)],
-          ['浓度', `${out.conc} mol/L`],
+          [t('common.concentration'), `${out.conc} mol/L`],
         ] : null}
       />
     </div>

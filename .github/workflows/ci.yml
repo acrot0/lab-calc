@@ -45,6 +45,16 @@ jobs:
 
       - run: npm test
 
+      - name: Icons are reproducible
+        # The icons are generated, so a stale committed copy would drift from
+        # the script. Regenerate and assert nothing changed.
+        run: |
+          npm run icons
+          git diff --exit-code -- public/ || {
+            echo "::error::public/ icons differ from scripts/make-icons.mjs output"
+            exit 1
+          }
+
       - run: npm run build
 
       - name: Built output is a working app, not just files
