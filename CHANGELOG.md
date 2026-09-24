@@ -6,6 +6,50 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **Element categories were wrong for 13 of 118 elements** — the category was
+  derived from the grid position, but the staircase dividing metals from
+  non-metals cuts diagonally across the columns. Carbon, nitrogen, oxygen,
+  phosphorus and sulfur share groups 14–16 with tin and lead and came out
+  post-transition metals; astatine in group 17 came out a halogen. Categories
+  are now explicit membership lists, and `categoryOf` throws on an unassigned
+  element rather than falling back to a plausible default.
+- **Cross-dimension unit conversion returned a confident wrong answer** —
+  `unitConvert(1, 'g', 'mL')` returned `1`, because grams and millilitres both
+  have a factor of 1 against their own base. A mass-to-volume conversion needs a
+  density the function has no way to know; it now throws `incompatibleUnits`.
+- **Trace amounts rendered as zero** — a 1 µM solution in 1 mL needs 5.844×10⁻⁸ g,
+  which the weigh tab reported as `0 g`; a weak absorber gave 6.7×10⁻⁸ M, which
+  the spectrophotometer reported as `0 mol/L`; the eighth tube of a 1:100 serial
+  dilution reported `0`. Amounts with no lower bound (mass, moles,
+  concentration) now use `fmtSci`; quantities with a floor keep `fmt`.
+- **Preset chips shipped Chinese to English users** — reagent, solute and pKa
+  presets were written as literals in the components (`'盐酸 HCl 37%'`,
+  `'葡萄糖 glucose'`). Each now carries a translation key with the
+  language-independent parts held separately.
+- **`<html lang>` never changed on locale switch** — an English user's document
+  still claimed to be Chinese, so a screen reader read English with Chinese
+  phonetics.
+
+### Added
+
+- **Periodic table legend, axis labels and keyboard navigation** — the
+  "colour by category" view used the per-element CPK colours, so it produced 118
+  hues and showed no grouping at all; it now uses one colour per category with a
+  legend. Group numbers run across the top, period numbers down the gutter, and
+  the two detached rows are named. Arrow keys move between cells instead of 118
+  tab stops.
+- **Block view** (s/p/d/f) for the periodic table, and a legend ramp for the
+  numeric properties so the key and the cells share one ramp.
+- **Unit conversion by dimension** — each dimension gets its own picker, so
+  grams on one side and millilitres on the other is never offered; a swap button
+  flips a conversion in one tap.
+
+### Changed
+
+- `README.md` caught up with the seven tabs added since it was written.
+
 ## [0.4.0] — 2026-09-24
 
 ### Added
