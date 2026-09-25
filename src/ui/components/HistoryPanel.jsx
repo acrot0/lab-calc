@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { History, Search, Trash2, RotateCcw, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { Icons, ICON_SIZE } from '../icons.jsx';
 import { filterHistory } from '../history.mjs';
 import { downloadCsv, downloadMarkdown } from '../export.mjs';
 import { useI18n } from '../LocaleContext.jsx';
@@ -27,7 +27,7 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
     <div className="card">
       <div className="history-head">
         <h2>
-          <History size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} aria-hidden="true" />
+          <Icons.history size={ICON_SIZE.inline} style={{ verticalAlign: '-2px', marginRight: 6 }} aria-hidden="true" />
           {t('history.title')}
         </h2>
         {entries.length > 0 && (
@@ -39,16 +39,16 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
               >
-                <Download size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} aria-hidden="true" />
+                <Icons.download size={ICON_SIZE.inline} style={{ verticalAlign: '-1px', marginRight: 3 }} aria-hidden="true" />
                 {t('history.export')}
               </button>
               {menuOpen && (
                 <div className="export-menu" role="menu">
                   <button role="menuitem" onClick={() => doExport('csv')}>
-                    <FileSpreadsheet size={13} aria-hidden="true" /> {t('history.exportCsv')}
+                    <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportCsv')}
                   </button>
                   <button role="menuitem" onClick={() => doExport('markdown')}>
-                    <FileText size={13} aria-hidden="true" /> {t('history.exportMarkdown')}
+                    <Icons.markdown size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportMarkdown')}
                   </button>
                 </div>
               )}
@@ -60,7 +60,7 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
 
       {entries.length > 0 && (
         <div className="search">
-          <Search size={14} aria-hidden="true" />
+          <Icons.search size={ICON_SIZE.inline} aria-hidden="true" />
           <label className="sr-only" htmlFor="hist-search">{t('history.search')}</label>
           <input
             id="hist-search"
@@ -100,7 +100,7 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
                   aria-label={`${t('history.replay')}: ${summary}`}
                   onClick={() => onReplay(e)}
                 >
-                  <RotateCcw size={14} aria-hidden="true" />
+                  <Icons.replay size={ICON_SIZE.inline} aria-hidden="true" />
                 </button>
                 <button
                   className="icon-btn"
@@ -108,7 +108,7 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
                   aria-label={`${t('history.remove')}: ${summary}`}
                   onClick={() => onRemove(e.id)}
                 >
-                  <Trash2 size={14} aria-hidden="true" />
+                  <Icons.remove size={ICON_SIZE.inline} aria-hidden="true" />
                 </button>
               </div>
             );

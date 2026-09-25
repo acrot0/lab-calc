@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { Icons, ICON_SIZE } from '../icons.jsx';
 
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
 
@@ -76,7 +76,7 @@ export function Result({ value, unit, note, rows }) {
 export function Warn({ children }) {
   return (
     <div className="msg warn">
-      <AlertTriangle size={15} aria-hidden="true" />
+      <Icons.warning size={ICON_SIZE.control} aria-hidden="true" />
       <div>{children}</div>
     </div>
   );
@@ -85,7 +85,7 @@ export function Warn({ children }) {
 export function Err({ children }) {
   return (
     <div className="msg err" role="alert">
-      <AlertTriangle size={15} aria-hidden="true" />
+      <Icons.warning size={ICON_SIZE.control} aria-hidden="true" />
       <div>{children}</div>
     </div>
   );

@@ -1,8 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import {
-  FlaskConical, Droplets, TestTube2, ArrowLeftRight, Activity, Percent, LineChart,
-  Languages, ShieldAlert, Beaker, Sun, Calculator, Thermometer, Scale, Zap, Atom,
-} from 'lucide-react';
+import { Icons, ICON_SIZE } from './icons.jsx';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
 } from './history.mjs';
@@ -28,29 +25,34 @@ import ElementsTab from './tabs/ElementsTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 
+/**
+ * Every tab has its own icon. "Dilute" and "Serial dilution" shared one
+ * (Droplets) until the icon set was consolidated — two entries that look
+ * identical in a navigation bar are not navigation.
+ */
 const TABS = [
-  { id: 'weigh', icon: FlaskConical, Component: WeighTab },
-  { id: 'dilute', icon: Droplets, Component: DiluteTab },
-  { id: 'buffer', icon: TestTube2, Component: BufferTab },
-  { id: 'series', icon: Droplets, Component: SeriesTab },
-  { id: 'ph', icon: Activity, Component: PhTab },
-  { id: 'percent', icon: Percent, Component: PercentTab },
-  { id: 'curve', icon: LineChart, Component: CurveTab },
-  { id: 'reagent', icon: Beaker, Component: ReagentTab },
-  { id: 'spectro', icon: Sun, Component: SpectroTab },
-  { id: 'lab', icon: Calculator, Component: LabTab },
-  { id: 'colligative', icon: Thermometer, Component: ColligativeTab },
-  { id: 'reaction', icon: Scale, Component: ReactionTab },
-  { id: 'electro', icon: Zap, Component: ElectroTab },
-  { id: 'elements', icon: Atom, Component: ElementsTab },
-  { id: 'convert', icon: ArrowLeftRight, Component: ConvertTab },
+  { id: 'weigh', icon: Icons.weigh, Component: WeighTab },
+  { id: 'dilute', icon: Icons.dilute, Component: DiluteTab },
+  { id: 'buffer', icon: Icons.buffer, Component: BufferTab },
+  { id: 'series', icon: Icons.series, Component: SeriesTab },
+  { id: 'ph', icon: Icons.ph, Component: PhTab },
+  { id: 'percent', icon: Icons.percent, Component: PercentTab },
+  { id: 'curve', icon: Icons.curve, Component: CurveTab },
+  { id: 'reagent', icon: Icons.reagent, Component: ReagentTab },
+  { id: 'spectro', icon: Icons.spectro, Component: SpectroTab },
+  { id: 'lab', icon: Icons.lab, Component: LabTab },
+  { id: 'colligative', icon: Icons.colligative, Component: ColligativeTab },
+  { id: 'reaction', icon: Icons.reaction, Component: ReactionTab },
+  { id: 'electro', icon: Icons.electro, Component: ElectroTab },
+  { id: 'elements', icon: Icons.elements, Component: ElementsTab },
+  { id: 'convert', icon: Icons.convert, Component: ConvertTab },
 ];
 
 function LocaleSelect() {
   const { locale, setLocale, t } = useI18n();
   return (
     <span className="control-group">
-      <Languages size={14} aria-hidden="true" />
+      <Icons.language size={ICON_SIZE.inline} aria-hidden="true" />
       <label className="sr-only" htmlFor="locale-select">{t('app.langLabel')}</label>
       <select
         id="locale-select"
@@ -130,7 +132,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true"><FlaskConical size={19} /></span>
+          <span className="brand-mark" aria-hidden="true"><Icons.weigh size={ICON_SIZE.display} /></span>
           <div className="brand-text">
             <h1>{t('app.title')}</h1>
             <p className="brand-sub">{t('app.tagline')}</p>
@@ -151,7 +153,7 @@ export default function App() {
             aria-selected={tab === id}
             onClick={() => setTab(id)}
           >
-            <Icon size={15} aria-hidden="true" />
+            <Icon size={ICON_SIZE.control} aria-hidden="true" />
             {t(`tabs.${id}`)}
           </button>
         ))}
@@ -168,7 +170,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <ShieldAlert size={12} aria-hidden="true" />
+        <Icons.notice size={ICON_SIZE.inline} aria-hidden="true" />
         <span>{t('disclaimer.footer')}</span>
         <span className="sep">·</span>
         <button className="link-btn" onClick={() => setNoticeOpen(true)}>

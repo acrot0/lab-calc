@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ShieldAlert, Check, X } from 'lucide-react';
+import { Icons, ICON_SIZE } from '../icons.jsx';
 import { DISCLAIMER_POINTS } from '../disclaimer.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 
@@ -41,7 +41,7 @@ export default function NoticeModal({ open, onAcknowledge, onClose, mustAcknowle
         aria-labelledby="notice-title"
       >
         <div className="modal-head">
-          <ShieldAlert size={20} style={{ color: 'var(--warn)', flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+          <Icons.notice size={ICON_SIZE.display} style={{ color: 'var(--warn)', flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
           <div>
             <h2 id="notice-title">{t('disclaimer.title')}</h2>
             <p>{t('disclaimer.subtitle')}</p>
@@ -65,12 +65,12 @@ export default function NoticeModal({ open, onAcknowledge, onClose, mustAcknowle
           <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             {!mustAcknowledge && (
               <button className="control" onClick={onClose}>
-                <X size={14} aria-hidden="true" />
+                <Icons.close size={ICON_SIZE.inline} aria-hidden="true" />
                 {t('disclaimer.close')}
               </button>
             )}
             <button className="primary" ref={primaryRef} onClick={onAcknowledge}>
-              <Check size={15} aria-hidden="true" />
+              <Icons.check size={ICON_SIZE.control} aria-hidden="true" />
               {t('disclaimer.ack')}
             </button>
           </div>
