@@ -4,7 +4,7 @@ import {
   ELEMENT_CATEGORIES,
 } from '../../calc/elements.mjs';
 import {
-  ELEMENT_CATEGORY_COLOR, BLOCK_COLOR, sequentialColor,
+  ELEMENT_CATEGORY_COLOR, BLOCK_COLOR, CIVIDIS, sequentialColor,
 } from '../palette.mjs';
 import { electronConfig } from '../../calc/config.mjs';
 import { propertiesOf } from '../../calc/element-properties.mjs';
@@ -228,7 +228,14 @@ export default function ElementsTab() {
         {NUMERIC_KEYS.includes(colorBy) && (
           <>
             <span className="legend-item">{fmt(ranges[colorBy].min, 3)}</span>
-            <span className="legend-ramp" />
+            {/* Built from the same ramp the cells use, so the legend cannot
+                show a scale the table does not follow. It was a hand-written
+                rainbow gradient in CSS until the ramp changed to cividis and
+                the two silently disagreed. */}
+            <span
+              className="legend-ramp"
+              style={{ background: `linear-gradient(90deg, ${CIVIDIS.join(', ')})` }}
+            />
             <span className="legend-item">{fmt(ranges[colorBy].max, 3)}</span>
             <span className="legend-item legend-unit">
               {t(`elements.unit_${colorBy}`)}

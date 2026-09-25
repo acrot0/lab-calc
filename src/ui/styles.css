@@ -1171,7 +1171,7 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   width: 74px;
   height: 9px;
   border-radius: 5px;
-  background: linear-gradient(90deg, hsl(200 72% 52%), hsl(100 72% 52%), hsl(0 72% 52%));
+
 }
 
 .legend-unit { opacity: 0.75; }

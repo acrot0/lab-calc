@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  OKABE_ITO, CATEGORICAL, ELEMENT_CATEGORY_COLOR, BLOCK_COLOR, VIRIDIS,
+  OKABE_ITO, CATEGORICAL, ELEMENT_CATEGORY_COLOR, BLOCK_COLOR, CIVIDIS,
   sequentialColor, mixHex, hexToRgb, rgbToHex, relativeLuminance,
   contrastRatio, simulateCvd, CVD_KINDS, withAlpha,
 } from '../src/ui/palette.mjs';
@@ -176,8 +176,8 @@ describe('colour vision deficiency', () => {
 
 describe('sequential ramp', () => {
   it('should start and end at the published viridis endpoints', () => {
-    expect(sequentialColor(0)).toBe('#440154');
-    expect(sequentialColor(1)).toBe('#FDE725');
+    expect(sequentialColor(0)).toBe('#00204d');
+    expect(sequentialColor(1)).toBe('#ffea46');
   });
 
   it('should be monotonic in lightness, which is what makes it readable in greyscale', () => {
@@ -192,8 +192,8 @@ describe('sequential ramp', () => {
   });
 
   it('should clamp rather than wrap out-of-range input', () => {
-    expect(sequentialColor(-0.5)).toBe('#440154');
-    expect(sequentialColor(1.5)).toBe('#FDE725');
+    expect(sequentialColor(-0.5)).toBe('#00204d');
+    expect(sequentialColor(1.5)).toBe('#ffea46');
   });
 
   it('should be strictly increasing across the ramp, not just non-decreasing', () => {
@@ -204,8 +204,22 @@ describe('sequential ramp', () => {
     expect(last).toBeGreaterThan(first + 0.5);
   });
 
-  it('should keep every viridis stop a valid six-digit hex', () => {
-    for (const stop of VIRIDIS) expect(stop).toMatch(/^#[0-9A-Fa-f]{6}$/);
+  it('should keep every cividis stop a valid six-digit hex', () => {
+    for (const stop of CIVIDIS) expect(stop).toMatch(/^#[0-9A-Fa-f]{6}$/);
+  });
+
+  it('should stay separable step-to-step under colour vision deficiency', () => {
+    // This is why cividis was chosen over viridis, which was the first choice.
+    // Both are perceptually uniform and monotonic in lightness; they differ
+    // here. The floor is set below cividis's measured worst case (29.0, under
+    // tritanopia) and well above viridis's (12.4), so a future change back to
+    // viridis — or to any rainbow ramp — fails rather than shipping quietly.
+    for (const kind of CVD_KINDS) {
+      const sim = CIVIDIS.map((c) => simulateCvd(c, kind));
+      let min = Infinity;
+      for (let i = 0; i < sim.length - 1; i++) min = Math.min(min, deltaE(sim[i], sim[i + 1]));
+      expect(min, `adjacent steps under ${kind} (${min.toFixed(1)})`).toBeGreaterThan(25);
+    }
   });
 });
 
