@@ -1616,6 +1616,232 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
    Modal — the educational-use notice
    ========================================================================== */
 
+/* ==========================================================================
+   Calculator drawer
+   ========================================================================== */
+
+/*
+ * A drawer, not a modal.
+ *
+ * It slides in from the right and leaves the page behind it visible and
+ * unscrolled, because the reason it exists is to be a detour: a student filling
+ * in a dilution form needs an intermediate molar mass without losing the form.
+ * A centred modal would cover the very thing they are working on.
+ *
+ * `aria-modal="false"` in the markup matches: this does not trap focus, and
+ * treating it as a modal would tell a screen reader to ignore the page it is
+ * deliberately leaving reachable.
+ *
+ * Below 100 is deliberate — the notice modal is 100 and must stay above it.
+ */
+.calc-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  padding: 0;
+  background: var(--scrim);
+  border: none;
+  cursor: default;
+  animation: fade var(--dur) var(--ease);
+}
+
+.calc-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100vw);
+  background: var(--chrome, var(--surface));
+  border-left: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-3);
+  animation: drawer-in var(--dur) var(--ease);
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* The same reasoning as the modal's blur: a panel that already sits over the
+   page does not need a second blur of its own, which would compound into a
+   flat wash. */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  [data-material="frosted"] .calc-drawer {
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+  }
+}
+
+.calc-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--border);
+}
+
+.calc-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.calc-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-left: auto;
+}
+
+.calc-mode {
+  min-width: 48px;
+  height: 28px;
+  padding: 0 var(--s3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.calc-mode.is-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+.calc-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s5);
+  overflow-y: auto;
+}
+
+.calc-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--font-num);
+  font-size: var(--t-md);
+  letter-spacing: 0.01em;
+}
+
+.calc-input:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring) var(--accent-soft);
+}
+
+/*
+ * The readout.
+ *
+ * `min-height` reserves the line so the keypad does not jump down the moment a
+ * result appears — a keypad that moves under the finger is how a mis-tap
+ * happens.
+ */
+.calc-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2);
+  min-height: 40px;
+  padding: var(--s3) var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.calc-value {
+  font-family: var(--font-num);
+  font-size: var(--t-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  word-break: break-all;
+}
+
+.calc-unit {
+  font-family: var(--font-num);
+  font-size: var(--t-base);
+  color: var(--text-mid);
+}
+
+.calc-dim {
+  width: 100%;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.calc-idle { color: var(--text-dim); font-size: var(--t-sm); }
+.calc-error { color: var(--err-ink); font-size: var(--t-sm); line-height: 1.45; }
+
+.calc-units {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.calc-chip {
+  height: 28px;
+  padding: 0 var(--s3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-mid);
+  cursor: pointer;
+  font-family: var(--font-num);
+  font-size: var(--t-xs);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.calc-chip:hover { background: var(--surface-3); border-color: var(--accent); color: var(--text); }
+
+.calc-keypad {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.calc-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--s2);
+}
+
+.calc-key {
+  min-height: 40px;
+  padding: 0 var(--s2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.calc-key:hover { background: var(--surface-3); border-color: var(--border-strong); }
+.calc-key:active { transform: translateY(1px); }
+
+/* Function keys are dimmer than digits: they are reached for less often, and
+   the visual weight should say so rather than the layout having to. */
+.calc-key.is-fn { color: var(--text-mid); font-size: var(--t-xs); }
+
+.calc-key.is-wide { grid-column: span 2; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.calc-key.is-wide:hover { background: var(--accent-hover-solid, var(--accent-hover)); }
+
 .scrim {
   position: fixed;
   inset: 0;

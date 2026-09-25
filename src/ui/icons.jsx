@@ -19,6 +19,7 @@ import { Percent } from '@phosphor-icons/react/dist/csr/Percent';
 import { ChartLine } from '@phosphor-icons/react/dist/csr/ChartLine';
 import { Sun } from '@phosphor-icons/react/dist/csr/Sun';
 import { Calculator } from '@phosphor-icons/react/dist/csr/Calculator';
+import { MathOperations } from '@phosphor-icons/react/dist/csr/MathOperations';
 import { Thermometer } from '@phosphor-icons/react/dist/csr/Thermometer';
 import { Scales } from '@phosphor-icons/react/dist/csr/Scales';
 import { Lightning } from '@phosphor-icons/react/dist/csr/Lightning';
@@ -166,6 +167,9 @@ export const Icons = {
   electro: styled(Lightning, WEIGHT.duotone),
   elements: styled(Atom, WEIGHT.duotone),
   convert: styled(ArrowsLeftRight, WEIGHT.duotone),
+  // The drawer, not the "Lab bench" tab — that one already owns Calculator, and
+  // two controls wearing the same glyph in one topbar is not a distinction.
+  calc: styled(MathOperations),
 
   // --- Chrome ---
   history: styled(ClockCounterClockwise),

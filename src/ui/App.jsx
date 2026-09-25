@@ -28,6 +28,7 @@ import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
 import BrandMark from './components/BrandMark.jsx';
+import CalculatorDrawer from './components/CalculatorDrawer.jsx';
 
 /**
  * Every tab has its own icon. "Dilute" and "Serial dilution" shared one
@@ -98,7 +99,27 @@ export default function App() {
   const [nonce, setNonce] = useState(0);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [ackd, setAckd] = useState(true);
+  const [calcOpen, setCalcOpen] = useState(false);
   const store = useMemo(() => resolveStore(), []);
+
+  /*
+   * Ctrl/Cmd+K opens the calculator from anywhere.
+   *
+   * Bound on the document rather than on a focused element, because the whole
+   * point is reaching it without leaving the field you are in. `preventDefault`
+   * is only called when the shortcut actually matches — swallowing every key
+   * would break the browser's own find and the address bar.
+   */
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCalcOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => { setEntries(loadHistory(store)); }, [store]);
   useEffect(() => { saveHistory(store, entries); }, [store, entries]);
@@ -150,6 +171,18 @@ export default function App() {
           </div>
         </div>
         <div className="topbar-actions">
+          {/* A visible affordance for a keyboard-only feature: the shortcut is
+              the fast path, and this is how anyone finds out it exists. */}
+          <button
+            type="button"
+            className="control"
+            onClick={() => setCalcOpen((v) => !v)}
+            aria-expanded={calcOpen}
+            title={`${t('convert.calcOpen')} (Ctrl+K)`}
+          >
+            <Icons.calc size={ICON_SIZE.control} aria-hidden="true" />
+            <span className="control-label">{t('convert.calcOpen')}</span>
+          </button>
           <LocaleSelect />
           <MaterialToggle />
           <ThemeToggle />
@@ -218,6 +251,8 @@ export default function App() {
         onAcknowledge={acceptNotice}
         onClose={() => setNoticeOpen(false)}
       />
+
+      <CalculatorDrawer open={calcOpen} onClose={() => setCalcOpen(false)} />
     </div>
   );
 }

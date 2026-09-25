@@ -73,6 +73,128 @@ const toSi = (q) => q.value * q.scale;
 const isTemperature = (q) => q.unit !== null && q.unit in TEMPERATURE_UNITS;
 
 /**
+ * Named constants.
+ *
+ * A constant is not a unit and not a variable: it has a value and no dimension,
+ * which is what lets `2*pi` work. The names are lower-case and deliberately
+ * short because they are typed by hand — `pi` and `e` are the two a chemistry
+ * student reaches for, and both are checked against `UNITS` by a test so a
+ * future unit named `e` cannot silently shadow the constant.
+ */
+const CONSTANTS = {
+  pi: Math.PI,
+  e: Math.E,
+};
+
+/**
+ * Functions, and the dimensional rule they all obey.
+ *
+ * Every one of these takes a **dimensionless** argument and returns a
+ * dimensionless result. That is not a limitation to be worked around — it is
+ * the whole reason this calculator can be trusted. `sin(5 g)` has no meaning:
+ * the sine of a mass depends on the unit you happen to measure it in, so a
+ * calculator that returns a number for it is returning a number that would
+ * change if the user typed `5000 mg` instead. Refusing is the correct answer,
+ * and it is what separates this from a calculator that tracks units only for
+ * display.
+ *
+ * The one exception is `sqrt`, which is meaningful on a dimensioned quantity —
+ * the square root of an area is a length — so it halves the exponent vector
+ * instead of requiring it to be zero. `cbrt` does the same in thirds.
+ *
+ * Trigonometry is in radians. Degrees are a display preference, handled by the
+ * caller converting before it gets here, because a parser that silently
+ * reinterpreted its input by mode would make `sin(pi/2)` depend on a toggle.
+ */
+const FUNCTIONS = {
+  sin: (x) => Math.sin(x),
+  cos: (x) => Math.cos(x),
+  tan: (x) => Math.tan(x),
+  asin: (x) => Math.asin(x),
+  acos: (x) => Math.acos(x),
+  atan: (x) => Math.atan(x),
+  sinh: (x) => Math.sinh(x),
+  cosh: (x) => Math.cosh(x),
+  tanh: (x) => Math.tanh(x),
+  ln: (x) => Math.log(x),
+  log: (x) => Math.log10(x),
+  log2: (x) => Math.log2(x),
+  exp: (x) => Math.exp(x),
+  abs: (x) => Math.abs(x),
+  round: (x) => Math.round(x),
+  floor: (x) => Math.floor(x),
+  ceil: (x) => Math.ceil(x),
+};
+
+/** Functions that scale the exponent vector rather than requiring it to be zero. */
+const ROOTS = {
+  sqrt: 0.5,
+  cbrt: 1 / 3,
+};
+
+/**
+ * Every callable name, so a single lookup decides whether an identifier is a
+ * function. `ROOTS` holds the two that take a dimensioned argument, so testing
+ * `FUNCTIONS` alone would leave `sqrt` to be read as an unknown unit.
+ */
+const CALLABLE = new Set([...Object.keys(FUNCTIONS), ...Object.keys(ROOTS)]);
+
+/** The domains each function is defined on, so a bad input is a clear error. */
+const DOMAINS = {
+  ln: (x) => x > 0,
+  log: (x) => x > 0,
+  log2: (x) => x > 0,
+  asin: (x) => x >= -1 && x <= 1,
+  acos: (x) => x >= -1 && x <= 1,
+};
+
+/**
+ * n!, defined only where it has a value.
+ *
+ * `gamma(n+1)` would extend it to non-integers and to a curve that is not what
+ * anyone typing `5!` means. The domain is the non-negative integers, and the
+ * cap is there because 171! overflows a double — past that the honest answer is
+ * "too large", not `Infinity`.
+ */
+function factorial(n) {
+  if (!Number.isInteger(n) || n < 0) fail('functionDomain', { fn: '!' });
+  if (n > 170) fail('functionDomain', { fn: '!' });
+  let out = 1;
+  for (let i = 2; i <= n; i++) out *= i;
+  return out;
+}
+
+/**
+ * Apply a named function to an already-parsed argument.
+ *
+ * The dimensionless requirement is enforced here rather than in the table above,
+ * so the check cannot be forgotten when a function is added: a name in
+ * `FUNCTIONS` that is not in `ROOTS` gets the check by default.
+ */
+function applyFunction(name, arg) {
+  if (name in ROOTS) {
+    const k = ROOTS[name];
+    if (arg.value < 0) fail('functionDomain', { fn: name });
+    return quantity(
+      arg.value ** k,
+      arg.exp.map((x) => x * k),
+      arg.unit,
+      arg.scale ** k,
+      false,
+    );
+  }
+
+  if (!isDimensionless(arg.exp)) {
+    fail('functionNotDimensionless', { fn: name, unit: arg.unit ?? nameExponents(arg.exp) });
+  }
+  const domain = DOMAINS[name];
+  if (domain && !domain(arg.value)) fail('functionDomain', { fn: name });
+  const out = FUNCTIONS[name](arg.value);
+  if (!Number.isFinite(out)) fail('functionDomain', { fn: name });
+  return scalar(out);
+}
+
+/**
  * Split input into tokens.
  *
  * Numbers may carry an exponent (`1.5e-3`) and units may carry a digit
@@ -110,7 +232,15 @@ function tokenize(src) {
       continue;
     }
 
-    if ('+-*/^()'.includes(c)) {
+    // A lone `%` is percent, and it is reached only after `%w/v` has been
+    // ruled out above — so the two never compete for the same input.
+    if (c === '%') {
+      tokens.push({ type: '%' });
+      i++;
+      continue;
+    }
+
+    if ('+-*/^()!'.includes(c)) {
       tokens.push({ type: c });
       i++;
       continue;
@@ -166,6 +296,10 @@ function parse(tokens, t) {
       // own is dimensionless, which is what makes `2 * 3 g` work.
       const next = peek();
       if (next?.type === 'ident') {
+        // A number followed by a *function* name is a syntax error rather than
+        // a unit: `2sin(3)` has no meaning, and silently reading `sin` as an
+        // unknown unit would report the wrong problem.
+        if (CALLABLE.has(next.value)) fail('expressionSyntax', { at: `${tk.value}${next.value}` });
         // Any identifier here is meant as a unit — `2 + 3` has an operator
         // next, not an identifier — so an unrecognised one is reported as an
         // unknown unit rather than left for the caller to choke on as trailing
@@ -181,6 +315,17 @@ function parse(tokens, t) {
 
     if (tk?.type === 'ident') {
       pos++;
+      // A name may be a constant, a function, or a unit, and the order matters:
+      // `e` is a constant before it could be an unknown unit, and `sin` needs
+      // its argument parsed before anything is computed.
+      if (tk.value in CONSTANTS) return scalar(CONSTANTS[tk.value]);
+      if (CALLABLE.has(tk.value)) {
+        const name = tk.value;
+        if (!eat('(')) fail('expressionSyntax', { at: `${name} needs (` });
+        const arg = expression();
+        if (!eat(')')) fail('expressionSyntax', { at: 'missing )' });
+        return applyFunction(name, arg);
+      }
       // A bare unit is one of it: `g` means `1 g`, so `5 / mL` works.
       return quantity(1, exponentsOfUnit(tk.value), tk.value, factorOfUnit(tk.value));
     }
@@ -200,8 +345,28 @@ function parse(tokens, t) {
 
   const negate = (q) => quantity(-q.value, q.exp, q.unit, q.scale, false);
 
-  function power() {
+  /**
+   * Postfix operators, which bind tighter than anything binary.
+   *
+   * Factorial is the tightest binding in the grammar, which is the convention
+   * every calculator uses: `2*3!` is 12, `3!^2` is 36, and `2^3!` is 64. It
+   * sits inside `power` rather than after it — applying it to the result of
+   * the exponentiation would make `3!^2` parse as `(3!)^2` by accident and
+   * `2^3!` as `(2^3)!` = 40320, which is not what anyone means.
+   */
+  function postfix() {
     let base = atom();
+    while (eat('!')) {
+      if (!isDimensionless(base.exp)) {
+        fail('functionNotDimensionless', { fn: '!', unit: base.unit ?? nameExponents(base.exp) });
+      }
+      base = scalar(factorial(base.value));
+    }
+    return base;
+  }
+
+  function power() {
+    let base = postfix();
     while (eat('^')) {
       const exp = unary();
       if (!isDimensionless(exp.exp)) fail('exponentNotDimensionless', { unit: exp.unit ?? '' });
@@ -221,11 +386,34 @@ function parse(tokens, t) {
     return power();
   }
 
+  /**
+   * Percent, as a postfix operator on a bare number.
+   *
+   * `50%` is `0.5`, and it binds tighter than `*` so `200*5%` is 10 — the way
+   * every calculator and spreadsheet reads it. Written as its own level rather
+   * than folded into `unary` because it is postfix: the thing it applies to has
+   * to be parsed before it can be divided.
+   *
+   * It is not a unit. `%w/v` is, and is tokenised separately above; a bare `%`
+   * after a dimensioned quantity (`5 g%`) is refused, because "percent of a
+   * gram" is not a quantity this can report.
+   */
+  function percent() {
+    let v = power();
+    while (eat('%')) {
+      if (!isDimensionless(v.exp)) {
+        fail('functionNotDimensionless', { fn: '%', unit: v.unit ?? nameExponents(v.exp) });
+      }
+      v = scalar(v.value / 100);
+    }
+    return v;
+  }
+
   function term() {
-    let left = unary();
+    let left = percent();
     for (;;) {
       if (eat('*')) {
-        const right = unary();
+        const right = percent();
         left = quantity(
           left.value * right.value,
           addExponents(left.exp, right.exp),
@@ -234,7 +422,7 @@ function parse(tokens, t) {
           false,
         );
       } else if (eat('/')) {
-        const right = unary();
+        const right = percent();
         if (right.value === 0) fail('divideByZero', {});
         left = quantity(
           left.value / right.value,
@@ -372,9 +560,13 @@ export function tryEvaluate(source) {
  * A bare number is not an expression: evaluating it would be a slower way to
  * get the same number, and it would make `1e-3` depend on the parser accepting
  * exponent notation. The field only calls the evaluator when this is true.
+ *
+ * A function name alone counts. `sqrt(2)` has parentheses and would match
+ * anyway, but `2!` and `50%` do not, and both are things a user types into a
+ * field expecting them to be computed rather than rejected as not-a-number.
  */
 export function looksLikeExpression(source) {
-  return /[+\-*/^()]/.test(String(source ?? ''));
+  return /[+\-*/^()!%]/.test(String(source ?? ''));
 }
 
 /** Re-exported so a caller can name a dimension without importing units.mjs. */

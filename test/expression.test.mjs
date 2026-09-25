@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluate, looksLikeExpression, tryEvaluate,
 } from '../src/calc/expression.mjs';
+import { UNITS } from '../src/calc/units.mjs';
 
 /** Evaluate and describe the result, or name the error code. */
 function ev(src) {
@@ -241,5 +242,131 @@ describe('tryEvaluate', () => {
     for (const bad of ['', '2 +', 'abc', '5 g + 2 mL', null, undefined, '(((']) {
       expect(tryEvaluate(bad), String(bad)).toBeNull();
     }
+  });
+});
+
+describe('evaluate — functions', () => {
+  it('should evaluate the trigonometric functions in radians', () => {
+    // Radians, always: a parser whose meaning depended on a degree/radian
+    // toggle would make `sin(pi/2)` mean two different things at two call
+    // sites. The UI converts before it gets here.
+    expect(evaluate('sin(0)').value).toBe(0);
+    expect(evaluate('sin(pi/2)').value).toBeCloseTo(1, 12);
+    expect(evaluate('cos(0)').value).toBe(1);
+    expect(evaluate('atan(1)*4').value).toBeCloseTo(Math.PI, 12);
+  });
+
+  it('should evaluate the logarithm and exponential functions', () => {
+    expect(evaluate('ln(e)').value).toBeCloseTo(1, 12);
+    expect(evaluate('log(1000)').value).toBe(3);
+    expect(evaluate('log2(8)').value).toBe(3);
+    expect(evaluate('exp(0)').value).toBe(1);
+  });
+
+  it('should evaluate the rounding functions', () => {
+    expect(evaluate('abs(-5)').value).toBe(5);
+    expect(evaluate('round(2.6)').value).toBe(3);
+    expect(evaluate('round(-2.6)').value).toBe(-3);
+    expect(evaluate('floor(2.9)').value).toBe(2);
+    expect(evaluate('ceil(2.1)').value).toBe(3);
+  });
+
+  it('should take the root of a dimensioned quantity, scaling its exponents', () => {
+    // The one place a function may take a dimension, because the answer is a
+    // real quantity: the square root of an area is a length.
+    expect(ev('sqrt(4 m2)')).toBe('2 m [length]');
+    expect(ev('cbrt(8 m3)')).toBe('2 m [length]');
+    expect(evaluate('sqrt(16)').value).toBe(4);
+    expect(evaluate('cbrt(27)').value).toBe(3);
+  });
+
+  it('should refuse a function applied to a dimensioned quantity', () => {
+    // The core guarantee. `sin(5 g)` has no value — the sine of a mass would
+    // change with the unit it was measured in, so returning a number would be
+    // returning a number that is wrong in a way the user cannot see.
+    expect(code('sin(5 g)')).toBe('functionNotDimensionless');
+    expect(code('ln(2 mL)')).toBe('functionNotDimensionless');
+    expect(code('sqrt(2 g) + 1 g')).not.toBe('functionNotDimensionless');
+  });
+
+  it('should refuse a function outside its domain', () => {
+    expect(code('asin(2)')).toBe('functionDomain');
+    expect(code('acos(-2)')).toBe('functionDomain');
+    expect(code('ln(0)')).toBe('functionDomain');
+    expect(code('ln(-1)')).toBe('functionDomain');
+    expect(code('log(0)')).toBe('functionDomain');
+    expect(code('sqrt(-4)')).toBe('functionDomain');
+  });
+
+  it('should require parentheses after a function name', () => {
+    expect(code('sin 5')).toBe('expressionSyntax');
+    expect(code('sin')).toBe('expressionSyntax');
+  });
+
+  it('should reject a number written directly against a function name', () => {
+    // `2sin(3)` is a typo, not a multiplication. Reading `sin` as an unknown
+    // unit here would report the wrong problem.
+    expect(code('2sin(3)')).toBe('expressionSyntax');
+  });
+});
+
+describe('evaluate — constants, factorial and percent', () => {
+  it('should resolve pi and e', () => {
+    expect(evaluate('pi').value).toBeCloseTo(Math.PI, 12);
+    expect(evaluate('e').value).toBeCloseTo(Math.E, 12);
+    expect(evaluate('2*pi').value).toBeCloseTo(2 * Math.PI, 12);
+  });
+
+  it('should not let a constant shadow a unit of the same name', () => {
+    // A future unit named `e` or `pi` would silently change what those
+    // expressions mean. This fails the moment one is added, rather than
+    // producing a wrong number for everyone typing `e`.
+    for (const name of ['pi', 'e']) {
+      expect(name in UNITS, name).toBe(false);
+    }
+  });
+
+  it('should compute factorials', () => {
+    expect(evaluate('5!').value).toBe(120);
+    expect(evaluate('0!').value).toBe(1);
+    expect(evaluate('1!').value).toBe(1);
+  });
+
+  it('should bind factorial tighter than multiplication', () => {
+    // The convention every calculator uses: `2*3!` is 12, not 720.
+    expect(evaluate('2*3!').value).toBe(12);
+    expect(evaluate('3!^2').value).toBe(36);
+  });
+
+  it('should refuse a factorial outside the non-negative integers', () => {
+    expect(code('2.5!')).toBe('functionDomain');
+    expect(code('(-1)!')).toBe('functionDomain');
+    // 171! overflows a double; the honest answer is "undefined", not Infinity.
+    expect(code('171!')).toBe('functionDomain');
+    expect(Number.isFinite(evaluate('170!').value)).toBe(true);
+  });
+
+  it('should refuse a factorial of a dimensioned quantity', () => {
+    expect(code('5 g!')).toBe('functionNotDimensionless');
+  });
+
+  it('should read a trailing percent as a division by a hundred', () => {
+    expect(evaluate('50%').value).toBe(0.5);
+    expect(evaluate('100%').value).toBe(1);
+    expect(evaluate('200*5%').value).toBe(10);
+  });
+
+  it('should not confuse a bare percent with the %w/v unit', () => {
+    // `%w/v` is a concentration unit and `%` is an operator. They are matched
+    // in that order, so neither can swallow the other's input.
+    expect(ev('5 %w/v')).toBe('5 %w/v [massConcentration]');
+    expect(evaluate('5%').value).toBe(0.05);
+    expect(code('5 g%')).toBe('functionNotDimensionless');
+  });
+
+  it('should count the new syntax as an expression worth evaluating', () => {
+    expect(looksLikeExpression('2!')).toBe(true);
+    expect(looksLikeExpression('50%')).toBe(true);
+    expect(looksLikeExpression('sin(1)')).toBe(true);
   });
 });

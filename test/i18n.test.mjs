@@ -293,3 +293,64 @@ describe('converter dimensions', () => {
     }
   });
 });
+
+/**
+ * Every key a component asks for must exist.
+ *
+ * `t()` falls back to the key itself, which is the right behaviour at runtime —
+ * a placeholder in the UI beats a blank panel — but it means a typo ships
+ * silently. This was not hypothetical: the calculator drawer was written with
+ * `t('calc.title')` while the strings live under `convert.calcTitle`, and the
+ * button rendered the literal text "calc.open" in the topbar. The existing
+ * tests here all check hand-listed keys, so none of them could see it.
+ *
+ * The scan reads the literal keys out of `t('...')` calls. Keys built at
+ * runtime from a template are invisible to it by construction — those are
+ * covered by the enumerated tests above, and a key assembled from a variable
+ * cannot be checked without running the component.
+ */
+describe('translation keys', () => {
+  const DIRS = ['src/ui/tabs', 'src/ui/components', 'src/ui'];
+  const KEY = /\bt\(\s*'([a-zA-Z][\w.]*)'/g;
+
+  /** Keys that are built at runtime and so cannot be read from source. */
+  const DYNAMIC = /^(tabs|convert\.dim_|elements\.cat_|elements\.block_|elements\.era_|elements\.source_|theme\.|errors\.|material\.)/;
+
+  function scanKeys() {
+    const found = new Map();
+    for (const dir of DIRS) {
+      for (const file of readdirSync(dir)) {
+        if (!file.endsWith('.jsx') && !file.endsWith('.js')) continue;
+        const path = `${dir}/${file}`;
+        const src = readFileSync(path, 'utf8');
+        for (const m of src.matchAll(KEY)) {
+          if (!found.has(m[1])) found.set(m[1], path);
+        }
+      }
+    }
+    return found;
+  }
+
+  it('should resolve every literal key a component asks for', () => {
+    const missing = [];
+    for (const [key, path] of scanKeys()) {
+      if (DYNAMIC.test(key)) continue;
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        if (lookup(dict, key) === undefined) missing.push(`${name}  ${key}  (${path})`);
+      }
+    }
+    expect(missing, `keys referenced but not defined:\n${missing.join('\n')}`).toEqual([]);
+  });
+
+  it('should scan enough keys for that to mean something', () => {
+    // Guards against the scan passing because its regex stopped matching.
+    expect(scanKeys().size).toBeGreaterThan(100);
+  });
+
+  it('should catch a key the way the drawer typo was written', () => {
+    // Proves the detector finds an absent key rather than merely reporting none.
+    expect(lookup(zh, 'calc.title')).toBeUndefined();
+    expect(lookup(en, 'calc.title')).toBeUndefined();
+    expect(lookup(zh, 'convert.calcTitle')).toBe('计算器');
+  });
+});
