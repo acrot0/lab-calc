@@ -22,6 +22,24 @@ terms, so the provenance of any given file stays answerable.
   changing every molar mass the calculator produces. The `massSource` field on
   each element records which source its mass came from.
 
+## PubChem periodic table
+
+- **Source:** https://pubchem.ncbi.nlm.nih.gov/rest/pug/periodictable/JSON
+- **Operator:** US National Center for Biotechnology Information (NCBI), part of
+  the National Library of Medicine / NIH
+- **Licence:** **public domain** — US government work, no copyright
+- **Used in:** `src/calc/element-properties.mjs` (generated)
+- **What was taken:** electronegativity (Pauling), oxidation states, melting and
+  boiling points, density, first ionization energy, and year of discovery, for
+  all 118 elements.
+- **How:** fetched by `scripts/fetch-element-properties.mjs`, which is committed
+  alongside the generated file so any value can be re-derived rather than
+  trusted. The generated file is committed so the app itself needs no network.
+- **Why PubChem rather than a community dataset:** it is the only source
+  consulted that is both authoritative and unencumbered. It is also the only one
+  that carries oxidation states, which is the property a student reaches for
+  first.
+
 ## Bowserinator/Periodic-Table-JSON — evaluated, not used
 
 - **Source:** https://github.com/Bowserinator/Periodic-Table-JSON

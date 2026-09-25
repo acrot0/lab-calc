@@ -4,7 +4,8 @@ import {
   ELEMENT_CATEGORIES, CATEGORY_COLOR,
 } from '../../calc/elements.mjs';
 import { electronConfig } from '../../calc/config.mjs';
-import { fmt } from '../format.mjs';
+import { propertiesOf } from '../../calc/element-properties.mjs';
+import { fmt, fmtSci } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 
 /**
@@ -180,6 +181,7 @@ export default function ElementsTab() {
   const chemPeriod = selected ? periodOf(selected) : null;
   const onDetachedRow = selected ? isFBlock(selected) : false;
   const cfg = selected ? electronConfig(selected.number) : null;
+  const props = selected ? propertiesOf(selected.number) : null;
 
   return (
     <div className="card">
@@ -356,6 +358,60 @@ export default function ElementsTab() {
               <strong>{cfg.valence}</strong>
             </div>
           </div>
+
+          {/* Exam-relevant physical properties. Every one of these is absent
+              for some element — an electronegativity never measured, a melting
+              point nobody can take for a superheavy — so each renders an
+              em dash rather than a zero or a blank cell. A blank reads as a
+              rendering bug; a zero reads as a fact. */}
+          <div className="result-grid">
+            <div>
+              <span>{t('elements.electronegativity')}</span>
+              <strong>{props.electronegativity === null
+                ? t('elements.noValue')
+                : fmt(props.electronegativity, 3)}</strong>
+            </div>
+            <div>
+              <span>{t('elements.oxidationStates')}</span>
+              <strong>{props.oxidationStates.length === 0
+                ? t('elements.noValue')
+                : props.oxidationStates.map((s) => (s > 0 ? `+${s}` : String(s))).join(', ')}</strong>
+            </div>
+            <div>
+              <span>{t('elements.melt')}</span>
+              <strong>{props.melt === null
+                ? t('elements.noValue')
+                : `${fmt(props.melt, 4)} ${t('elements.unit_melt')}`}</strong>
+            </div>
+            <div>
+              <span>{t('elements.boil')}</span>
+              <strong>{props.boil === null
+                ? t('elements.noValue')
+                : `${fmt(props.boil, 4)} ${t('elements.unit_boil')}`}</strong>
+            </div>
+            <div>
+              {/* Density spans five orders of magnitude — 8.99e-5 for hydrogen
+                  against 22.57 for osmium — so a fixed-decimal format renders
+                  the gases as 0.000 g/cm3. */}
+              <span>{t('elements.density')}</span>
+              <strong>{props.density === null
+                ? t('elements.noValue')
+                : `${fmtSci(props.density, 4)} ${t('elements.unit_density')}`}</strong>
+            </div>
+            <div>
+              <span>{t('elements.ionization')}</span>
+              <strong>{props.ionization === null
+                ? t('elements.noValue')
+                : `${fmt(props.ionization, 4)} ${t('elements.unit_ionization')}`}</strong>
+            </div>
+            <div>
+              <span>{t('elements.yearDiscovered')}</span>
+              <strong>{props.yearDiscovered === null
+                ? t('elements.ancient')
+                : String(props.yearDiscovered)}</strong>
+            </div>
+          </div>
+
           <div className="hint">
             {t('elements.config')} <code className="cfg">{cfg.shorthand}</code>
           </div>
@@ -364,6 +420,7 @@ export default function ElementsTab() {
               source: t(`elements.source_${selected.massSource}`),
             })}
           </div>
+          <div className="hint">{t('elements.propertySource')}</div>
         </div>
       )}
     </div>
