@@ -2058,3 +2058,172 @@ body,
   transition-duration: 200ms;
   transition-timing-function: var(--ease);
 }
+
+/* ==========================================================================
+   Print
+   ==========================================================================
+   "Export PDF" is the browser's own print-to-PDF, so this is the whole
+   implementation of that feature. What it has to do:
+
+   1. Hide the app. The report is a sibling subtree, hidden on screen.
+   2. Force a light, ink-on-paper palette. A dark theme printed as-is is a
+      page of solid toner, and it is unreadable on paper regardless — this is
+      the one place the user's theme choice is overridden, and it is correct
+      to override it.
+   3. Set page geometry, so the margins are the document's rather than the
+      browser's default.
+   4. Keep a calculation's heading with its content, rather than letting a
+      page break fall between them.
+   ========================================================================== */
+
+/* Hidden on screen. `display: none` rather than visibility or off-screen
+   positioning: the report must cost nothing in layout, and it must be
+   unreachable by keyboard while invisible. */
+.report { display: none; }
+
+@media print {
+  /* Margins live here rather than in `@page` alone, because a browser with no
+     print support still lays the document out and a 0 margin puts text at the
+     paper's edge. */
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+
+  /* The app is not part of the document. */
+  .app,
+  .topbar,
+  .tabs,
+  .history-panel,
+  .disclaimer,
+  dialog {
+    display: none !important;
+  }
+
+  /* Ink on paper, regardless of the active theme.
+     Written as literal colours, not custom properties: the palette is applied
+     inline to <html> by theme.mjs, so `--text` here would still be the dark
+     theme's near-white and the page would print blank. */
+  html, body {
+    background: #ffffff !important;
+    color: #111111 !important;
+    font-size: 11pt;
+    line-height: 1.45;
+  }
+
+  .report {
+    display: block !important;
+    /* The palette is overridden above, but the report's own descendants may
+       still inherit an accent from the theme. Reset the ones it uses. */
+    --text: #111111;
+    --text-mid: #333333;
+    --text-dim: #555555;
+    --border: #cccccc;
+    --surface: #ffffff;
+    --surface-2: #ffffff;
+    --surface-3: #f4f4f4;
+    --accent: #0b4fa8;
+  }
+
+  .report-head {
+    border-bottom: 2px solid #111111;
+    padding-bottom: 4mm;
+    margin-bottom: 6mm;
+  }
+
+  .report-head h1 {
+    margin: 0 0 2mm;
+    font-size: 18pt;
+    font-weight: 600;
+  }
+
+  .report-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    color: #555555;
+  }
+
+  /* `break-inside: avoid` is the rule that makes the output readable: without
+     it a page break lands between a calculation's heading and its numbers. */
+  .report-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #cccccc;
+    border-radius: 2mm;
+    padding: 4mm;
+    margin-bottom: 5mm;
+  }
+
+  .report-item h2 {
+    margin: 0 0 1mm;
+    font-size: 12pt;
+    font-weight: 600;
+  }
+
+  /* The index number, so a printed page can be referred to by item. */
+  .report-num {
+    display: inline-block;
+    min-width: 6mm;
+    color: #777777;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .report-when {
+    font-size: 8.5pt;
+    color: #666666;
+    margin-bottom: 3mm;
+  }
+
+  .report-block { margin-top: 3mm; }
+
+  .report-block h3 {
+    margin: 0 0 1.5mm;
+    font-size: 9pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #555555;
+  }
+
+  /* A two-column definition list rather than a table: the inputs and the
+     results have different key sets, and a table would pad the shorter one
+     with empty cells that read as missing data. */
+  .report-block dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 1mm 4mm;
+    margin: 0;
+    font-size: 10pt;
+  }
+
+  .report-block dl > div { display: contents; }
+
+  .report-block dt {
+    color: #444444;
+    /* No wrap: a key broken across two lines reads as two keys. */
+    white-space: nowrap;
+  }
+
+  .report-block dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    /* A long value wraps at the space, not mid-token. */
+    overflow-wrap: anywhere;
+  }
+
+  .report-foot {
+    margin-top: 8mm;
+    padding-top: 3mm;
+    border-top: 1px solid #cccccc;
+    font-size: 8.5pt;
+    color: #666666;
+  }
+
+  /* Links print their target, since a printed page cannot be clicked. */
+  .report a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 8pt;
+    color: #555555;
+  }
+}

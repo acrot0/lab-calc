@@ -11,6 +11,8 @@
  * the formatting can be tested without a DOM.
  */
 
+import { toXlsx } from './xlsx.mjs';
+
 export const CSV_COLUMNS = ['时间', '类型', '说明', '输入', '结果'];
 
 const KIND_NAMES = {
@@ -86,7 +88,108 @@ export function toMarkdown(entries) {
   return [header, sep, ...rows].join('\n');
 }
 
-const EXT = { csv: 'csv', markdown: 'md', md: 'md', json: 'json' };
+/**
+ * The history as spreadsheet rows.
+ *
+ * Two shapes, because two different jobs:
+ *
+ * `toXlsx` writes the same five columns the CSV has, for a quick paste into a
+ * report. `toXlsxDetailed` gives every input and every output its own column,
+ * which is what the five-column form cannot do — a flattened
+ * `volume=500; molarity=0.5` cell cannot be sorted, filtered, or averaged,
+ * which is most of the reason to open a spreadsheet rather than read a CSV.
+ *
+ * The detailed form takes the union of every key across all entries, in the
+ * order first seen, so a column is never dropped because one row lacked it.
+ * A missing value is left blank rather than zero-filled: an entry that never
+ * recorded a temperature is not an entry that recorded 0 °C.
+ */
+const DETAIL_META = ['时间', '类型', '说明'];
+
+/** Every input/output key across the set, in first-seen order. */
+export function detailColumns(entries) {
+  const inputKeys = [];
+  const outputKeys = [];
+  for (const e of entries ?? []) {
+    for (const k of Object.keys(e?.inputs ?? {})) {
+      if (!inputKeys.includes(k)) inputKeys.push(k);
+    }
+    for (const k of Object.keys(e?.outputs ?? {})) {
+      if (!outputKeys.includes(k)) outputKeys.push(k);
+    }
+  }
+  return { inputKeys, outputKeys };
+}
+
+/** A cell value: scalars only, so an object never lands in a spreadsheet cell. */
+function cell(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') return Number.isFinite(v) ? v : '';
+  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+export function toXlsxRows(entries) {
+  const rows = [CSV_COLUMNS];
+  for (const e of entries ?? []) {
+    rows.push([
+      e?.at ?? '',
+      KIND_NAMES[e?.kind] ?? e?.kind ?? '',
+      e?.summary ?? '',
+      flatten(e?.inputs),
+      flatten(e?.outputs),
+    ]);
+  }
+  return rows;
+}
+
+export function toXlsxDetailedRows(entries) {
+  const { inputKeys, outputKeys } = detailColumns(entries);
+  const header = [
+    ...DETAIL_META,
+    ...inputKeys.map((k) => `${k}（输入）`),
+    ...outputKeys.map((k) => `${k}（结果）`),
+  ];
+  const rows = [header];
+  for (const e of entries ?? []) {
+    rows.push([
+      e?.at ?? '',
+      KIND_NAMES[e?.kind] ?? e?.kind ?? '',
+      e?.summary ?? '',
+      ...inputKeys.map((k) => cell(e?.inputs?.[k])),
+      ...outputKeys.map((k) => cell(e?.outputs?.[k])),
+    ]);
+  }
+  return rows;
+}
+
+/**
+ * Column widths for a row set.
+ *
+ * Excel's default is 8.43 characters, which truncates a Chinese summary to a
+ * few glyphs. Widths are estimated from the longest cell, with CJK characters
+ * counted double because they are double-width in a monospace grid — the file
+ * is correct without this, but unreadable, and an unreadable export is the
+ * failure the user actually notices.
+ */
+export function widthsFor(rows, { min = 8, max = 42 } = {}) {
+  const cols = rows.reduce((n, r) => Math.max(n, r.length), 0);
+  const out = [];
+  for (let c = 0; c < cols; c += 1) {
+    let widest = 0;
+    for (const r of rows) {
+      const s = String(r[c] ?? '');
+      // CJK and fullwidth forms occupy two columns in a spreadsheet.
+      const width = [...s].reduce((n, ch) => n + (/[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹯＀-｠￠-￦]/.test(ch) ? 2 : 1), 0);
+      if (width > widest) widest = width;
+    }
+    out.push(Math.min(max, Math.max(min, widest + 2)));
+  }
+  return out;
+}
+
+const EXT = { csv: 'csv', markdown: 'md', md: 'md', json: 'json', xlsx: 'xlsx' };
 
 /** Date-stamped so repeated exports do not overwrite each other. */
 export function exportFilename(format, now = new Date()) {
@@ -136,6 +239,25 @@ export function downloadMarkdown(entries) {
 
 export function downloadBundle(entries) {
   return downloadFile(toBundle(entries), exportFilename('json'), 'application/json;charset=utf-8');
+}
+
+/**
+ * Download an .xlsx.
+ *
+ * The bytes go through a Blob rather than a string, so `downloadFile` takes
+ * the `Uint8Array` unchanged. The MIME type is the registered one for xlsx;
+ * getting it wrong makes Excel refuse the file on a double-click even though
+ * the content is fine.
+ */
+export function downloadXlsx(entries, { detailed = true, now = new Date() } = {}) {
+  const rows = detailed ? toXlsxDetailedRows(entries) : toXlsxRows(entries);
+  const bytes = toXlsx(rows, {
+    sheetName: detailed ? '计算结果' : 'History',
+    widths: widthsFor(rows),
+    now,
+  });
+  const name = detailed ? `lab-calc-详细-${now.toISOString().slice(0, 10)}.xlsx` : exportFilename('xlsx', now);
+  return downloadFile(bytes, name, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 /* ==========================================================================

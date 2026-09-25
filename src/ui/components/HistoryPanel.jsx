@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { filterHistory } from '../history.mjs';
-import { downloadCsv, downloadMarkdown, downloadBundle, parseBundle } from '../export.mjs';
+import {
+  downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
+} from '../export.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { recordSummary } from '../summaries.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
+import Report from './Report.jsx';
 
 export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onImport }) {
   const { t } = useI18n();
@@ -23,7 +27,26 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
     const rows = shown.map((e) => ({ ...e, summary: recordSummary(e, t) }));
     if (format === 'csv') downloadCsv(rows);
     else if (format === 'json') downloadBundle(entries);
+    else if (format === 'xlsx') downloadXlsx(rows);
     else downloadMarkdown(rows);
+  }
+
+  /*
+   * "Export PDF" is the browser's print dialog.
+   *
+   * The report is already in the DOM, hidden on screen; the print stylesheet
+   * reveals it and hides the app. So this does not build a document — it asks
+   * the browser to print the one that is already there, which is why the
+   * output is vector text rather than a rasterised canvas.
+   *
+   * `requestAnimationFrame` is not ceremony: the report renders from the same
+   * `shown` array this handler reads, and on the first click React may not
+   * have committed it yet. Waiting one frame guarantees the document being
+   * printed is the one the user is looking at.
+   */
+  function printReport() {
+    setMenuOpen(false);
+    requestAnimationFrame(() => globalThis.print?.());
   }
 
   /*
@@ -83,8 +106,14 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
                   <button role="menuitem" onClick={() => doExport('markdown')}>
                     <Icons.markdown size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportMarkdown')}
                   </button>
+                  <button role="menuitem" onClick={() => doExport('xlsx')}>
+                    <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportXlsx')}
+                  </button>
                   <button role="menuitem" onClick={() => doExport('json')}>
                     <Icons.json size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportJson')}
+                  </button>
+                  <button role="menuitem" onClick={() => printReport()}>
+                    <Icons.markdown size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportPdf')}
                   </button>
                 </div>
               )}
@@ -169,6 +198,18 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
             );
           })}
         </div>
+      )}
+
+      {/*
+        Print-only, and portalled to <body> rather than rendered here.
+        The print stylesheet hides `.app`, and this panel is inside `.app` —
+        so rendering the report in place meant the rule that reveals the report
+        and the rule that hides the app cancelled out, and the printed page was
+        blank. It has to be a sibling of the app, not a descendant.
+      */}
+      {typeof document !== 'undefined' && createPortal(
+        <Report entries={shown.map((e) => ({ ...e, summary: recordSummary(e, t) }))} />,
+        document.body,
       )}
     </div>
   );
