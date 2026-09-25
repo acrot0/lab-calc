@@ -487,7 +487,10 @@ export const zh = {
     calcKeypad: '键盘',
     calcClear: '清空',
     calcBack: '退格',
-    dim_unknown: '未命名量纲',
+    baseUnit: '基准单位',
+    figureCaption: '同一个量，两种写法',
+    calcEmpty: '输入表达式即可看到结果',
+    convertEmpty: '填入数值，并选择同一类量的两个单位',
     conversionFactor: '换算系数',
   },
   history: {

@@ -1679,6 +1679,24 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
    a category colour would imply it is one of the things the legend lists.
    ========================================================================== */
 
+/* A figure with a caption — the converter's "what a conversion is" drawing.
+   Centred and muted: it is explanatory, not the thing the user came for. */
+.figure {
+  margin: var(--s6) 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.figure figcaption {
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  text-align: center;
+}
+
+.figure .art { opacity: 0.85; }
+
 .diagram {
   margin: var(--s4) 0 0;
 }

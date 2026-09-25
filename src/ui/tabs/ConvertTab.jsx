@@ -4,6 +4,7 @@ import {
 } from '../../calc/units.mjs';
 import { evaluate } from '../../calc/expression.mjs';
 import { NumField, Result, Err, Warn } from '../components/Fields.jsx';
+import { ArtBalance, ArtCylinder, ArtConvert } from '../components/Illustrations.jsx';
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -176,7 +177,18 @@ function Converter() {
         ⇄ {t('convert.swap')}
       </button>
 
-      {result.error && <Err>{result.error}</Err>}
+      {result.error && (
+        <>
+          <Err>{result.error}</Err>
+          {/* The one state where the converter has nothing to show. A graduated
+              cylinder rather than the balance: two empty states that look alike
+              make the user check which one they are on. */}
+          <div className="empty">
+            <ArtCylinder />
+            {t('convert.convertEmpty')}
+          </div>
+        </>
+      )}
       {sameUnit && !result.error && <Warn>{t('convert.sameUnit')}</Warn>}
 
       <Result
@@ -189,12 +201,22 @@ function Converter() {
         ] : null}
       />
 
-      <p className="hint">{t('convert.calcHint')}</p>
+      {/* The dimension's base unit, and the factor from it to the unit being
+          converted from. Named "base unit", not "unnamed dimension" — the
+          latter was wrong on every row, since mass and volume are named. */}
       <p className="hint">
-        {t('convert.dim_unknown')}: {active.base}
+        {t('convert.baseUnit')}: {active.base}
         {' · '}
         {t('convert.conversionFactor')}: {dim === 'temperature' ? '—' : fmtSci(UNITS[active.base]?.factor ?? 1, 4)}
       </p>
+
+      {/* A figure, not an empty state: the converter always has a value, so
+          this is here to show what a conversion *is* — the same amount under
+          two sets of markings. */}
+      <figure className="figure">
+        <ArtConvert />
+        <figcaption>{t('convert.figureCaption')}</figcaption>
+      </figure>
     </>
   );
 }
@@ -290,13 +312,20 @@ function Calculator() {
 
       {result?.error && <Err>{result.error}</Err>}
 
-      <Result
-        value={result && result.value !== null ? fmt(result.value, 8) : null}
-        unit={result?.unit ?? ''}
-        rows={result && result.value !== null && dimLabel
-          ? [[t('convert.calcResult'), dimLabel]]
-          : null}
-      />
+      {result === null ? (
+        <div className="empty">
+          <ArtBalance />
+          {t('convert.calcEmpty')}
+        </div>
+      ) : (
+        <Result
+          value={result.value !== null ? fmt(result.value, 8) : null}
+          unit={result.unit ?? ''}
+          rows={result.value !== null && dimLabel
+            ? [[t('convert.calcResult'), dimLabel]]
+            : null}
+        />
+      )}
     </>
   );
 }

@@ -491,7 +491,10 @@ export const en = {
     calcKeypad: 'Keypad',
     calcClear: 'Clear',
     calcBack: 'Backspace',
-    dim_unknown: 'Unnamed dimension',
+    baseUnit: 'Base unit',
+    figureCaption: 'The same amount, written two ways',
+    calcEmpty: 'Type an expression to see the answer',
+    convertEmpty: 'Pick a value and two units of the same kind',
     conversionFactor: 'Factor',
   },
   history: {

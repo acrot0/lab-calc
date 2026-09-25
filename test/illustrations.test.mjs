@@ -2,11 +2,18 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import {
-  ArtEmptyHistory, ArtEmptySearch, ArtReaction, ArtMolecule,
-} from '../src/ui/components/Illustrations.jsx';
+import * as Illustrations from '../src/ui/components/Illustrations.jsx';
 
-const ARTS = { ArtEmptyHistory, ArtEmptySearch, ArtReaction, ArtMolecule };
+/*
+ * Derived from the module rather than listed, so a new illustration is covered
+ * the moment it is exported. The hand-written list this replaced is exactly how
+ * the next three went untested: the checks are all per-illustration, and a
+ * missing entry is invisible.
+ */
+const ARTS = Object.fromEntries(
+  Object.entries(Illustrations).filter(([name]) => name.startsWith('Art')),
+);
+if (Object.keys(ARTS).length < 3) throw new Error('illustration list looks wrong');
 
 describe('illustrations render valid SVG', () => {
   for (const [name, C] of Object.entries(ARTS)) {
@@ -36,8 +43,8 @@ describe('illustrations render valid SVG', () => {
   it('should give two instances of the same illustration different gradient ids', () => {
     // Duplicate ids mean the second gradient is ignored and the first one's
     // colours are used — invisible until two are compared side by side.
-    const a = renderToStaticMarkup(React.createElement(ArtReaction));
-    const b = renderToStaticMarkup(React.createElement(ArtReaction));
+    const a = renderToStaticMarkup(React.createElement(Illustrations.ArtReaction));
+    const b = renderToStaticMarkup(React.createElement(Illustrations.ArtReaction));
     const idA = [...a.matchAll(/id="([^"]+)"/g)].map(m => m[1]);
     const idB = [...b.matchAll(/id="([^"]+)"/g)].map(m => m[1]);
     // Server rendering resets the counter per call, so ids repeat across

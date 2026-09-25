@@ -228,51 +228,129 @@ export function ArtReaction() {
 }
 
 /**
- * A molecule: a central atom with three bonds.
+ * A balance, for the calculator's empty state.
  *
- * Drawn with explicit bond lines rather than an icon font so the angles read as
- * chemistry rather than as a generic network glyph. The atoms are filled rather
- * than outlined, and each gets a highlight offset toward the same light, which
- * is what makes them read as spheres.
+ * The calculator is the one screen whose empty state is reached by *not*
+ * typing, so the illustration has to say "waiting for input" rather than
+ * "nothing here". A balance with level pans reads as an instrument at rest:
+ * the two pans are the two sides of an expression, and the beam is level
+ * because nothing has been weighed yet.
  */
-export function ArtMolecule() {
+export function ArtBalance() {
+  const u = useGradientId();
+  return (
+    <Art size={72}>
+      <defs>
+        <linearGradient id={`${u}-pan`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.42" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.14" />
+        </linearGradient>
+      </defs>
+
+      <ellipse cx="48" cy="78" rx="24" ry="3.2" fill="var(--text-dim)" opacity="0.13" />
+
+      {/* Column and base. */}
+      <path d="M48 30v38" stroke="var(--text-dim)" strokeOpacity="0.5" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M34 70h28" stroke="var(--text-dim)" strokeOpacity="0.5" strokeWidth="3" strokeLinecap="round" />
+
+      {/* The beam, level — the resting state. */}
+      <path d="M20 30h56" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeOpacity="0.85" />
+      <circle cx="48" cy="30" r="3.6" fill="var(--accent)" opacity="0.9" />
+
+      {/* Two pans, hung from the beam ends. */}
+      <path d="M20 30v6M76 30v6" stroke="var(--text-dim)" strokeOpacity="0.45" strokeWidth="1.4" />
+      <path d="M12 36h16l-3 8a5 5 0 0 1-10 0Z" fill={`url(#${u}-pan)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M68 36h16l-3 8a5 5 0 0 1-10 0Z" fill={`url(#${u}-pan)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.4" strokeLinejoin="round" />
+    </Art>
+  );
+}
+
+/**
+ * A graduated cylinder, for the converter's error state.
+ *
+ * Chosen over a second flask so the converter and the calculator do not share
+ * a silhouette — two empty states that look alike make the user check which
+ * one they are on. The graduations are what say "measurement" rather than
+ * "container", so they are drawn on both the filled and the empty part.
+ */
+export function ArtCylinder() {
+  const u = useGradientId();
+  return (
+    <Art size={72}>
+      <defs>
+        <linearGradient id={`${u}-cyl`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.30" />
+          <stop offset="45%" stopColor="var(--accent)" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.24" />
+        </linearGradient>
+      </defs>
+
+      <ellipse cx="48" cy="80" rx="20" ry="3" fill="var(--text-dim)" opacity="0.13" />
+
+      {/* Body: straight walls, so the graduations can be evenly spaced. */}
+      <path
+        d="M34 18h28v54a4 4 0 0 1-4 4H38a4 4 0 0 1-4-4Z"
+        fill={`url(#${u}-cyl)`}
+        stroke="var(--accent)"
+        strokeOpacity="0.55"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      {/* Liquid to just over half, with a surface line. */}
+      <path d="M35 48h26v24a3 3 0 0 1-3 3H38a3 3 0 0 1-3-3Z" fill="var(--accent)" opacity="0.5" />
+      <path d="M35.5 48h25" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+
+      {/* Graduations, shorter on the minor marks. */}
+      <path
+        d="M38 28h5M38 36h5M38 44h5M38 60h5M38 68h5"
+        stroke="var(--text-dim)"
+        strokeOpacity="0.5"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path d="M38 24h9M38 56h9" stroke="var(--text-dim)" strokeOpacity="0.62" strokeWidth="1.4" strokeLinecap="round" />
+
+      {/* The pour spout, which is what makes it read as a cylinder and not a tube. */}
+      <path d="M34 18l-3-5h34l-3 5" stroke="var(--accent)" strokeOpacity="0.55" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M37 22v8" stroke="white" strokeOpacity="0.45" strokeWidth="1.5" strokeLinecap="round" />
+    </Art>
+  );
+}
+
+/**
+ * Two beakers and an arrow between them — the converter's own mark.
+ *
+ * The only illustration here that shows an *operation* rather than an object,
+ * because conversion is the one thing on this screen a picture can explain:
+ * same amount, different markings. The two liquid levels are identical on
+ * purpose — a conversion does not add or remove anything.
+ */
+export function ArtConvert() {
   const u = useGradientId();
   return (
     <Art size={64}>
       <defs>
-        <radialGradient id={`${u}-a`} cx="0.35" cy="0.3" r="0.75">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.55" />
-        </radialGradient>
-        <radialGradient id={`${u}-b`} cx="0.35" cy="0.3" r="0.75">
-          <stop offset="0%" stopColor="var(--text-mid)" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="var(--text-dim)" stopOpacity="0.30" />
-        </radialGradient>
+        <linearGradient id={`${u}-b1`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.36" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.12" />
+        </linearGradient>
       </defs>
 
-      <ellipse cx="48" cy="80" rx="22" ry="3" fill="var(--text-dim)" opacity="0.13" />
+      <ellipse cx="48" cy="76" rx="34" ry="3.2" fill="var(--text-dim)" opacity="0.13" />
 
-      {/* Bonds first, so the atoms overlap their ends. */}
-      <path
-        d="M48 48 26 30M48 48l22-18M48 48v24"
-        stroke="var(--text-dim)"
-        strokeOpacity="0.45"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
+      {/* Left beaker. */}
+      <path d="M10 26h26v42a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3Z" fill={`url(#${u}-b1)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M11 48h24v20a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2Z" fill="var(--accent)" opacity="0.5" />
+      <path d="M11.5 48h23" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
 
-      {/* Outer atoms, then the centre on top of them. */}
-      <circle cx="24" cy="28" r="8" fill={`url(#${u}-b)`} />
-      <circle cx="72" cy="28" r="8" fill={`url(#${u}-b)`} />
-      <circle cx="48" cy="74" r="8" fill={`url(#${u}-b)`} />
-      <circle cx="48" cy="48" r="11" fill={`url(#${u}-a)`} />
+      {/* Right beaker, same level. */}
+      <path d="M60 26h26v42a3 3 0 0 1-3 3H63a3 3 0 0 1-3-3Z" fill={`url(#${u}-b1)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M61 48h24v20a2 2 0 0 1-2 2H63a2 2 0 0 1-2-2Z" fill="var(--accent)" opacity="0.5" />
+      <path d="M61.5 48h23" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
 
-      {/* Each sphere gets the same highlight offset, so the light direction is
-          consistent across the drawing rather than per-atom. */}
-      <circle cx="44.5" cy="44.5" r="3" fill="white" opacity="0.4" />
-      <circle cx="21" cy="25" r="2.2" fill="white" opacity="0.3" />
-      <circle cx="69" cy="25" r="2.2" fill="white" opacity="0.3" />
-      <circle cx="45" cy="71" r="2.2" fill="white" opacity="0.3" />
+      {/* The arrow, in the gap. */}
+      <path d="M40 46h16" stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
+      <path d="M52 41l5 5-5 5" stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" strokeOpacity="0.8" />
     </Art>
   );
 }
