@@ -14,9 +14,15 @@ export default function WeighTab({ onRecord, restored }) {
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
 
-  const M = useMemo(() => {
-    try { return molarMass(formula); } catch { return null; }
-  }, [formula]);
+  // The specific reason is kept, not just "it failed": "subscript cannot be
+  // zero" tells the user what to fix, and a bare "unparseable" does not. The
+  // error carries a code, so it is translated rather than shown raw.
+  const parsed = useMemo(() => {
+    try { return { mass: molarMass(formula), error: null }; } catch (e) {
+      return { mass: null, error: formula.trim() ? errorMessage(e, t) : null };
+    }
+  }, [formula, t]);
+  const M = parsed.mass;
 
   useEffect(() => { setOut(null); setErr(null); }, [formula, molarity, volume]);
 
@@ -46,7 +52,7 @@ export default function WeighTab({ onRecord, restored }) {
         hint={M
           ? `${t('common.molarMass')} ${M.toFixed(3)} g/mol`
           : t('common.formulaPlaceholder')}
-        error={formula && !M ? t('common.formulaUnparseable') : null}
+        error={parsed.error}
       />
       <div className="row">
         <NumField label={t('weigh.targetMolarity')} value={molarity} onChange={setMolarity} min="0" />
