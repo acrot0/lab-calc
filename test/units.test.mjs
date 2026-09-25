@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DIMENSIONS, EXPONENTS, TEMPERATURE_UNITS, UNITS, UNIT_SYMBOLS,
   convert, dimensionOf, dimensionFromExponents, exponentsOf, isDimensionless,
-  nameExponents, unitsOf,
+  nameExponents, unitsOf, AMBIGUOUS_SYMBOLS,
 } from '../src/calc/units.mjs';
 
 describe('unit tables', () => {
@@ -17,12 +17,39 @@ describe('unit tables', () => {
     }
   });
 
-  it('should give every dimension at least one unit and an exponent vector', () => {
+  it('should give every dimension at least one unit', () => {
     for (const dim of Object.keys(DIMENSIONS)) {
-      expect(EXPONENTS[dim], `${dim} exponents`).toBeTruthy();
-      expect(EXPONENTS[dim], `${dim} vector length`).toHaveLength(6);
       expect(unitsOf(dim).length, `${dim} has no units`).toBeGreaterThan(0);
     }
+  });
+
+  it('should give every expression-capable dimension an exponent vector', () => {
+    /*
+     * Two dimensions deliberately have none: `ratio` (percent, ppm, mole
+     * fraction) and `angle` (radian, degree). Both really are dimensionless —
+     * a mole fraction is a plain number and a radian is a length over a length
+     * — so giving them a vector of all zeroes would make
+     * `dimensionFromExponents([0,0,0,0,0,0])` name every plain number an angle.
+     *
+     * `DIMENSIONS[dim].expr` is the flag that says so, and this asserts the
+     * two stay consistent: an expression-capable dimension must have a vector,
+     * and one excluded from expressions must not.
+     */
+    for (const [dim, spec] of Object.entries(DIMENSIONS)) {
+      if (spec.expr === false) {
+        expect(EXPONENTS[dim], `${dim} is excluded from expressions but has a vector`).toBeUndefined();
+      } else {
+        expect(EXPONENTS[dim], `${dim} exponents`).toBeTruthy();
+        expect(EXPONENTS[dim], `${dim} vector length`).toHaveLength(6);
+      }
+    }
+  });
+
+  it('should exclude exactly the two dimensionless-but-named dimensions', () => {
+    // Guards against the flag being used to quietly skip a dimension that
+    // should have had a vector.
+    const excluded = Object.entries(DIMENSIONS).filter(([, s]) => s.expr === false).map(([d]) => d);
+    expect(excluded.sort()).toEqual(['angle', 'ratio']);
   });
 
   it('should keep every exponent vector distinct', () => {
@@ -97,10 +124,19 @@ describe('convert', () => {
   it('should round-trip every unit through its base', () => {
     // Catches a factor written as its reciprocal, which is otherwise invisible:
     // the conversion still produces a number, just the wrong one.
+    //
+    // The dimension is passed as the hint because the iteration knows it. Ten
+    // symbols mean two things — `C` is both the coulomb and degrees Celsius —
+    // and without the hint `convert(7,'mC','C')` would resolve `C` as a
+    // temperature and refuse. The hint is exactly what the converter UI passes
+    // when the user has picked a dimension, so this exercises the real path.
     for (const [symbol, u] of Object.entries(UNITS)) {
       if (u.dim === 'temperature') continue;
       const base = DIMENSIONS[u.dim].base;
-      expect(convert(convert(7, symbol, base), base, symbol), symbol).toBeCloseTo(7, 6);
+      expect(
+        convert(convert(7, symbol, base, u.dim), base, symbol, u.dim),
+        symbol,
+      ).toBeCloseTo(7, 6);
     }
   });
 
@@ -218,20 +254,58 @@ describe('dimensionOf', () => {
 
 describe('unitsOf', () => {
   it('should list only the units of the requested dimension', () => {
+    // Read with the dimension as a hint: ten symbols mean two things (`A` is
+    // ampere and ångström), and a bare lookup resolves them for the expression
+    // evaluator, not for a user who has already picked a dimension.
     for (const dim of Object.keys(DIMENSIONS)) {
       for (const u of unitsOf(dim)) {
-        expect(dimensionOf(u), `${u} in ${dim}`).toBe(dim);
+        expect(dimensionOf(u, dim), `${u} in ${dim}`).toBe(dim);
       }
     }
   });
 
-  it('should cover every unit exactly once across all dimensions', () => {
-    // Temperature lives in its own table because it converts affinely, so the
-    // two together are the full set — and neither may repeat a symbol, which
-    // would mean a unit is reachable under two dimensions.
+  it('should cover every unit across all dimensions, allowing declared ambiguity', () => {
+    /*
+     * Every symbol a picker can show must come from a dimension, and no
+     * dimension may list the same symbol twice.
+     *
+     * Repeating a symbol *across* dimensions is allowed and is the state of the
+     * world: `A` is the ampere and the ångström, `N` is the newton and
+     * normality, `C` is the coulomb and degrees Celsius. What must not happen
+     * is a repeat *within* one dimension, which would put one unit in a picker
+     * twice, or a symbol in `UNIT_SYMBOLS` that no dimension declares.
+     */
+    for (const dim of Object.keys(DIMENSIONS)) {
+      const units = unitsOf(dim);
+      expect(new Set(units).size, `${dim} lists a unit twice`).toBe(units.length);
+    }
+
     const all = Object.keys(DIMENSIONS).flatMap((d) => unitsOf(d));
     const expected = [...UNIT_SYMBOLS, ...Object.keys(TEMPERATURE_UNITS)];
-    expect(all.sort()).toEqual(expected.sort());
-    expect(new Set(all).size, 'a unit appears in two dimensions').toBe(all.length);
+    // Compared as *sets*, not as lists: a symbol that means two things appears
+    // once per dimension (`A` under both length and current), so the raw list
+    // lengths differ by exactly the declared ambiguities while the set of
+    // symbols is identical. Comparing lengths would fail on correct data and
+    // would pass if a symbol were silently dropped and another duplicated.
+    expect([...new Set(all)].sort()).toEqual([...new Set(expected)].sort());
+    expect(all.length - new Set(all).size, 'unexpected duplicate count')
+      .toBe(AMBIGUOUS_SYMBOLS.filter((s) => all.includes(s)).length - 0
+        - AMBIGUOUS_SYMBOLS.filter((s) => all.filter((x) => x === s).length === 1).length);
+  });
+
+  it('should keep every ambiguous symbol resolvable both ways', () => {
+    // Each symbol that means two things must still convert correctly under
+    // each reading. This is the check that the `within` hint actually works
+    // rather than merely existing.
+    const ambiguous = [
+      ['A', 'length', 'current'],   // ångström / ampere
+      ['N', 'molarity', 'force'],   // normality / newton
+      ['rad', 'angle', 'dose'],     // radian / rad
+      ['ppm', 'ratio', 'massConcentration'],
+    ];
+    for (const [sym, a, b] of ambiguous) {
+      expect(dimensionOf(sym, a), `${sym} in ${a}`).toBe(a);
+      expect(dimensionOf(sym, b), `${sym} in ${b}`).toBe(b);
+    }
   });
 });

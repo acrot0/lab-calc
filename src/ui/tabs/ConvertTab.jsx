@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  DIMENSIONS, DIMENSION_KEYS, UNITS, convert, unitsOf,
+  DIMENSIONS, DIMENSION_KEYS, UNITS, convert, unitsOf, sharedDimension,
 } from '../../calc/units.mjs';
 import { evaluate } from '../../calc/expression.mjs';
 import { NumField, Result, Err, Warn } from '../components/Fields.jsx';
@@ -21,9 +21,19 @@ import { errorMessage } from '../errors.mjs';
  * without an edit. That is the point: the table is the single source.
  */
 const ORDER = [
-  'mass', 'volume', 'amount', 'molarity', 'massConcentration',
-  'length', 'area', 'time', 'temperature',
-  'pressure', 'energy', 'voltage', 'resistance', 'current',
+  // Concentration first, then the bench quantities, then the instrument
+  // readouts — the order a working session moves through, not alphabetical.
+  'mass', 'volume', 'amount',
+  'molarity', 'massConcentration', 'molality',
+  'molarMass', 'molarVolume', 'molarEnergy', 'molarEntropy',
+  'length', 'area', 'time', 'temperature', 'pressure', 'energy',
+  'voltage', 'resistance', 'current', 'charge', 'conductance', 'power',
+  'force', 'frequency', 'wavenumber', 'velocity',
+  'viscosity', 'kinematicViscosity', 'surfaceTension',
+  'heatCapacity', 'specificHeat', 'dose', 'catalyticActivity',
+  // Dimensionless ratios and angle last: they are the two that are not
+  // quantities of matter, and they read as a footnote to the list above.
+  'ratio', 'angle',
 ];
 
 /** Every dimension the module defines must be offered, and none invented. */
@@ -91,11 +101,16 @@ function Converter() {
 
   const result = useMemo(() => {
     try {
-      return { value: convert(n(value), from, to), error: null };
+      // `dim` is passed as the hint, not left to the bare lookup. Ten symbols
+      // mean two things — `rad` is the radian and the rad (absorbed dose), `A`
+      // is the ampere and the ångström — and a user who has picked "angle"
+      // means the radian. Without the hint this screen refused to convert a
+      // unit it had just offered in its own list.
+      return { value: convert(n(value), from, to, dim), error: null };
     } catch (e) {
       return { value: null, error: errorMessage(e, t) };
     }
-  }, [value, from, to, t]);
+  }, [value, from, to, dim, t]);
 
   const sameUnit = from === to;
 
@@ -246,7 +261,11 @@ function Calculator() {
     if (arrow) {
       const [, numText, fromUnit, toUnit] = arrow;
       try {
-        const v = convert(Number.parseFloat(numText), fromUnit, toUnit);
+        // No picker to consult here, so the dimension is the one both symbols
+        // share. `180 deg -> rad` is obviously an angle; the bare lookup would
+        // read `rad` as the absorbed dose and refuse. `g -> mL` shares no
+        // dimension and still fails, so this cannot hide a real mismatch.
+        const v = convert(Number.parseFloat(numText), fromUnit, toUnit, sharedDimension(fromUnit, toUnit));
         return { value: v, unit: toUnit, dimension: null, error: null };
       } catch (e) {
         return { value: null, error: errorMessage(e, t) };
