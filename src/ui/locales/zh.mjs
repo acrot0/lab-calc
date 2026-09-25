@@ -14,6 +14,7 @@ export const zh = {
     frosted: '磨砂',
     solid: '纯色',
     switch: '在磨砂玻璃与纯色材质之间切换',
+    osForced: '系统已开启「减少透明」，已强制使用纯色',
   },
   tabs: {
     weigh: '称量配制',

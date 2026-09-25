@@ -18,6 +18,7 @@ export const en = {
     frosted: 'Frosted',
     solid: 'Solid',
     switch: 'Switch between frosted glass and solid surfaces',
+    osForced: 'Your system asks for reduced transparency, so solid is forced',
   },
   tabs: {
     weigh: 'Weigh out',

@@ -66,9 +66,22 @@ export function useMaterial() {
  * be a list of two with one already chosen — more clicks to express one bit.
  * The label names the material in effect, not the one a click would select,
  * which is the convention the theme toggle beside it already set.
+ *
+ * ## Why it can be disabled
+ *
+ * The OS-level "reduce transparency" switch forces the solid material, and it
+ * should: a user who has asked for less transparency must not be given more of
+ * it by an app that thinks it knows better. But the toggle used to keep
+ * accepting clicks and keep doing nothing, which is indistinguishable from a
+ * broken button — and was reported as one.
+ *
+ * So when the OS is overriding the choice, the control says so: it is disabled,
+ * it names the reason in its tooltip, and it shows the material actually in
+ * effect rather than the one stored. A control that cannot act should not look
+ * like one that can.
  */
 export function MaterialToggle() {
-  const { material, cycle } = useMaterial();
+  const { material, cycle, systemSolid } = useMaterial();
   const { t } = useI18n();
   const Icon = material === 'frosted' ? Icons.frosted : Icons.solid;
 
@@ -77,8 +90,9 @@ export function MaterialToggle() {
       type="button"
       className="control"
       onClick={cycle}
+      disabled={systemSolid}
       aria-pressed={material === 'frosted'}
-      title={t('material.switch')}
+      title={systemSolid ? t('material.osForced') : t('material.switch')}
     >
       <Icon size={ICON_SIZE.control} aria-hidden="true" />
       <span className="control-label">{t(`material.${material}`)}</span>

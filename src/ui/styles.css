@@ -383,10 +383,22 @@ body {
               color var(--dur-fast) var(--ease);
 }
 
-.control:hover {
+.control:hover:not(:disabled) {
   background: var(--surface-3);
   border-color: var(--border-strong);
   color: var(--text);
+}
+
+/*
+ * A control the OS has overridden.
+ *
+ * Dimmed and non-interactive, with the cursor saying so. The alternative —
+ * accepting the click and doing nothing — is what a broken button looks like,
+ * and it was reported as one.
+ */
+.control:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .control-label { white-space: nowrap; }
