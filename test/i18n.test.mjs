@@ -194,7 +194,7 @@ describe('locale dictionaries', () => {
   });
 
   it('should translate the discovery fields the detail panel reads', () => {
-    for (const key of ['discoveredBy', 'ancientEra', 'discoverySource']) {
+    for (const key of ['discoveredBy', 'firstUsedBy', 'ancientEra', 'discoverySource']) {
       for (const [name, dict] of [['zh', zh], ['en', en]]) {
         expect(dict.elements[key], `${name} elements.${key}`).toBeTruthy();
       }

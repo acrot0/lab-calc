@@ -131,7 +131,12 @@ export default function ElementDetail({ element, chemPeriod, onDetachedRow, conf
             : t('elements.ancientEra', { era: eraText(disc.era, t) })}</strong>
         </div>
         <div>
-          <span>{t('elements.discoveredBy')}</span>
+          {/* For an element in use before records began there is no discoverer,
+              and the data holds the people or region instead — "Earliest
+              humans", "Asia Minor". Labelling that "Discovered by" would name
+              a place as a person, so the row is relabelled rather than the
+              data being bent to fit the label. */}
+          <span>{disc.era ? t('elements.firstUsedBy') : t('elements.discoveredBy')}</span>
           <strong>{disc.by}</strong>
         </div>
       </div>

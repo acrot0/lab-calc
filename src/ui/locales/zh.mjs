@@ -645,6 +645,7 @@ export const zh = {
     density: '密度',
     ionization: '第一电离能',
     yearDiscovered: '发现年份',
+    firstUsedBy: '最早使用',
     discoveredBy: '发现者',
     ancient: '古代已知',
     ancientEra: '最早使用：{era}',

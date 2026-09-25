@@ -649,6 +649,7 @@ export const en = {
     density: 'Density',
     ionization: 'First ionization energy',
     yearDiscovered: 'Year discovered',
+    firstUsedBy: 'First used by',
     discoveredBy: 'Discovered by',
     ancient: 'Known since antiquity',
     ancientEra: 'Earliest use: {era}',

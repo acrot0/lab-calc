@@ -437,7 +437,9 @@ describe('element detail panel', () => {
        */
       const labels = [...container.querySelectorAll('.result-grid span')].map((s) => s.textContent);
       const yearIdx = labels.findIndex((l) => /Year discovered|发现年份/.test(l));
-      const byIdx = labels.findIndex((l) => /Discovered by|发现者/.test(l));
+      // Either label: an element in use before records began has no discoverer,
+      // and the data holds a people or a region instead.
+      const byIdx = labels.findIndex((l) => /Discovered by|发现者|First used by|最早使用/.test(l));
       if (yearIdx < 0) failures.push(`${el.symbol}: no discovery-year row`);
       if (byIdx < 0) failures.push(`${el.symbol}: no discoverer row`);
       if (byIdx >= 0 && !values[byIdx]?.trim()) failures.push(`${el.symbol}: empty discoverer`);
