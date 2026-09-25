@@ -150,6 +150,8 @@ export const en = {
     axisY: 'pH',
     chartLabel: 'Titration curve, first equivalence at {volume} mL, pH {ph}',
     warning: 'Solved exactly from the charge balance. Activity coefficients and dissolved CO₂ are not modelled, so values near an equivalence point are approximate.',
+    bandLabel: 'Shaded: the buffering region (near half-equivalence, where pH ≈ pKa)',
+    eqLabel: 'Dashed: equivalence and half-equivalence',
   },
   reagent: {
     title: 'Concentrated reagents',

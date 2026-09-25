@@ -148,6 +148,8 @@ export const zh = {
     axisY: 'pH',
     chartLabel: '滴定曲线，第一个等当点 {volume} mL，pH {ph}',
     warning: '模型按电荷平衡精确求解，未考虑活度系数与 CO₂ 溶解。等当点附近为近似值。',
+    bandLabel: '阴影：缓冲区（半等当点附近，此处 pH ≈ pKa）',
+    eqLabel: '虚线：等当点与半等当点',
   },
   reagent: {
     title: '浓试剂',

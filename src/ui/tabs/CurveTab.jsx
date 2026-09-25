@@ -20,8 +20,14 @@ function parsePkaList(text) {
  * chart still drew, it just lost its reference lines.
  */
 const CHART_COLORS = {
-  dark: { grid: 'rgba(255,255,255,0.08)', label: '#9aa3b2', curve: '#5aa9ff', eq: 'rgba(240,180,41,0.55)' },
-  light: { grid: 'rgba(16,24,40,0.1)', label: '#6b7688', curve: '#1f6feb', eq: 'rgba(165,106,0,0.5)' },
+  dark: {
+    grid: 'rgba(255,255,255,0.08)', label: '#9aa3b2', curve: '#5aa9ff',
+    eq: 'rgba(240,180,41,0.55)', band: 'rgba(90,169,255,0.10)',
+  },
+  light: {
+    grid: 'rgba(16,24,40,0.1)', label: '#5a6577', curve: '#1f6feb',
+    eq: 'rgba(165,106,0,0.5)', band: 'rgba(31,111,235,0.08)',
+  },
 };
 
 /**
@@ -80,6 +86,25 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
       ctx.fillText(v.toFixed(1), x(v), height - 12);
     }
 
+    /*
+     * The buffering region, shaded.
+     *
+     * Halfway to the first equivalence point the acid is half-deprotonated, so
+     * [A-] = [HA] and the Henderson-Hasselbalch log term is zero: pH = pKa
+     * there. Around that point the curve is at its flattest, which is what
+     * "buffering" means and is the single most examinable feature of the shape.
+     * Shading it shows where the flat part is instead of leaving the reader to
+     * guess from the curve's slope.
+     *
+     * The band is drawn before the curve so the curve stays on top of it.
+     */
+    const firstEq = eqVolumes[0];
+    if (Number.isFinite(firstEq) && firstEq > 0) {
+      const half = firstEq / 2;
+      ctx.fillStyle = palette.band;
+      ctx.fillRect(x(half * 0.5), pad.t, x(half * 1.5) - x(half * 0.5), plotH);
+    }
+
     // One dashed marker per equivalence point — a polyprotic acid has several,
     // and drawing only the first would misrepresent the curve.
     ctx.strokeStyle = palette.eq;
@@ -89,6 +114,16 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
       ctx.beginPath();
       ctx.moveTo(x(v), pad.t);
       ctx.lineTo(x(v), pad.t + plotH);
+      ctx.stroke();
+    }
+
+    // The half-equivalence point, where pH = pKa. Labelled because the
+    // coincidence is the reason the point is worth marking.
+    if (Number.isFinite(firstEq) && firstEq > 0) {
+      const half = firstEq / 2;
+      ctx.beginPath();
+      ctx.moveTo(x(half), pad.t);
+      ctx.lineTo(x(half), pad.t + plotH);
       ctx.stroke();
     }
     ctx.setLineDash([]);
@@ -202,6 +237,19 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
                 : [[t('curve.halfEquivalence'), t('curve.halfEquivalenceValue', { pka: acidType === 'polyprotic' ? (parsePkaList(pkaList) ?? [])[0] : fmt(n(pka), 2) })]]),
             ]}
           />
+          {/* Names what the shading and the dashed lines mean. Without it the
+              band is a decoration and the reader has to infer its meaning from
+              the curve's slope, which is the opposite of explaining it. */}
+          <div className="chart-legend">
+            <span className="legend-item">
+              <span className="legend-sw legend-sw-band" />
+              {t('curve.bandLabel')}
+            </span>
+            <span className="legend-item">
+              <span className="legend-sw legend-sw-eq" />
+              {t('curve.eqLabel')}
+            </span>
+          </div>
         </div>
       )}
 

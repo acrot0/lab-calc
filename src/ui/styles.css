@@ -1502,3 +1502,40 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   font-size: 10px;
   font-weight: 600;
 }
+
+/* Key for a chart's shading and markers, below the chart itself. */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  margin-top: var(--s3);
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+}
+
+.chart-legend .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* Swatches mirror the canvas colours, which cannot read CSS custom
+   properties — see the note in CurveTab. Kept as literals here so the two
+   stay visibly in step; a mismatch is a legend that lies about the chart. */
+.legend-sw-band {
+  width: 16px;
+  height: 9px;
+  border-radius: 2px;
+  background: rgba(90, 169, 255, 0.28);
+}
+
+.legend-sw-eq {
+  width: 16px;
+  height: 0;
+  border-radius: 0;
+  border-top: 2px dashed rgba(240, 180, 41, 0.9);
+  background: none;
+}
+
+[data-theme="light"] .legend-sw-band { background: rgba(31, 111, 235, 0.22); }
+[data-theme="light"] .legend-sw-eq { border-top-color: rgba(165, 106, 0, 0.9); }
