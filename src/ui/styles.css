@@ -100,6 +100,75 @@
 }
 
 /* ==========================================================================
+   Material
+   ========================================================================== */
+
+/*
+ * Frosted glass, opt-in and reversible.
+ *
+ * Applied by `data-material` on the document element, which MaterialContext.jsx
+ * sets. Only chrome reads these tokens — the rail, the topbar, the modals. The
+ * content cards keep `--surface` opaque, because all six palettes were
+ * contrast-checked against that opaque surface and a translucent card would put
+ * body text over the page gradient, invalidating the check for every theme at
+ * once. Frosting the chrome costs nothing legible, and it is where the effect
+ * reads as depth: panels floating above the content they navigate.
+ *
+ * `--chrome` is the background the frosted surfaces use, and it is deliberately
+ * not a plain alpha of `--surface`: alpha over a gradient lets the gradient's
+ * hue through, which turns a neutral grey panel blue at the top of the page and
+ * grey at the bottom. Mixing the surface toward the background keeps the panel
+ * the same colour wherever it floats. The blur is what makes the translucency
+ * safe — text on a blurred backdrop keeps its contrast, where text on a merely
+ * translucent one takes whatever colour is behind it.
+ *
+ * `@supports` is not a formality: without backdrop-filter the panel would be a
+ * translucent smear with the content legible through it, which is worse than no
+ * effect at all. A browser that cannot blur gets the solid surface.
+ */
+:root {
+  --chrome: var(--surface);
+  --chrome-border: var(--border);
+}
+
+[data-material="frosted"] {
+  --chrome: color-mix(in srgb, var(--surface) 72%, transparent);
+  --chrome-border: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  [data-material="frosted"] .topbar,
+  [data-material="frosted"] .rail {
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  /* A modal sits on the scrim, which already blurs what is behind it. A second
+     blur here would compound the two into a flat wash, so the modal takes the
+     material's background at a higher opacity and no blur of its own. */
+  [data-material="frosted"] .modal {
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  [data-material="frosted"] .scrim {
+    -webkit-backdrop-filter: blur(6px) saturate(140%);
+    backdrop-filter: blur(6px) saturate(140%);
+  }
+}
+
+/* Without a blur, fall back to the opaque surface rather than showing a
+   see-through panel. The tokens are redefined rather than each rule being
+   repeated, so the fallback cannot fall out of step with the rules above. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-material="frosted"] {
+    --chrome: var(--surface);
+    --chrome-border: var(--border);
+  }
+}
+
+/* ==========================================================================
    Base
    ========================================================================== */
 
@@ -150,11 +219,30 @@ body {
   padding: var(--s10) var(--s5) var(--s12);
 }
 
+/*
+ * The topbar carries a background so the frosted material has something to
+ * blur. It is a sticky strip rather than a bare flex row: the brand and the
+ * controls are the only way to change theme, language or material, and on a
+ * long result table they would otherwise scroll away — leaving a user who
+ * wants a different theme to scroll back to the top to find the control.
+ *
+ * The background is `--chrome`, which is opaque under the solid material and
+ * translucent under the frosted one. Both are the same rule; only the token
+ * changes.
+ */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: var(--s4);
-  margin-bottom: var(--s2);
+  margin: calc(var(--s2) * -1) calc(var(--s3) * -1) var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--chrome);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
 .brand {
@@ -269,7 +357,107 @@ select.control {
 .control-group select.control:hover { background-color: transparent; border: none; color: var(--text); }
 
 /* ==========================================================================
-   Tabs
+   Navigation rail — desktop
+   ========================================================================== */
+
+/*
+ * Collapsed it is 56px of icons; hovered or focused it widens to 208px and the
+ * labels fade in. The width lives on the rail and the labels are always in the
+ * DOM, hidden by the rail's `overflow: hidden` — so the expansion is a single
+ * animatable property rather than a mount/unmount, and a screen reader sees the
+ * same labels whether or not a pointer happens to be over the rail.
+ *
+ * `:focus-within` is what makes this usable by keyboard: tabbing into the rail
+ * expands it exactly as hovering does. A hover-only menu is one a keyboard user
+ * cannot read.
+ *
+ * The panel is sticky so the rail stays reachable while a long result table
+ * scrolls, and `align-self: start` keeps it from stretching to the full column
+ * height and turning into a full-height sidebar.
+ */
+.rail {
+  display: none;
+  position: sticky;
+  top: var(--s4);
+  z-index: 20;
+  width: 56px;
+  padding: var(--s2);
+  background: var(--chrome);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  transition: width var(--dur) var(--ease),
+              background var(--dur) var(--ease),
+              box-shadow var(--dur) var(--ease);
+}
+
+.rail:hover,
+.rail:focus-within {
+  width: 208px;
+  box-shadow: var(--shadow-2);
+}
+
+.rail-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.rail-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  /* Fixed height rather than padding: the icon must not shift when the label
+     appears beside it, and the icon is the only thing visible when collapsed. */
+  height: 38px;
+  padding: 0 9px;
+  background: none;
+  border: none;
+  border-radius: var(--r-md);
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.rail-item:hover { color: var(--text); background: var(--surface-2); }
+
+.rail-item[aria-current="page"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.rail-icon {
+  display: grid;
+  place-items: center;
+  /* 20px glyph in a 20px box: the collapsed rail is 56px wide with 8px padding
+     and 9px item padding, leaving 22px — so the icon centres on the strip. */
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.rail-label {
+  /* Faded rather than removed: `visibility` keeps it out of the tab order while
+     leaving the element in place, so nothing reflows when it appears. */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.rail:hover .rail-label,
+.rail:focus-within .rail-label {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ==========================================================================
+   Tabs — mobile
    ========================================================================== */
 
 /*
@@ -328,6 +516,27 @@ select.control {
   grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
   gap: var(--s8);
   align-items: start;
+}
+
+/*
+ * The rail and the content. Below the rail's breakpoint this is a single
+ * column with the rail hidden, so the two rules together are the whole
+ * responsive story for the shell.
+ */
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s6);
+  align-items: start;
+}
+
+@media (min-width: 941px) {
+  /* 56px, the collapsed width — not the 208px it expands to. Reserving the
+     expanded width would leave a permanent 152px gutter and defeat the point
+     of collapsing at all. */
+  .shell { grid-template-columns: 56px minmax(0, 1fr); }
+  .rail { display: block; }
+  .tabs { display: none; }
 }
 
 @media (max-width: 940px) {
@@ -1085,6 +1294,9 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-3);
   animation: rise var(--dur) var(--ease);
+  /* The material rules override this to a translucent surface; kept opaque here
+     so the modal is legible if the material rules are ever reordered. */
+  transition: background var(--dur) var(--ease);
 }
 
 .modal-head {

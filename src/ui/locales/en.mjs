@@ -8,8 +8,16 @@ export const en = {
     title: 'Lab Calc',
     tagline: 'Solution chemistry, with every calculation kept',
     langLabel: 'Language',
+    navLabel: 'Calculators',
     // Injected at build time from package.json (see vite.config.js).
     footerVersion: `v${__APP_VERSION__} · open source · MIT`,
+  },
+  material: {
+    // The label names the material in effect, not the one a click selects —
+    // the convention the theme toggle beside it already set.
+    frosted: 'Frosted',
+    solid: 'Solid',
+    switch: 'Switch between frosted glass and solid surfaces',
   },
   tabs: {
     weigh: 'Weigh out',

@@ -7,6 +7,7 @@ import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
 import { useTheme, ThemeToggle } from './ThemeContext.jsx';
+import { MaterialToggle } from './MaterialContext.jsx';
 import { LOCALES } from './i18n.mjs';
 import WeighTab from './tabs/WeighTab.jsx';
 import DiluteTab from './tabs/DiluteTab.jsx';
@@ -25,6 +26,7 @@ import ElectroTab from './tabs/ElectroTab.jsx';
 import ElementsTab from './tabs/ElementsTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
+import NavRail from './components/NavRail.jsx';
 
 /**
  * Every tab has its own icon. "Dilute" and "Serial dilution" shared one
@@ -148,10 +150,17 @@ export default function App() {
         </div>
         <div className="topbar-actions">
           <LocaleSelect />
+          <MaterialToggle />
           <ThemeToggle />
         </div>
       </header>
 
+      {/* Two navigations, one shown at a time by a media query. The rail is the
+          desktop shape — fifteen tabs fit down a column but not across a row —
+          and the horizontal bar is the mobile one, where a thumb expects it.
+          Both are rendered because CSS decides which is visible; hiding one in
+          JavaScript would mean measuring the viewport in React, which is how a
+          resize gets missed. */}
       <div className="tabs" role="tablist">
         {TABS.map(({ id, icon: Icon }) => (
           <button
@@ -167,16 +176,25 @@ export default function App() {
         ))}
       </div>
 
-      {/* The tab panel is the page's main content; the topbar and footer are
-          chrome around it. Without this landmark a screen reader can only jump
-          by heading, and every tab change re-announces the whole page. */}
-      <main className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
-        <div>
-          <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
-        </div>
-        <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear}
-          onImport={importEntries} />
-      </main>
+      {/* The rail and the content share a row so the rail can sit beside the
+          table on a wide screen. The grid column stays 56px even while the rail
+          is expanded, so the rail floats over the content on hover instead of
+          pushing it sideways — a layout that shifts under the pointer is worse
+          than one that overlays. */}
+      <div className="shell">
+        <NavRail tabs={TABS} current={tab} onSelect={setTab} />
+
+        {/* The tab panel is the page's main content; the topbar and footer are
+            chrome around it. Without this landmark a screen reader can only jump
+            by heading, and every tab change re-announces the whole page. */}
+        <main className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
+          <div>
+            <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
+          </div>
+          <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear}
+            onImport={importEntries} />
+        </main>
+      </div>
 
       <footer className="footer">
         <Icons.notice size={ICON_SIZE.inline} aria-hidden="true" />

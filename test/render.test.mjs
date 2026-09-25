@@ -121,3 +121,63 @@ describe('tab rendering', () => {
     expect(failures).toEqual([]);
   });
 });
+
+/**
+ * The shell renders two navigations over the same tab list — a rail for desktop
+ * and a horizontal bar for mobile — with a media query deciding which is shown.
+ * That is one list rendered twice, which is exactly the shape that drifts: a
+ * tab added to one and forgotten in the other is invisible on half the devices,
+ * and nothing about the markup would look wrong.
+ */
+describe('app shell', () => {
+  const shell = async () => {
+    const { LocaleProvider } = await import('../src/ui/LocaleContext.jsx');
+    const { ThemeProvider } = await import('../src/ui/ThemeContext.jsx');
+    const { MaterialProvider } = await import('../src/ui/MaterialContext.jsx');
+    const { default: App } = await import('../src/ui/App.jsx');
+    return renderToStaticMarkup(
+      createElement(LocaleProvider, { store: null },
+        createElement(ThemeProvider, { store: null },
+          createElement(MaterialProvider, { store: null },
+            createElement(App)))),
+    );
+  };
+
+  it('should render both navigations from the same tab list', async () => {
+    const html = await shell();
+    const rail = [...html.matchAll(/class="rail-item"/g)].length;
+    const bar = [...html.matchAll(/role="tab"/g)].length;
+    expect(rail, 'rail items').toBeGreaterThan(0);
+    expect(bar, 'tab buttons').toBeGreaterThan(0);
+    // Equal counts is the check: both render TABS.map, so a tab added to one
+    // and missed in the other fails here.
+    expect(rail, 'rail and tab bar disagree on the tab count').toBe(bar);
+  });
+
+  it('should name the tab in each navigation', async () => {
+    // A rail item with no accessible name is an icon and a shrug. The label is
+    // in the DOM whether or not the CSS is showing it.
+    const html = await shell();
+    const labels = [...html.matchAll(/class="rail-label">([^<]*)</g)].map((m) => m[1]);
+    expect(labels.length).toBeGreaterThan(0);
+    for (const l of labels) expect(l.trim(), 'rail label').not.toBe('');
+    // Not an untranslated key: `t()` returns the key itself when it is missing,
+    // which renders as `tabs.weigh`.
+    for (const l of labels) expect(l, 'untranslated rail label').not.toMatch(/^tabs\./);
+  });
+
+  it('should mark exactly one tab as the current page', async () => {
+    const html = await shell();
+    expect([...html.matchAll(/aria-current="page"/g)].length).toBe(1);
+    expect([...html.matchAll(/aria-selected="true"/g)].length).toBe(1);
+  });
+
+  it('should publish the material on the control', async () => {
+    // The toggle's label names the material in effect, so it must not be blank
+    // or an untranslated key.
+    const html = await shell();
+    const m = html.match(/class="control-label">([^<]*)</);
+    expect(m, 'no control label rendered').not.toBeNull();
+    expect(m[1]).not.toMatch(/^material\./);
+  });
+});

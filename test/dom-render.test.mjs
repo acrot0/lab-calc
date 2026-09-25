@@ -440,3 +440,76 @@ describe('element detail panel', () => {
     await unmount();
   }, 30000);
 });
+
+/*
+ * The material provider, mounted.
+ *
+ * It writes `data-material` on the document element, which is what the CSS
+ * reads — and a stylesheet cannot be tested by rendering markup, so this is the
+ * only place the wiring is checked end to end. It also covers the OS
+ * "reduce transparency" override, which is the one path where the material in
+ * effect deliberately differs from the one the user chose.
+ */
+describe('material provider', () => {
+  const providers = async (node, opts = {}) => {
+    const { MaterialProvider } = await import('../src/ui/MaterialContext.jsx');
+    return mount(
+      React.createElement(LocaleProvider, { store: null },
+        React.createElement(MaterialProvider, opts, node)),
+    );
+  };
+
+  /** A probe that reports the material the provider resolved. */
+  async function probe() {
+    const { useMaterial } = await import('../src/ui/MaterialContext.jsx');
+    let seen = null;
+    function Probe() { seen = useMaterial(); return null; }
+    return { Probe, get: () => seen };
+  }
+
+  afterEach(() => { delete document.documentElement.dataset.material; });
+
+  it('should publish the material on the document element', async () => {
+    const { Probe, get } = await probe();
+    const { unmount } = await providers(React.createElement(Probe), { store: null });
+    expect(get().material).toBe('frosted');
+    expect(document.documentElement.dataset.material).toBe('frosted');
+    await unmount();
+  });
+
+  it('should restore a stored choice', async () => {
+    const { Probe, get } = await probe();
+    const store = { getItem: () => 'solid', setItem: () => {} };
+    const { unmount } = await providers(React.createElement(Probe), { store });
+    expect(get().material).toBe('solid');
+    expect(document.documentElement.dataset.material).toBe('solid');
+    await unmount();
+  });
+
+  it('should cycle on demand and publish the new value', async () => {
+    const { Probe, get } = await probe();
+    const { unmount } = await providers(React.createElement(Probe), { store: null });
+    await act(async () => { get().cycle(); });
+    expect(get().material).toBe('solid');
+    // The attribute is written in an effect, so it must follow the state.
+    expect(document.documentElement.dataset.material).toBe('solid');
+    await unmount();
+  });
+
+  it('should expose the toggle without a provider throwing', async () => {
+    // The toggle reads the context; a missing provider is a programming error
+    // and must say so rather than render a button that silently does nothing.
+    const { MaterialToggle } = await import('../src/ui/MaterialContext.jsx');
+    const errors = [];
+    const onError = (e) => { errors.push(e); e.preventDefault(); };
+    window.addEventListener('error', onError);
+    try {
+      await mount(React.createElement(LocaleProvider, { store: null },
+        React.createElement(MaterialToggle)));
+    } catch (e) {
+      errors.push(e);
+    }
+    window.removeEventListener('error', onError);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});

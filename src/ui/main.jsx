@@ -7,6 +7,7 @@ import './styles.css';
 import App from './App.jsx';
 import { LocaleProvider } from './LocaleContext.jsx';
 import { ThemeProvider } from './ThemeContext.jsx';
+import { MaterialProvider } from './MaterialContext.jsx';
 import { resolveStore } from './history.mjs';
 
 // The locale store and the history store are the same localStorage; resolving
@@ -17,7 +18,9 @@ createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <LocaleProvider store={store}>
       <ThemeProvider store={store}>
-        <App />
+        <MaterialProvider store={store}>
+          <App />
+        </MaterialProvider>
       </ThemeProvider>
     </LocaleProvider>
   </React.StrictMode>,

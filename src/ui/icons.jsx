@@ -38,6 +38,7 @@ import { ShieldWarning } from '@phosphor-icons/react/dist/csr/ShieldWarning';
 import { Check } from '@phosphor-icons/react/dist/csr/Check';
 import { X } from '@phosphor-icons/react/dist/csr/X';
 import { Translate } from '@phosphor-icons/react/dist/csr/Translate';
+import { Cube } from '@phosphor-icons/react/dist/csr/Cube';
 import { Drop } from '@phosphor-icons/react/dist/csr/Drop';
 import { DropHalf } from '@phosphor-icons/react/dist/csr/DropHalf';
 import { Waves } from '@phosphor-icons/react/dist/csr/Waves';
@@ -181,10 +182,14 @@ export const Icons = {
   check: styled(Check, WEIGHT.bold),
   close: styled(X),
   language: styled(Translate),
+  // Frosted glass reads as a droplet; solid as a cube. Both are the shape of
+  // the material rather than of the action, because the button is a state
+  // display that happens to be clickable.
+  frosted: styled(Drop),
+  solid: styled(Cube),
 
   // --- Reserved for the visualisation phases ---
   // Declared here so the set stays the one place an icon is chosen.
-  droplet: styled(Drop),
   waves: styled(Waves),
   gauge: styled(Gauge),
   layers: styled(Stack),
