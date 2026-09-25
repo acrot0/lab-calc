@@ -491,6 +491,15 @@ export const zh = {
       upper: 'pKa + 1 = {ph}',
       lower: 'pKa − 1 = {ph}',
     },
+    dilution: {
+      label: '梯度稀释的浓度随管号的变化：线性轴与对数轴对比',
+      caption: '第 k 管浓度为 C₀ / f^k，是指数衰减而非线性下降。实线是线性轴——几管之后曲线就贴到横轴，看上去"没有了"；虚线是对数轴——同样的数据变成一条直线，说明每管比值恒定。直线落在对数轴上，就是指数关系的标志。',
+      xAxis: '管号',
+      yAxis: '浓度（相对母液）',
+      linearKey: '线性轴',
+      logKey: '对数轴',
+      vanishes: '第 {n} 管起线性轴已看不出',
+    },
   },
   kinds: {
     stockFromSolid: '称量配制',

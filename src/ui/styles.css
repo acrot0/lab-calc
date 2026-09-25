@@ -1483,3 +1483,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   font-size: 9px;
   font-weight: 600;
 }
+
+/* The second curve in a diagram that shows two things at once. Dashed so the
+   two are not read as one series, and in the mid-text token rather than the
+   accent so the first curve stays the one the eye lands on. */
+.diagram-line-alt {
+  stroke: var(--text-mid);
+  stroke-dasharray: 5 3;
+}
+
+.diagram-key text {
+  fill: var(--text-dim);
+  font-size: 9px;
+}
+
+.diagram-panel-title {
+  fill: var(--text-mid);
+  font-size: 10px;
+  font-weight: 600;
+}

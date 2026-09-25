@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dilutionSeries } from '../../calc/buffer.mjs';
 import { NumField, Err } from '../components/Fields.jsx';
+import DilutionDiagram from '../components/diagrams/DilutionDiagram.jsx';
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -14,6 +15,7 @@ export default function SeriesTab({ onRecord, restored }) {
   const [vol, setVol] = useState(restored?.stepVolumeMl != null ? String(restored.stepVolumeMl) : '100');
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+  const [showDiagram, setShowDiagram] = useState(false);
 
   useEffect(() => { setOut(null); setErr(null); }, [stock, factor, steps, vol]);
 
@@ -43,7 +45,17 @@ export default function SeriesTab({ onRecord, restored }) {
         <NumField label={t('series.steps')} value={steps} onChange={setSteps} min="1" step="1" />
         <NumField label={t('series.stepVolume')} value={vol} onChange={setVol} min="0" />
       </div>
-      <button className="primary" onClick={run}>{t('common.calc')}</button>
+      <div className="row row-actions">
+        <button className="primary" onClick={run}>{t('common.calc')}</button>
+        <button className="link-btn" onClick={() => setShowDiagram((v) => !v)}>
+          {showDiagram ? t('diagram.hide') : t('diagram.show')}
+        </button>
+      </div>
+      {/* Driven by the fields above rather than by the result, so the shape can
+          be explored before committing to a calculation. */}
+      {showDiagram && (
+        <DilutionDiagram factor={n(factor)} steps={n(steps)} />
+      )}
       {err && <Err>{err}</Err>}
       {out && (
         <div className="result">

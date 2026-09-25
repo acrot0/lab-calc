@@ -490,6 +490,15 @@ export const en = {
       upper: 'pKa + 1 = {ph}',
       lower: 'pKa − 1 = {ph}',
     },
+    dilution: {
+      label: 'Serial dilution concentration by tube, linear against logarithmic',
+      caption: 'Tube k holds C₀ / f^k — exponential decay, not a linear fall. The solid curve is the linear axis: after a few tubes it is on the axis and looks like nothing is left. The dashed curve is the same data on a logarithmic axis, where it is a straight line, meaning the ratio is constant from tube to tube. A straight line on a log axis is what an exponential relationship looks like.',
+      xAxis: 'Tube',
+      yAxis: 'Concentration (relative to stock)',
+      linearKey: 'Linear',
+      logKey: 'Logarithmic',
+      vanishes: 'from tube {n} the linear view shows nothing',
+    },
   },
   kinds: {
     stockFromSolid: 'Weigh out',
