@@ -319,3 +319,107 @@ describe('recordSummary — language independence', () => {
     }
   });
 });
+
+describe('recordSummary — the mode table matches the tabs', () => {
+  /*
+   * The risk the table introduces. A switch with a `default:` absorbs a new
+   * mode silently — add a sixth reagent direction and forget the summary, and
+   * the history describes it as a stock conversion. The table has the same
+   * hole, so this reads each tab's own mode list and checks that every mode it
+   * offers produces a summary of its own.
+   *
+   * Reading the source rather than importing a constant is deliberate: the tabs
+   * export nothing for this, and adding an export that only a test reads would
+   * be the tail wagging the dog.
+   */
+  const TABS = {
+    reagent: '../src/ui/tabs/ReagentTab.jsx',
+    spectro: '../src/ui/tabs/SpectroTab.jsx',
+    lab: '../src/ui/tabs/LabTab.jsx',
+    colligative: '../src/ui/tabs/ColligativeTab.jsx',
+    reaction: '../src/ui/tabs/ReactionTab.jsx',
+    electro: '../src/ui/tabs/ElectroTab.jsx',
+  };
+
+  /**
+   * The modes a tab offers. Five of the six declare them in a `MODES` constant
+   * and map it into `<option>`s; the spectro tab writes its three options out
+   * by hand. Both forms are read so the test covers whichever a tab uses.
+   */
+  function modesOf(source) {
+    const declared = source.match(/const MODES = \[([^\]]+)\]/);
+    if (declared) return declared[1].split(',').map((x) => x.trim().replace(/^'|'$/g, ''));
+    const select = source.match(/<select[^>]*id="[a-z]+-mode"[^>]*>([\s\S]*?)<\/select>/);
+    return select ? [...select[1].matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]) : [];
+  }
+
+  /**
+   * A record with a value for every field any summary reads.
+   *
+   * The field list is read out of summaries.mjs itself rather than written by
+   * hand. A hand-written fixture drifts: add a field to a summary and the test
+   * keeps passing, because the branch reads `undefined` on both the mode under
+   * test and the fallback it is compared against. Reading the source means a
+   * new field is covered the moment it is used.
+   */
+  async function blankRecord(kind, mode) {
+    const fs = await import('node:fs');
+    const source = fs.readFileSync(new URL('../src/ui/summaries.mjs', import.meta.url), 'utf8');
+
+    const inputs = { mode };
+    const outputs = {};
+    for (const m of source.matchAll(/\b([io])\.([A-Za-z_$][\w$]*)/g)) {
+      const [, obj, key] = m;
+      const target = obj === 'i' ? inputs : outputs;
+      if (key in target) continue;
+      // Lists and strings get a value of the right shape; everything else is a
+      // number. A summary that maps over an array throws on a number, and one
+      // that formats a string renders "NaN" — both louder than a blank.
+      if (['ions', 'entries', 'rows'].includes(key)) target[key] = [{}, {}];
+      else if (['formula', 'equation', 'acidType', 'ptsText'].includes(key)) target[key] = 'X';
+      else if (key === 'fit') target[key] = { n: 1, r2: 0.99 };
+      else if (key === 'pred') target[key] = { value: 1 };
+      else target[key] = 1;
+    }
+    /*
+     * Two values are looked up in the locale dictionary rather than rendered,
+     * so a placeholder produces a summary that leaks a raw key. Both get a
+     * value the dictionaries actually define.
+     */
+    inputs.solvent = 'water';
+    inputs.kind = 'dsDNA';
+    return { kind, inputs, outputs };
+  }
+
+  it('should give every mode a summary of its own, for every tab that has modes', async () => {
+    const fs = await import('node:fs');
+    const failures = [];
+    for (const [kind, path] of Object.entries(TABS)) {
+      const source = fs.readFileSync(new URL(path, import.meta.url), 'utf8');
+      const modes = modesOf(source);
+      if (modes.length < 2) { failures.push(`${kind}: read ${modes.length} modes`); continue; }
+
+      const summaries = [];
+      for (const m of modes) summaries.push(recordSummary(await blankRecord(kind, m), t));
+      for (let n = 0; n < modes.length; n++) {
+        const own = summaries[n];
+        if (/summaries\.|reagent\.|lab\.|electro\.|colligative\.|curve\./.test(own)) {
+          failures.push(`${kind}.${modes[n]} leaked a key: ${own}`);
+        }
+        if (own.includes('undefined')) failures.push(`${kind}.${modes[n]}: ${own}`);
+      }
+      /*
+       * One mode per kind is allowed to share its summary with an unknown mode:
+       * that is the fallback, and it is what makes a stale history entry from
+       * an older build still render. More than one means a mode was never given
+       * its own branch.
+       */
+      const unknown = recordSummary(await blankRecord(kind, 'no-such-mode'), t);
+      const sharing = modes.filter((m, n) => summaries[n] === unknown);
+      if (sharing.length > 1) {
+        failures.push(`${kind}: ${sharing.join(', ')} all share the fallback summary`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+});
