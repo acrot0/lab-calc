@@ -753,6 +753,7 @@ export const zh = {
     stepsNotPositive: '级数必须是正整数（当前为 {steps}）',
     pointsNotPositive: '采样点数必须是正整数（当前为 {points}）',
     tooManyProtons: 'pKa 最多 {max} 个（当前为 {n} 个）',
+    noSolution: '该浓度与滴定剂组合无解（超出模型适用范围），请检查输入。',
     duplicatePka: 'pKa 不能重复',
     acidSpecMissing: '必须给出 pKa（或 strongAcid: true）',
     acidParamsMissing: '酸参数缺失',

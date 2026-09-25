@@ -104,8 +104,34 @@ function zBar(h, kas, strong) {
 function solveH({ kas, strong, cAcid, cBase }) {
   const f = (h) => cBase + h - KW / h - cAcid * zBar(h, kas, strong);
 
-  let lo = 1e-15; // f(lo) < 0
-  let hi = 1.0;   // f(hi) > 0
+  /*
+   * The upper bound is derived from the inputs, not fixed at 1.
+   *
+   * It was `hi = 1.0`, on the assumption that no modelled solution is more
+   * acidic than 1 mol/L. That is false for a concentrated strong acid: 5 M HCl
+   * has [H+] = 5, so the root lay outside the bracket and bisection converged
+   * confidently on the boundary — reporting pH 0.000 for a solution whose pH
+   * is -0.699. Silent, and wrong in the direction of "looks plausible".
+   *
+   * The root can never exceed cBase + cAcid + 1e-7: the charge balance is
+   * h = cBase + h - KW/h - cAcid·z̄ rearranged, and since z̄ ≤ n and the
+   * water term only ever adds a little, total strong-acid plus total strong-
+   * base concentration is an upper bound on [H+] in every case the model
+   * covers. Starting from that instead of a literal costs nothing and cannot
+   * be wrong for any input that passes validation.
+   */
+  let lo = 1e-15;
+  let hi = Math.max(1.0, cBase + cAcid + 1e-7);
+
+  /*
+   * The bracket is checked rather than assumed. f is monotonically increasing
+   * in h, so if either end has the wrong sign the root is not between them and
+   * bisection would return a bound while looking like it converged.
+   */
+  if (!(f(lo) < 0 && f(hi) > 0)) {
+    fail('noSolution', { cAcid, cBase });
+  }
+
   for (let i = 0; i < 200; i++) {
     const mid = Math.sqrt(lo * hi);
     if (f(mid) < 0) lo = mid; else hi = mid;

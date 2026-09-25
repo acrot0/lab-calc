@@ -752,6 +752,7 @@ export const en = {
     stepsNotPositive: 'Steps must be a positive integer (got {steps})',
     pointsNotPositive: 'Point count must be a positive integer (got {points})',
     tooManyProtons: 'At most {max} pKa values (got {n})',
+    noSolution: "No solution exists for this concentration and titrant combination (outside the model's range) — check the inputs.",
     duplicatePka: 'pKa values must be distinct',
     acidSpecMissing: 'Provide a pKa (or strongAcid: true)',
     acidParamsMissing: 'Acid specification is missing',

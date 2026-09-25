@@ -105,3 +105,44 @@ describe('findEquivalencePoint', () => {
     expect(eq.ph).toBeGreaterThan(7);
   });
 });
+
+describe('concentrated strong acid', () => {
+  /*
+   * The bug this pins: the charge-balance bisection bracketed [H+] between
+   * 1e-15 and a hardcoded 1.0. A 5 M strong acid has [H+] = 5, so the root lay
+   * outside the bracket and bisection converged confidently on the boundary —
+   * reporting pH 0.000 for a solution whose pH is -0.699. Silent, and wrong in
+   * the direction of looking plausible.
+   *
+   * The upper bound now comes from the inputs, and the bracket is checked
+   * rather than assumed, so an unbracketed root throws instead of returning a
+   * bound that looks like an answer.
+   */
+  it('should report a pH below zero for a strong acid above 1 M', () => {
+    for (const conc of [2, 5, 10]) {
+      const curve = titrationCurve({ strongAcid: true, conc, volumeMl: 25, titrantConc: conc });
+      // The first point is before any titrant is added, so [H+] is the acid's
+      // own concentration and pH is its negative logarithm.
+      expect(curve[0].ph, `${conc} M`).toBeCloseTo(-Math.log10(conc), 3);
+    }
+  });
+
+  it('should still bracket correctly at 1 M, the old boundary', () => {
+    // The value the old hardcoded bound happened to be right for, so a fix
+    // that broke this would be caught.
+    const curve = titrationCurve({ strongAcid: true, conc: 1, volumeMl: 25, titrantConc: 1 });
+    expect(curve[0].ph).toBeCloseTo(0, 3);
+  });
+
+  it('should leave the dilute case untouched', () => {
+    // Regression guard: the bracket change must not move any result that was
+    // already correct.
+    const curve = titrationCurve({ strongAcid: true, conc: 0.1, volumeMl: 25, titrantConc: 0.1 });
+    expect(curve[0].ph).toBeCloseTo(1, 3);
+  });
+
+  it('should not change a weak-acid curve', () => {
+    const curve = titrationCurve({ pKa: 4.76, conc: 0.1, volumeMl: 25, titrantConc: 0.1 });
+    expect(curve[0].ph).toBeCloseTo(2.88, 2);
+  });
+});
