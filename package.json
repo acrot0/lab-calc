@@ -12,7 +12,9 @@
     "smoke": "node scripts/smoke.mjs",
     "check": "node scripts/check-imports.mjs src",
     "verify": "node scripts/check-imports.mjs src && node scripts/smoke.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "package:desktop": "node scripts/package-desktop.mjs",
+    "package:desktop:fast": "node scripts/package-desktop.mjs --no-build"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.1",

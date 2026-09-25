@@ -5,6 +5,17 @@ dist/
 __pycache__/
 .playwright-mcp/
 
+# Desktop build output. The ICO is committed (it is a small generated asset the
+# repo should be able to reproduce from source, and make-icons.mjs regenerates
+# it), but the packaged app is a 322 MB tree that belongs in releases/.
+dist-desktop/
+releases/
+
+# Session logs a hook writes here. The workspace keeps its memory at the
+# workspace root; this directory is a byproduct of running from inside the
+# project and is not part of the app.
+memory/
+
 # Harness telemetry (compact snapshots, per-agent cost logs) — byproducts of a
 # session, not part of the app. src/calc/docs/ is the same thing written to the
 # wrong directory by an earlier run.
