@@ -476,6 +476,22 @@ export const zh = {
     unit_ionization: 'eV',
     unit_electronegativity: 'Pauling',
   },
+  // Explanatory figures. The caption is what a sighted reader reads; the label
+  // is what a screen reader announces. Both are required — a diagram whose
+  // point is only visible is a diagram half the readers cannot use.
+  diagram: {
+    show: '显示原理图',
+    hide: '隐藏原理图',
+    buffer: {
+      label: '缓冲液的 pH 随酸解离比例的变化曲线',
+      caption: 'pH = pKa + log([A⁻]/[HA]) 的图像。横轴是已解离的酸所占比例，纵轴是 pH。两端曲线陡峭——几乎全部酸只以一种形态存在，少量加入就会大幅改变比例；中间平缓——两种形态同时大量存在，比例变化慢。阴影带是 pKa ± 1，即缓冲真正有效的范围。',
+      xAxis: '已解离比例 [A⁻]/([HA]+[A⁻])',
+      yAxis: 'pH',
+      halfPoint: '半解离时 pH = pKa = {pka}',
+      upper: 'pKa + 1 = {ph}',
+      lower: 'pKa − 1 = {ph}',
+    },
+  },
   kinds: {
     stockFromSolid: '称量配制',
     massForMolarity: '称量配制',

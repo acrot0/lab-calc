@@ -501,6 +501,23 @@ select.control {
 
 @media (max-width: 560px) { .row { grid-template-columns: 1fr; gap: 0; } }
 
+/*
+ * A row of actions rather than of fields.
+ *
+ * `.row` splits into equal halves, which is right for two inputs and wrong for
+ * a primary button beside a text link: the button would stretch to half the
+ * panel. `auto auto` sizes each to its content, and `justify-content: start`
+ * keeps them together at the left rather than spread across the width.
+ */
+.row-actions {
+  grid-template-columns: auto auto;
+  justify-content: start;
+  align-items: center;
+  gap: var(--s4);
+}
+
+@media (max-width: 560px) { .row-actions { grid-template-columns: auto auto; } }
+
 .hint {
   margin-top: var(--s2);
   color: var(--text-dim);
@@ -1367,4 +1384,102 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     scroll-behavior: auto !important;
   }
   .pcell:hover, .primary:active { transform: none; }
+}
+
+/* ==========================================================================
+   Diagrams
+   --------------------------------------------------------------------------
+   Explanatory figures. Static SVG, so they cost nothing when off screen and
+   stay sharp at any zoom.
+
+   The colours come from the same tokens as the rest of the app rather than
+   from the categorical palette: a diagram is not a data series, and giving it
+   a category colour would imply it is one of the things the legend lists.
+   ========================================================================== */
+
+.diagram {
+  margin: var(--s4) 0 0;
+}
+
+.diagram-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.diagram-caption {
+  margin-top: var(--s2);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* Axis: a hairline spine, small ticks, and labels in the dim token so they
+   read as annotation rather than as content. */
+.diagram-axis line {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.diagram-axis text {
+  fill: var(--text-dim);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diagram-axis-label {
+  fill: var(--text-mid) !important;
+  font-size: 10px;
+}
+
+/* The plotted quantity itself: the one thing in the figure that should carry
+   the accent. */
+.diagram-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* A construction line — a projection, a guide — subordinate to the curve. */
+.diagram-guide {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/* The region a claim is about (a buffering window, a valid range). Faint
+   enough to sit behind the curve without tinting it. */
+.diagram-band {
+  fill: var(--accent);
+  opacity: 0.09;
+}
+
+.diagram-band-label {
+  fill: var(--text-dim);
+  font-size: 9px;
+}
+
+.diagram-note line {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+}
+
+.diagram-note circle {
+  fill: var(--accent);
+}
+
+.diagram-note text {
+  fill: var(--text-mid);
+  font-size: 10px;
+}
+
+.diagram-bar-label {
+  fill: var(--accent-ink);
+  font-size: 9px;
+  font-weight: 600;
 }

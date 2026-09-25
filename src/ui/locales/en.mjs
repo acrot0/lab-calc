@@ -478,6 +478,19 @@ export const en = {
     unit_ionization: 'eV',
     unit_electronegativity: 'Pauling',
   },
+  diagram: {
+    show: 'Show the diagram',
+    hide: 'Hide the diagram',
+    buffer: {
+      label: 'Buffer pH against the fraction of acid dissociated',
+      caption: 'pH = pKa + log([A⁻]/[HA]), plotted. The horizontal axis is the fraction of the acid that has been deprotonated, the vertical axis is pH. The curve is steep at both ends — nearly all the acid is in one form, so a small addition shifts the ratio sharply — and nearly flat through the middle, where both forms are present in quantity. The shaded band is pKa ± 1, the range where the buffer actually works.',
+      xAxis: 'Fraction dissociated [A⁻]/([HA]+[A⁻])',
+      yAxis: 'pH',
+      halfPoint: 'Half-dissociated: pH = pKa = {pka}',
+      upper: 'pKa + 1 = {ph}',
+      lower: 'pKa − 1 = {ph}',
+    },
+  },
   kinds: {
     stockFromSolid: 'Weigh out',
     massForMolarity: 'Weigh out',
