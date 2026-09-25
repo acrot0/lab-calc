@@ -26,6 +26,16 @@
 /** Shared across several tabs, so named once. */
 const COMMON = {
   formula: { zh: '化学式', en: 'Formula' },
+  acidType: { zh: '酸的种类', en: 'Acid type' },
+  reactants: { zh: '反应物', en: 'Reactants' },
+  products: { zh: '生成物', en: 'Products' },
+  balanced: { zh: '配平后的方程式', en: 'Balanced equation' },
+  boilingPoint: { zh: '沸点', en: 'Boiling point' },
+  freezingPoint: { zh: '凝固点', en: 'Freezing point' },
+  diluteWarning: { zh: '稀释假设提示', en: 'Dilution assumption' },
+  particles: { zh: '粒子数', en: 'Particles' },
+  linearityWarning: { zh: '线性范围提示', en: 'Linearity warning' },
+  gramsPerL: { zh: '克每升', en: 'Grams per litre' },
   series: { zh: '稀释系列', en: 'Dilution series' },
   acidConc: { zh: '酸浓度 (mol/L)', en: 'Acid concentration (mol/L)' },
   baseConc: { zh: '碱浓度 (mol/L)', en: 'Base concentration (mol/L)' },

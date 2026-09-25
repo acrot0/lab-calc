@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { LocaleProvider } from '../src/ui/LocaleContext.jsx';
+import { SYMBOL_KEYS } from '../src/ui/field-labels.mjs';
 
 /*
  * React refuses to batch updates through `act` unless the environment says it
@@ -530,4 +531,115 @@ describe('material provider', () => {
     window.removeEventListener('error', onError);
     expect(errors.length).toBeGreaterThan(0);
   });
+});
+
+/**
+ * The printed report, rendered for real.
+ *
+ * The report is hidden on screen and only appears in print, which is exactly
+ * why it drifted: nothing rendered it, so nothing noticed that ten recorded
+ * field keys had no label and printed as raw identifiers — `acidType` on every
+ * titration-curve entry, `boilingPoint`, `reactants`, `products` and six more.
+ *
+ * The check is on the *rendered output* rather than on the label table, because
+ * the table can be complete while the report still reaches a key it does not
+ * cover. A label is translated prose; a raw key is a bare camelCase identifier
+ * with no CJK, no space and no unit in parentheses, so it is recognisable
+ * without knowing which keys exist.
+ */
+describe('printed report', () => {
+  const ENTRIES = [
+    {
+      id: 'a', kind: 'titrationCurve', at: '2026-09-25T10:00:00.000Z',
+      summary: '滴定曲线',
+      inputs: { acidType: 'weakAcid', pKa: 4.76, conc: 0.1, volumeMl: 25, titrantConc: 0.1 },
+      outputs: { equivalenceMl: 25, equivalencePh: 8.73 },
+    },
+    {
+      id: 'b', kind: 'reaction', at: '2026-09-25T11:00:00.000Z',
+      summary: '配平',
+      inputs: { equation: 'Fe + O2 -> Fe2O3' },
+      outputs: { balanced: '4Fe + 3O2 -> 2Fe2O3', reactants: 'Fe, O2', products: 'Fe2O3' },
+    },
+  ];
+
+  it('should label every recorded field rather than printing its key', async () => {
+    const { default: Report } = await import('../src/ui/components/Report.jsx');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        React.createElement(LocaleProvider, { store: null },
+          React.createElement(Report, { entries: ENTRIES })),
+      );
+    });
+
+    const labels = [...host.querySelectorAll('.report-block dt')].map((d) => d.textContent);
+    expect(labels.length, 'no fields rendered — the report is empty').toBeGreaterThan(6);
+
+    /*
+     * A bare camelCase identifier with no CJK, space or unit is a raw key.
+     *
+     * `SYMBOL_KEYS` are the exception, and they are exceptions for a reason: a
+     * handful of field names are symbols that read the same in both languages
+     * — `pKa`, `pH`, `E°` — so their label *is* the key and flagging them
+     * would demand a translation that does not exist.
+     */
+    const raw = labels.filter(
+      (s) => /^[a-z][A-Za-z0-9]*$/.test(s) && s.length > 2 && !SYMBOL_KEYS.has(s),
+    );
+    expect(raw, `printed as raw keys: ${raw.join(', ')}`).toEqual([]);
+
+    await act(async () => { root.unmount(); });
+    host.remove();
+  }, 30000);
+
+  it('should state the method and its assumptions for a known kind', async () => {
+    // The part that makes the numbers checkable rather than merely present.
+    const { default: Report } = await import('../src/ui/components/Report.jsx');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        React.createElement(LocaleProvider, { store: null },
+          React.createElement(Report, { entries: ENTRIES })),
+      );
+    });
+
+    const items = host.querySelectorAll('.report-item');
+    expect(items.length).toBe(2);
+    const first = items[0];
+    expect(first.querySelector('.report-equation')?.textContent).toBeTruthy();
+    expect(first.querySelectorAll('.report-method li').length).toBeGreaterThan(0);
+    expect(first.querySelector('.report-source')?.textContent).toBeTruthy();
+    // Every entry is numbered, so a page can be referred to by item.
+    expect(first.querySelector('.report-num')?.textContent).toBe('01');
+
+    await act(async () => { root.unmount(); });
+    host.remove();
+  }, 30000);
+
+  it('should render a cover that identifies the document', async () => {
+    const { default: Report } = await import('../src/ui/components/Report.jsx');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        React.createElement(LocaleProvider, { store: null },
+          React.createElement(Report, { entries: ENTRIES })),
+      );
+    });
+
+    const cover = host.querySelector('.report-cover');
+    expect(cover, 'no cover — loose pages cannot be identified').toBeTruthy();
+    expect(cover.querySelector('.report-cover-title')?.textContent).toBeTruthy();
+    // Generated time, entry count and software version.
+    expect(cover.querySelectorAll('.report-cover-meta dd').length).toBe(3);
+
+    await act(async () => { root.unmount(); });
+    host.remove();
+  }, 30000);
 });

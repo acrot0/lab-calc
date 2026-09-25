@@ -3077,7 +3077,7 @@ body,
   }
 
   /* Feeds the running header above. */
-  .report-head h1 { string-set: report-title content(); }
+  .report-cover-title { string-set: report-title content(); }
 
   /* The app is not part of the document. */
   .app,
@@ -3114,24 +3114,66 @@ body,
     --accent: #0b4fa8;
   }
 
-  .report-head {
-    border-bottom: 2px solid #111111;
-    padding-bottom: 4mm;
-    margin-bottom: 6mm;
+  /* ---------------------------------------------------------------------
+     Cover
+     --------------------------------------------------------------------- */
+
+  /*
+   * The cover takes a page of its own.
+   *
+   * `break-after: page` rather than a tall block with margins: a cover that
+   * shares a page with the first entry is not a cover, and a reader
+   * reassembling loose sheets has nothing to identify the document by.
+   */
+  .report-cover {
+    break-after: page;
+    page-break-after: always;
+    padding-top: 40mm;
   }
 
-  .report-head h1 {
-    margin: 0 0 2mm;
-    font-size: 18pt;
-    font-weight: 600;
-  }
-
-  .report-meta {
-    display: flex;
-    justify-content: space-between;
+  .report-cover-mark {
     font-size: 9pt;
-    color: #555555;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #777777;
+    margin-bottom: 4mm;
   }
+
+  .report-cover-title {
+    margin: 0 0 12mm;
+    font-size: 26pt;
+    font-weight: 600;
+    line-height: 1.15;
+    border-bottom: 2px solid #111111;
+    padding-bottom: 5mm;
+  }
+
+  .report-cover-meta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 2mm 8mm;
+    margin: 0 0 20mm;
+    font-size: 10.5pt;
+  }
+
+  .report-cover-meta > div { display: contents; }
+  .report-cover-meta dt { color: #555555; }
+  .report-cover-meta dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+  .report-cover-note {
+    margin: 0;
+    padding-top: 4mm;
+    border-top: 1px solid #cccccc;
+    font-size: 9pt;
+    color: #666666;
+    line-height: 1.5;
+  }
+
+  .report-empty { font-size: 11pt; color: #666666; }
+
+  /* ---------------------------------------------------------------------
+     Entries
+     --------------------------------------------------------------------- */
 
   /* `break-inside: avoid` is the rule that makes the output readable: without
      it a page break lands between a calculation's heading and its numbers. */
@@ -3144,6 +3186,15 @@ body,
     margin-bottom: 5mm;
   }
 
+  .report-item-head {
+    display: flex;
+    gap: 3mm;
+    align-items: baseline;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 2mm;
+    margin-bottom: 3mm;
+  }
+
   .report-item h2 {
     margin: 0 0 1mm;
     font-size: 12pt;
@@ -3153,10 +3204,95 @@ body,
   /* The index number, so a printed page can be referred to by item. */
   .report-num {
     display: inline-block;
-    min-width: 6mm;
-    color: #777777;
+    min-width: 8mm;
+    font-size: 13pt;
+    font-weight: 600;
+    color: #999999;
     font-variant-numeric: tabular-nums;
   }
+
+  .report-kind {
+    margin-left: 3mm;
+    padding: 0.4mm 2mm;
+    border: 1px solid #cccccc;
+    border-radius: 1mm;
+    font-size: 8pt;
+    color: #555555;
+  }
+
+  /* ---------------------------------------------------------------------
+     Method — the part that makes the numbers checkable
+     --------------------------------------------------------------------- */
+
+  .report-method {
+    background: #f7f7f7;
+    border-left: 2px solid #bbbbbb;
+    padding: 3mm 4mm;
+    margin-bottom: 3mm;
+  }
+
+  .report-equation {
+    margin: 0 0 2mm;
+    font-family: var(--font-num, ui-monospace, monospace);
+    font-size: 11pt;
+    color: #111111;
+  }
+
+  .report-method h4 {
+    margin: 0 0 1mm;
+    font-size: 8.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666666;
+  }
+
+  .report-method ul {
+    margin: 0 0 2mm;
+    padding-left: 5mm;
+    font-size: 9pt;
+    color: #444444;
+    line-height: 1.45;
+  }
+
+  .report-method li { margin-bottom: 0.6mm; }
+
+  .report-source {
+    margin: 0;
+    font-size: 8.5pt;
+    color: #666666;
+    line-height: 1.4;
+  }
+
+  .report-source span { font-weight: 600; color: #555555; }
+
+  /* ---------------------------------------------------------------------
+     Signature
+     --------------------------------------------------------------------- */
+
+  /*
+   * A blank line per entry, because a record nobody signs is a draft.
+   *
+   * The rule is a border on an empty span rather than a row of underscores:
+   * underscores wrap and the line breaks in the middle, which looks like a
+   * rendering fault on a document that is otherwise careful.
+   */
+  .report-sign {
+    display: flex;
+    align-items: baseline;
+    gap: 3mm;
+    margin-top: 4mm;
+    font-size: 8.5pt;
+    color: #777777;
+  }
+
+  .report-sign-line {
+    flex: 1 1 auto;
+    border-bottom: 1px solid #cccccc;
+    height: 4mm;
+  }
+
+  .report-sign-line.is-short { flex: 0 0 30mm; }
 
   .report-when {
     font-size: 8.5pt;
@@ -3199,14 +3335,6 @@ body,
     font-variant-numeric: tabular-nums;
     /* A long value wraps at the space, not mid-token. */
     overflow-wrap: anywhere;
-  }
-
-  .report-foot {
-    margin-top: 8mm;
-    padding-top: 3mm;
-    border-top: 1px solid #cccccc;
-    font-size: 8.5pt;
-    color: #666666;
   }
 
   /* Links print their target, since a printed page cannot be clicked. */
