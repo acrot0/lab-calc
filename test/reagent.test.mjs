@@ -7,6 +7,7 @@ import {
   molality,
   moleFraction,
   activityCoefficient,
+  withinDaviesRange,
   ionicStrength,
   beerLambert,
   standardCurve,
@@ -294,5 +295,49 @@ describe('predictFromCurve', () => {
       { x: 0, y: 0.02 }, { x: 1, y: 0.52 }, { x: 2, y: 1.02 }, { x: 3, y: 1.52 },
     ]);
     expect(predictFromCurve(f, 1.02).outOfRange).toBe(false);
+  });
+});
+
+describe('withinDaviesRange', () => {
+  /*
+   * The Davies equation has a minimum near I = 0.5 and then rises without
+   * bound: at I = 1.95 a singly-charged ion reaches γ = 1, and at I = 5 it
+   * reaches 2.59. An activity coefficient above 1 says the ion behaves as if
+   * it were more concentrated than it is, which the model cannot support — it
+   * is the fitted term extrapolating.
+   *
+   * The function still returns the number, because a caller may be plotting
+   * the curve. What these tests pin is that the range check exists and agrees
+   * with where the physics stops making sense.
+   */
+  it('should accept ionic strengths inside the fitted range', () => {
+    for (const I of [0, 0.001, 0.1, 0.3, 0.5]) {
+      expect(withinDaviesRange(I), `I=${I}`).toBe(true);
+    }
+  });
+
+  it('should reject ionic strengths past it', () => {
+    for (const I of [0.6, 1, 2, 5]) {
+      expect(withinDaviesRange(I), `I=${I}`).toBe(false);
+    }
+  });
+
+  it('should reject a non-finite value rather than defaulting to in-range', () => {
+    // A NaN reaching the range check means an upstream calculation failed;
+    // answering "in range" would suppress the warning exactly when it matters.
+    expect(withinDaviesRange(NaN)).toBe(false);
+    expect(withinDaviesRange(Infinity)).toBe(false);
+    expect(withinDaviesRange(undefined)).toBe(false);
+  });
+
+  it('should agree with where the returned gamma becomes unphysical', () => {
+    // The boundary is not arbitrary: it is where the equation stops producing
+    // a value a correction factor could be. At the limit gamma is still below
+    // 1; a little past it, it is not.
+    const atLimit = activityCoefficient({ ionicStrength: 0.5, charge: 1 });
+    expect(atLimit).toBeLessThan(1);
+    const past = activityCoefficient({ ionicStrength: 2, charge: 1 });
+    expect(past).toBeGreaterThan(1);
+    expect(withinDaviesRange(2)).toBe(false);
   });
 });

@@ -292,6 +292,7 @@ export const zh = {
     gammaMono: '一价离子 γ',
     gammaDi: '二价离子 γ',
     ionicNote: 'I = ½ Σ cᵢzᵢ²',
+    activityOutOfRange: '离子强度超过 {max} mol/L，Davies 方程已超出适用范围——活度系数是外推值，不可信。',
     ionicWarning: '活度系数按 Davies 方程计算，适用于 I ≲ 0.5 mol/L 的常温水溶液。高盐体系（如海水、饱和盐溶液）不适用。',
   },
   spectro: {

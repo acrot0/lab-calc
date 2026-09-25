@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   molarityFromPercent, volumeForMolarity, normality, equivalentWeight,
-  molality, moleFraction, ionicStrength, activityCoefficient,
+  molality, moleFraction, ionicStrength, activityCoefficient, withinDaviesRange,
 } from '../../calc/reagent.mjs';
 import { molarMass } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
@@ -87,6 +87,10 @@ export default function ReagentTab({ onRecord, restored }) {
           ionicStrength: I,
           gammaMono: activityCoefficient({ ionicStrength: I, charge: 1 }),
           gammaDi: activityCoefficient({ ionicStrength: I, charge: 2 }),
+          // Past I ≈ 0.5 the Davies fit is extrapolating and γ climbs above 1,
+          // which is physically impossible for a correction factor. The number
+          // is still shown, but the user is told not to trust it.
+          activityOutOfRange: !withinDaviesRange(I),
         };
       }
       setOut({ mode, ...r });
@@ -347,6 +351,12 @@ export default function ReagentTab({ onRecord, restored }) {
       )}
 
       {mode === 'ionic' && <Warn>{t('reagent.ionicWarning')}</Warn>}
+      {/* Only when the numbers above are actually shown, and only when the
+          fit has left its range — a warning on every ionic calculation would
+          be read once and then ignored. */}
+      {mode === 'ionic' && shown?.activityOutOfRange && (
+        <Warn>{t('reagent.activityOutOfRange', { max: '0.5' })}</Warn>
+      )}
     </div>
   );
 }

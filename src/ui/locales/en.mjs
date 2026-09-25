@@ -294,6 +294,7 @@ export const en = {
     gammaMono: 'γ for a 1+ ion',
     gammaDi: 'γ for a 2+ ion',
     ionicNote: 'I = ½ Σ cᵢzᵢ²',
+    activityOutOfRange: 'Ionic strength exceeds {max} mol/L, past the range the Davies equation covers — these activity coefficients are extrapolated and should not be trusted.',
     ionicWarning: 'Activity coefficients use the Davies equation, valid to I ≲ 0.5 mol/L in water at room temperature. Not valid in seawater or in saturated salt solutions.',
   },
   spectro: {

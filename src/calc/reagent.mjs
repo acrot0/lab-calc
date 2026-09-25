@@ -132,6 +132,26 @@ export function activityCoefficient({ ionicStrength: I, charge }) {
   return 10 ** (-DH_A * charge ** 2 * (sqrtI / (1 + sqrtI) - DAVIES_B * I));
 }
 
+/**
+ * Ionic strength past which the Davies fit is extrapolating, not fitting.
+ *
+ * The equation has a minimum near I ≈ 0.5 and then rises without bound: at
+ * I = 1.95 a singly-charged ion reaches γ = 1, and at I = 5 it reaches 2.59.
+ * An activity coefficient above 1 says the ion behaves as if it were MORE
+ * concentrated than it is, which the model has no basis to claim — that is the
+ * fitted term extrapolating, not chemistry.
+ *
+ * Kept as a separate predicate rather than folded into `activityCoefficient`'s
+ * return value, because that function returns a plain number at three call
+ * sites and five tests. A caller that wants the number gets the number; one
+ * that wants to know whether to trust it asks. Silently returning 2.59 for a
+ * figure the user reads as a correction factor is the failure this guards.
+ */
+export const DAVIES_I_MAX = 0.5;
+
+/** Whether an ionic strength is inside the range the Davies fit covers. */
+export const withinDaviesRange = (I) => Number.isFinite(I) && I <= DAVIES_I_MAX;
+
 /** Absorbance above which the linear relationship stops holding in practice. */
 export const LINEAR_ABSORBANCE_MAX = 1.5;
 
