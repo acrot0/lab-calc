@@ -43,12 +43,26 @@
   --dur: 180ms;
 
   /*
-   * Fonts — three faces, three jobs.
+   * Fonts — four faces, four jobs.
    *
-   * `--font-display` is for the brand and headings only. Space Grotesk loses
-   * the letterforms that make it distinctive below roughly 32px, so stretching
-   * it down to body text costs legibility and buys nothing; it is a headline
-   * face and is used as one.
+   * `--font-display` is the headline face, and it is a **serif**.
+   *
+   * The pairing is the one the reference products in this space converged on:
+   * a high-contrast serif for the wordmark and headings against a clean
+   * sans for everything else. Instrument Serif carries far more character at
+   * 28px than Space Grotesk did, which is what "the title has no personality"
+   * was about — and at that size the contrast costs nothing in legibility.
+   *
+   * It ships at weight 400 only, so the headings that use it must not ask for
+   * 700: a browser given one weight will synthesise a bold by smearing the
+   * outline, which looks like a rendering fault. The rules below set 400 and
+   * get their emphasis from size and letter-spacing instead.
+   *
+   * `--font-display-cjk` is the Chinese counterpart. Noto Serif SC was
+   * measured and rejected: 500 KB of subset files for the fourteen characters
+   * in the drawer title, because a CJK face cannot be subset per-glyph. The
+   * system serifs are already on every machine that reads Chinese and are the
+   * right face for the script.
    *
    * `--font` is the interface face. Geist is engineered for UI constraints —
    * tight grids, dark themes, small sizes — which is exactly this app.
@@ -56,12 +70,8 @@
    * `--font-num` is for anything a reader compares down a column: results,
    * table cells, history values. Tabular figures make 1.234 and 12.340 line up,
    * which proportional digits do not.
-   *
-   * The CJK fallbacks are per-face rather than shared: a Chinese glyph missing
-   * from the display face must fall through to the system font, and each stack
-   * has to say so itself.
    */
-  --font-display: "Space Grotesk Variable", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-display: "Instrument Serif", "Songti SC", "SimSun", "Noto Serif CJK SC", Georgia, serif;
   --font: "Geist Variable", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
   --font-num: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
 
@@ -317,8 +327,12 @@ body {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--t-xl);
-  font-weight: 700;
-  letter-spacing: -0.035em;
+  /* 400, not 700: Instrument Serif has one weight, and asking for a bold it
+     does not have makes the browser synthesise one by smearing the outline.
+     A high-contrast serif already reads as heavier than a sans at the same
+     size, so the emphasis comes from the size and the tighter tracking. */
+  font-weight: 400;
+  letter-spacing: -0.02em;
   line-height: 1.15;
   background: linear-gradient(
     100deg,
@@ -1686,9 +1700,11 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .calc-head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--t-md);
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-size: var(--t-lg);
+  /* Weight 400 for the same reason as the wordmark above — the face has one
+     weight, and a synthesised bold of a serif looks like a mistake. */
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .calc-head-actions {

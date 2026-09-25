@@ -14,11 +14,19 @@ import { createRoot } from 'react-dom/client';
  * carry identity, a neutral face for the many that carry information, and a
  * monospaced face wherever digits must line up in a column.
  *
- * All three are OFL-1.1, the same licence as the Inter they replace, so the
- * licence check passes unchanged. Chinese is deliberately NOT loaded: a CJK
- * webfont is several megabytes, and the system fallbacks (PingFang SC,
- * Microsoft YaHei) are already on every machine that would read it.
+ * All four are OFL-1.1, so the licence check passes unchanged. Chinese is
+ * deliberately NOT loaded: a CJK webfont is several megabytes, and the system
+ * fallbacks (PingFang SC, Microsoft YaHei) are already on every machine that
+ * would read it.
+ *
+ * `instrument-serif` is Latin-only by design, and that is not a gap. Measured
+ * before choosing: the same heading in Noto Serif SC pulls 500 KB of subset
+ * files for the fourteen characters in the drawer title, because a CJK face
+ * cannot be subset per-glyph the way a Latin one can. Latin headings take the
+ * serif; Chinese ones fall through to the system serif (`Songti SC`, `SimSun`),
+ * which is the correct face for the script and costs nothing.
  */
+import '@fontsource/instrument-serif/400.css';
 import '@fontsource-variable/space-grotesk/wght.css';
 import '@fontsource-variable/geist/wght.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';

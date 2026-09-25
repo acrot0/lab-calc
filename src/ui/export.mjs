@@ -29,7 +29,7 @@ const COLUMNS_BY_LOCALE = {
   en: ['Time', 'Type', 'Summary', 'Inputs', 'Results'],
 };
 
-export function columnsFor(locale = 'zh') {
+function columnsFor(locale = 'zh') {
   return COLUMNS_BY_LOCALE[locale] ?? COLUMNS_BY_LOCALE.zh;
 }
 
@@ -60,7 +60,7 @@ const KIND_NAMES = {
 };
 
 /** A record's kind in the reader's language, falling back to the stored key. */
-export function kindName(kind, locale = 'zh') {
+function kindName(kind, locale = 'zh') {
   const entry = KIND_NAMES[kind];
   if (!entry) return kind ?? '';
   return entry[locale] ?? entry.zh;
