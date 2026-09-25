@@ -12,6 +12,12 @@ export const en = {
     // Injected at build time from package.json (see vite.config.js).
     footerVersion: `v${__APP_VERSION__} · open source · MIT`,
   },
+  density: {
+    comfortable: 'Comfortable',
+    compact: 'Compact',
+    spacious: 'Spacious',
+    switch: 'Cycle the interface density',
+  },
   iconStyle: {
     linear: 'Outline',
     filled: 'Filled',

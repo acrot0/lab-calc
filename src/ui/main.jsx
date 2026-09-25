@@ -36,6 +36,7 @@ import { LocaleProvider } from './LocaleContext.jsx';
 import { ThemeProvider } from './ThemeContext.jsx';
 import { MaterialProvider } from './MaterialContext.jsx';
 import { IconStyleProvider } from './IconStyleContext.jsx';
+import { DensityProvider } from './DensityContext.jsx';
 import { resolveStore } from './history.mjs';
 
 // The locale store and the history store are the same localStorage; resolving
@@ -48,7 +49,9 @@ createRoot(document.getElementById('root')).render(
       <ThemeProvider store={store}>
         <MaterialProvider store={store}>
           <IconStyleProvider store={store}>
-            <App />
+            <DensityProvider store={store}>
+              <App />
+            </DensityProvider>
           </IconStyleProvider>
         </MaterialProvider>
       </ThemeProvider>

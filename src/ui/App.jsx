@@ -9,6 +9,7 @@ import { useI18n } from './LocaleContext.jsx';
 import { useTheme, ThemeToggle } from './ThemeContext.jsx';
 import { MaterialToggle } from './MaterialContext.jsx';
 import { IconStyleToggle } from './IconStyleContext.jsx';
+import { DensityToggle } from './DensityContext.jsx';
 import { LOCALES } from './i18n.mjs';
 import WeighTab from './tabs/WeighTab.jsx';
 import DiluteTab from './tabs/DiluteTab.jsx';
@@ -186,6 +187,7 @@ export default function App() {
           </button>
           <LocaleSelect />
           <IconStyleToggle />
+          <DensityToggle />
           <MaterialToggle />
           <ThemeToggle />
         </div>

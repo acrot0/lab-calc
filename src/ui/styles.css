@@ -11,31 +11,55 @@
    ========================================================================== */
 
 :root {
-  /* Spacing — 4px grid */
-  --s1: 4px;
-  --s2: 8px;
-  --s3: 12px;
-  --s4: 16px;
-  --s5: 20px;
-  --s6: 24px;
-  --s8: 32px;
-  --s10: 40px;
-  --s12: 48px;
+  /*
+   * Density multipliers.
+   *
+   * Every spacing and type token below is `base × multiplier`, so a density
+   * change rescales the whole interface by setting two numbers rather than by
+   * overriding thirty tokens. `applyDensity` in density.mjs writes these; the
+   * defaults here are the comfortable setting, so a browser that never runs
+   * the script still lays out correctly.
+   *
+   * This is the payoff of having tokenised spacing from the start: no rule
+   * that uses `--s5` or `--t-base` has to know that density exists.
+   */
+  --density-space: 1;
+  --density-type: 1;
 
-  /* Radii */
+  /* Spacing — 4px grid at comfortable density */
+  --s1: calc(4px * var(--density-space));
+  --s2: calc(8px * var(--density-space));
+  --s3: calc(12px * var(--density-space));
+  --s4: calc(16px * var(--density-space));
+  --s5: calc(20px * var(--density-space));
+  --s6: calc(24px * var(--density-space));
+  --s8: calc(32px * var(--density-space));
+  --s10: calc(40px * var(--density-space));
+  --s12: calc(48px * var(--density-space));
+
+  /* Radii — not scaled. A corner radius is a shape, not a spacing: shrinking
+     it with the padding makes controls look sharper rather than tighter. */
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 14px;
   --r-full: 999px;
 
-  /* Type ramp */
-  --t-xs: 11.5px;
-  --t-sm: 13px;
-  --t-base: 14.5px;
-  --t-md: 16px;
-  --t-lg: 20px;
-  --t-xl: 26px;
-  --t-display: 34px;
+  /*
+   * Type ramp — scaled, with a floor.
+   *
+   * `max()` against an absolute floor rather than a bare multiply: at compact
+   * density `--t-xs` would be 10.35px, below the size at which the CJK
+   * ideographs this app renders keep their internal strokes on a low-DPI
+   * screen. Running out of space is a layout problem; running out of
+   * legibility is a correctness one, so only the type scale gets a floor.
+   */
+  --t-xs: max(11px, calc(11.5px * var(--density-type)));
+  --t-sm: max(12px, calc(13px * var(--density-type)));
+  --t-base: calc(14.5px * var(--density-type));
+  --t-md: calc(16px * var(--density-type));
+  --t-lg: calc(20px * var(--density-type));
+  --t-xl: calc(26px * var(--density-type));
+  --t-display: calc(34px * var(--density-type));
 
   /* Motion — short and eased; anything longer feels sluggish on a calculator */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
