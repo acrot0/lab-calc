@@ -53,6 +53,10 @@ const COMMON = {
   steps: { zh: '梯度级数', en: 'Steps' },
   temperatureC: { zh: '温度 (°C)', en: 'Temperature (°C)' },
   temperatureK: { zh: '温度 (K)', en: 'Temperature (K)' },
+  // The colligative and electrochemistry tabs emit `tempC`, not
+  // `temperatureC`. Both are labelled: the two names are in the stored format
+  // and renaming one would invalidate every record already saved.
+  tempC: { zh: '温度 (°C)', en: 'Temperature (°C)' },
   pressure: { zh: '压力', en: 'Pressure' },
   wavelength: { zh: '波长 (nm)', en: 'Wavelength (nm)' },
   absorbance: { zh: '吸光度', en: 'Absorbance' },
@@ -88,6 +92,27 @@ const COMMON = {
   n: { zh: '电子数 n', en: 'Electrons n' },
   q: { zh: '反应商 Q', en: 'Reaction quotient Q' },
   deltaG: { zh: 'ΔG (kJ/mol)', en: 'ΔG (kJ/mol)' },
+  /*
+   * The Nernst and colligative outputs.
+   *
+   * Found by extending the coverage test's call list to those two modules —
+   * the same gap that hid `tempC`. Every one of these was reaching the printed
+   * report and the spreadsheet header as a bare code identifier.
+   *
+   * `e` is the cell potential in the Nernst result and `e0` the standard one;
+   * they are different quantities and get different labels.
+   */
+  e: { zh: '电池电动势 E (V)', en: 'Cell potential E (V)' },
+  tempK: { zh: '温度 (K)', en: 'Temperature (K)' },
+  logQ: { zh: 'lg Q', en: 'log Q' },
+  slope: { zh: '能斯特斜率 (V)', en: 'Nernst slope (V)' },
+  deltaGKJ: { zh: 'ΔG (kJ/mol)', en: 'ΔG (kJ/mol)' },
+  equilibriumK: { zh: '平衡常数 K', en: 'Equilibrium constant K' },
+  log10K: { zh: 'lg K', en: 'log K' },
+  spontaneous: { zh: '是否自发', en: 'Spontaneous' },
+  osmolarity: { zh: '渗透浓度 (osmol/L)', en: 'Osmolarity (osmol/L)' },
+  atm: { zh: '渗透压 (atm)', en: 'Osmotic pressure (atm)' },
+  kPa: { zh: '渗透压 (kPa)', en: 'Osmotic pressure (kPa)' },
   anode: { zh: '阳极', en: 'Anode' },
   cathode: { zh: '阴极', en: 'Cathode' },
   from: { zh: '原单位', en: 'From unit' },

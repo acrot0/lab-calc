@@ -205,21 +205,76 @@ export function columnName(index) {
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
 /**
+ * The two cell styles this writer emits.
+ *
+ * xlsx styles live in a separate part and are referenced by index, so a cell
+ * carries `s="1"` rather than any formatting of its own. Two are defined:
+ *
+ *   0 — the default, no formatting.
+ *   1 — a header: bold, filled, with a bottom rule.
+ *
+ * The fill is a fixed neutral grey rather than a theme colour. The palette is
+ * chosen by the user in the app and the file outlives that choice, so a header
+ * tinted with today's accent would look arbitrary in a spreadsheet opened in a
+ * different context — and Excel's own default header styling is neutral for
+ * the same reason.
+ */
+const STYLES_XML = `${XML_HEAD}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
+  + '<fonts count="2">'
+  + '<font><sz val="11"/><name val="Calibri"/></font>'
+  + '<font><b/><sz val="11"/><color rgb="FF1A1A1A"/><name val="Calibri"/></font>'
+  + '</fonts>'
+  + '<fills count="3">'
+  + '<fill><patternFill patternType="none"/></fill>'
+  + '<fill><patternFill patternType="gray125"/></fill>'
+  + '<fill><patternFill patternType="solid"><fgColor rgb="FFEDEDED"/><bgColor indexed="64"/></patternFill></fill>'
+  + '</fills>'
+  + '<borders count="2">'
+  + '<border><left/><right/><top/><bottom/><diagonal/></border>'
+  + '<border><left/><right/><top/><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border>'
+  + '</borders>'
+  + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+  + '<cellXfs count="2">'
+  + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+  + '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
+  + '</cellXfs>'
+  // `cellStyles` is not optional in practice: without a named "Normal" style
+  // openpyxl warns "Workbook contains no default style", and Excel has been
+  // observed to repair the file on open. It costs one element to be correct.
+  + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+  + '</styleSheet>';
+
+/** The style index a header row's cells carry. */
+const HEADER_STYLE = 1;
+
+/**
  * One worksheet.
  *
  * `widths` is applied as explicit column widths. Without them every column is
  * the default 8.43 characters, and a Chinese summary is truncated to a few
  * glyphs — the file is correct but useless to read, which is the failure the
  * user actually notices.
+ *
+ * `headerRows` is how many leading rows are styled and frozen. Styling is what
+ * makes a wide sheet readable; freezing is what keeps the headings on screen
+ * when the reader scrolls to row 300, which is the point at which a spreadsheet
+ * of history becomes usable rather than merely correct.
+ *
+ * It defaults to none, because this function's contract is a grid of cells and
+ * whether a row is a heading is the caller's knowledge, not the writer's.
+ * `workbookParts` is where that decision is made, and it defaults to one.
  */
-export function sheetXml(rows, widths = []) {
+export function sheetXml(rows, widths = [], { headerRows = 0 } = {}) {
   const cols = widths.length > 0
     ? `<cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>`
     : '';
 
   const body = rows.map((row, r) => {
+    const isHeader = r < headerRows;
     const cells = row.map((value, c) => {
-      if (value === null || value === undefined || value === '') return '';
+      if (value === null || value === undefined || value === '') {
+        return isHeader ? `<c r="${columnName(c)}${r + 1}" s="${HEADER_STYLE}"/>` : '';
+      }
       const ref = `${columnName(c)}${r + 1}`;
       /*
        * Numbers are written as numbers, not text.
@@ -232,19 +287,61 @@ export function sheetXml(rows, widths = []) {
        * silently reinterpreted.
        */
       if (typeof value === 'number' && Number.isFinite(value)) {
-        return `<c r="${ref}"><v>${value}</v></c>`;
+        const style = isHeader ? ` s="${HEADER_STYLE}"` : '';
+        return `<c r="${ref}"${style}><v>${value}</v></c>`;
       }
-      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
+      const style = isHeader ? ` s="${HEADER_STYLE}"` : '';
+      return `<c r="${ref}"${style} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
     }).join('');
     return `<row r="${r + 1}">${cells}</row>`;
   }).join('');
 
+  // Freeze the header rows: scrolling a long history otherwise loses the column
+  // names, and a column of numbers with no heading is not a record.
+  const pane = headerRows > 0
+    ? `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${headerRows}" topLeftCell="A${headerRows + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+    : '';
+
   return `${XML_HEAD}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
-    + `${cols}<sheetData>${body}</sheetData></worksheet>`;
+    + `${pane}${cols}<sheetData>${body}</sheetData></worksheet>`;
 }
 
-/** The five parts, in the order they are written into the archive. */
-export function workbookParts(rows, { sheetName = 'History', widths = [] } = {}) {
+/**
+ * Every sheet in the workbook, the first being the data.
+ *
+ * `extraSheets` are appended after it, each `{ name, rows, widths }`. The
+ * first sheet is the one Excel opens on, so the data has to be the one built
+ * from `rows` rather than an entry in the list.
+ */
+function sheetsOf(rows, { sheetName, widths, headerRows, extraSheets = [] }) {
+  return [
+    { name: sheetName, rows, widths, headerRows },
+    ...extraSheets.map((s) => ({
+      name: s.name,
+      rows: s.rows,
+      widths: s.widths ?? [],
+      headerRows: s.headerRows ?? 0,
+    })),
+  ];
+}
+
+/** The parts, in the order they are written into the archive. */
+export function workbookParts(rows, options = {}) {
+  const {
+    sheetName = 'History', widths = [], headerRows = 1,
+  } = options;
+  const sheets = sheetsOf(rows, { ...options, sheetName, widths, headerRows });
+
+  const overrides = sheets.map((_, i) => '<Override PartName="/xl/worksheets/'
+    + `sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('');
+
+  const sheetTags = sheets.map((s, i) => `<sheet name="${escapeXml(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('');
+
+  // rId 1..n are the sheets; the styles part takes the next free id.
+  const styleRid = sheets.length + 1;
+  const relTags = sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')
+    + `<Relationship Id="rId${styleRid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+
   return [
     {
       name: '[Content_Types].xml',
@@ -252,7 +349,8 @@ export function workbookParts(rows, { sheetName = 'History', widths = [] } = {})
         + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
         + '<Default Extension="xml" ContentType="application/xml"/>'
         + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-        + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        + `${overrides}`
         + '</Types>'),
     },
     {
@@ -265,18 +363,18 @@ export function workbookParts(rows, { sheetName = 'History', widths = [] } = {})
       name: 'xl/workbook.xml',
       data: utf8(`${XML_HEAD}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" `
         + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-        + `<sheets><sheet name="${escapeXml(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`),
+        + `<sheets>${sheetTags}</sheets></workbook>`),
     },
     {
       name: 'xl/_rels/workbook.xml.rels',
       data: utf8(`${XML_HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
-        + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
-        + '</Relationships>'),
+        + `${relTags}</Relationships>`),
     },
-    {
-      name: 'xl/worksheets/sheet1.xml',
-      data: utf8(sheetXml(rows, widths)),
-    },
+    { name: 'xl/styles.xml', data: utf8(STYLES_XML) },
+    ...sheets.map((s, i) => ({
+      name: `xl/worksheets/sheet${i + 1}.xml`,
+      data: utf8(sheetXml(s.rows, s.widths, { headerRows: s.headerRows })),
+    })),
   ];
 }
 

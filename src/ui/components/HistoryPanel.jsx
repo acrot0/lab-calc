@@ -11,7 +11,7 @@ import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 import Report from './Report.jsx';
 
 export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onImport }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -25,10 +25,10 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
     // Summaries are derived at export time so the file matches the UI language
     // the user is looking at, rather than whatever language wrote the record.
     const rows = shown.map((e) => ({ ...e, summary: recordSummary(e, t) }));
-    if (format === 'csv') downloadCsv(rows);
+    if (format === 'csv') downloadCsv(rows, locale);
     else if (format === 'json') downloadBundle(entries);
-    else if (format === 'xlsx') downloadXlsx(rows);
-    else downloadMarkdown(rows);
+    else if (format === 'xlsx') downloadXlsx(rows, { locale });
+    else downloadMarkdown(rows, locale);
   }
 
   /*

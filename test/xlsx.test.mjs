@@ -192,13 +192,14 @@ describe('zip', () => {
 });
 
 describe('workbookParts', () => {
-  it('should emit the five parts Excel requires', () => {
+  it('should emit the parts Excel requires', () => {
     const names = workbookParts([[1]]).map((p) => p.name);
     expect(names).toEqual([
       '[Content_Types].xml',
       '_rels/.rels',
       'xl/workbook.xml',
       'xl/_rels/workbook.xml.rels',
+      'xl/styles.xml',
       'xl/worksheets/sheet1.xml',
     ]);
   });
@@ -217,6 +218,48 @@ describe('workbookParts', () => {
     );
     expect(ct).toContain('/xl/workbook.xml');
     expect(ct).toContain('/xl/worksheets/sheet1.xml');
+    expect(ct).toContain('/xl/styles.xml');
+  });
+
+  it('should style and freeze the header row', () => {
+    // A wide sheet scrolled to row 300 with no headings is a grid of numbers.
+    const xml = new TextDecoder().decode(
+      workbookParts([['H1', 'H2'], [1, 2]]).find((p) => p.name === 'xl/worksheets/sheet1.xml').data,
+    );
+    expect(xml).toContain('state="frozen"');
+    expect(xml).toContain('s="1"');
+    // The data row must not be styled as a header.
+    expect(xml).toContain('<c r="A2"><v>1</v></c>');
+  });
+
+  it('should write a second sheet when given one', () => {
+    const parts = workbookParts([[1]], {
+      extraSheets: [{ name: 'Notes', rows: [['a', 'b']], widths: [10, 10] }],
+    });
+    const names = parts.map((p) => p.name);
+    expect(names).toContain('xl/worksheets/sheet2.xml');
+    const wb = new TextDecoder().decode(parts.find((p) => p.name === 'xl/workbook.xml').data);
+    expect(wb).toContain('name="Notes"');
+    // Every sheet must be declared, or Excel refuses the workbook.
+    const ct = new TextDecoder().decode(parts.find((p) => p.name === '[Content_Types].xml').data);
+    expect(ct).toContain('/xl/worksheets/sheet2.xml');
+    // The styles relationship must not collide with a sheet's.
+    const rels = new TextDecoder().decode(parts.find((p) => p.name === 'xl/_rels/workbook.xml.rels').data);
+    expect(rels).toContain('rId3');
+    expect(rels).toContain('styles.xml');
+  });
+
+  it('should not style a notes sheet as a table header', () => {
+    // The notes sheet is prose in one column and values in the next; its first
+    // row is a title, not a heading for the column beneath it.
+    const parts = workbookParts([[1]], {
+      extraSheets: [{ name: 'Notes', rows: [['Notes', ''], ['a', 'b']] }],
+    });
+    const xml = new TextDecoder().decode(
+      parts.find((p) => p.name === 'xl/worksheets/sheet2.xml').data,
+    );
+    expect(xml).not.toContain('state="frozen"');
+    expect(xml).not.toContain('s="1"');
   });
 });
 

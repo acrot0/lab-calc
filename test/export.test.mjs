@@ -13,6 +13,7 @@ import {
   mergeEntries,
   BUNDLE_FORMAT,
   BUNDLE_VERSION,
+  localStamp,
 } from '../src/ui/export.mjs';
 
 const entry = (over = {}) => ({
@@ -257,5 +258,80 @@ describe('mergeEntries', () => {
     // the import would silently lose all but one of them.
     const rows = [entry({ id: undefined }), entry({ id: undefined }), entry({ id: 'ok' })];
     expect(mergeEntries([], rows).map((e) => e.id)).toEqual(['ok']);
+  });
+});
+
+describe('export labels and units', () => {
+  it('should head the CSV with labels and units, not raw field keys', () => {
+    // The defect this fixes: a CSV cell reading `massG=14.61`, which is the
+    // key the code uses and not a word anyone reads.
+    const csv = toCsv([entry()]);
+    expect(csv).toContain('质量 (g)=14.61');
+    expect(csv).toContain('摩尔质量 (g/mol)=58.44');
+    expect(csv).not.toContain('massG=');
+    expect(csv).not.toContain('molarMass=');
+  });
+
+  it('should write a readable local timestamp rather than raw ISO UTC', () => {
+    // `2026-09-24T10:00:00.000Z` in a lab notebook column is noise; its reader
+    // has to do the timezone arithmetic themselves.
+    const csv = toCsv([entry()]);
+    expect(csv).not.toContain('T10:00:00.000Z');
+    expect(csv).toMatch(/2026[/-]09[/-]24/);
+  });
+
+  it('should leave an unparseable timestamp alone rather than print Invalid Date', () => {
+    expect(toCsv([entry({ at: 'not a date' })])).toContain('not a date');
+    expect(toCsv([entry({ at: null })])).not.toContain('Invalid');
+  });
+
+  it('should head the columns in the reader\'s language', () => {
+    // The English export used to carry Chinese column headings.
+    expect(toCsv([entry()], 'en').split('\n')[0]).toBe('Time,Type,Summary,Inputs,Results');
+    expect(toCsv([entry()], 'zh').split('\n')[0]).toBe(CSV_COLUMNS.join(','));
+  });
+
+  it('should name the record kind in the reader\'s language', () => {
+    // The Type column is the one that tells a reader what the row even is, so
+    // an untranslated kind leaves an English export unreadable.
+    expect(toCsv([entry()], 'en')).toContain('Weigh & prepare');
+    expect(toCsv([entry()], 'zh')).toContain('称量配制');
+  });
+
+  it('should fall back to the stored key for an unknown kind', () => {
+    // A record written by a newer version must still export, not vanish.
+    expect(toCsv([entry({ kind: 'somethingNew' })])).toContain('somethingNew');
+  });
+
+  it('should label the markdown table the same way', () => {
+    const md = toMarkdown([entry()], 'en');
+    expect(md).toContain('| Time | Type | Summary | Inputs | Results |');
+    expect(md).toContain('Mass (g)=14.61');
+  });
+
+  it('should put the unit in the header cell, never in the data cell', () => {
+    // A value carrying its unit as text cannot be summed or plotted, which is
+    // most of the reason to export a spreadsheet rather than a CSV. The unit
+    // belongs to the label, and the number stays a number.
+    const md = toMarkdown([entry()]);
+    const results = md.split('\n').at(-1).split('|').at(-2).trim();
+    expect(results).toContain('质量 (g)=14.61');
+    // Scoped to the results cell: the summary is prose and may say "14.61 g"
+    // in a sentence, which is correct there and is not what this asserts.
+    expect(results).not.toContain('14.61 g');
+  });
+});
+
+describe('localStamp', () => {
+  it('should render an instant in the local zone, to the minute', () => {
+    const s = localStamp('2026-09-24T10:00:00.000Z', 'zh');
+    expect(s).toMatch(/2026[/-]09[/-]24 \d{2}:\d{2}/);
+    expect(s).not.toContain('T');
+    expect(s).not.toContain('Z');
+  });
+
+  it('should return empty for a missing value rather than the epoch', () => {
+    expect(localStamp(null)).toBe('');
+    expect(localStamp(undefined)).toBe('');
   });
 });

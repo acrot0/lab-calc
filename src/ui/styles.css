@@ -2934,7 +2934,41 @@ body,
   @page {
     size: A4;
     margin: 16mm 14mm;
+    /*
+     * Page numbers, in the bottom margin box.
+     *
+     * A printed report that runs to four pages has no way to be referred to or
+     * reassembled once the sheets are separated, and "page 3 of 7" is the
+     * cheapest thing that fixes it. This is CSS rather than markup because the
+     * browser knows the page count and the document does not — a React-rendered
+     * counter could only ever guess.
+     *
+     * `counter(page)` alone is the fallback for engines that do not implement
+     * `counter(pages)`; the second declaration is the one that wins where it
+     * is understood.
+     */
+    @bottom-center {
+      content: counter(page);
+      font-size: 9pt;
+      color: #666666;
+    }
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font-size: 9pt;
+      color: #666666;
+    }
+    @top-right {
+      /* The document's own title, so a page found on its own still says what
+         it is. `string(...)` reads the last `string-set` on the page, which is
+         the report's h1. */
+      content: string(report-title);
+      font-size: 8.5pt;
+      color: #777777;
+    }
   }
+
+  /* Feeds the running header above. */
+  .report-head h1 { string-set: report-title content(); }
 
   /* The app is not part of the document. */
   .app,

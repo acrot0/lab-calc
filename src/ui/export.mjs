@@ -12,25 +12,59 @@
  */
 
 import { toXlsx } from './xlsx.mjs';
+import { fieldLabel } from './field-labels.mjs';
 
 export const CSV_COLUMNS = ['时间', '类型', '说明', '输入', '结果'];
 
-const KIND_NAMES = {
-  massForMolarity: '称量配制',
-  stockFromSolid: '称量配制',
-  dilution: '稀释',
-  dilutionSeries: '梯度稀释',
-  bufferRecipe: '缓冲液',
-  phCalc: 'pH 计算',
-  percentSolution: '百分比配制',
-  titrationCurve: '滴定曲线',
-  reagent: '浓试剂',
-  spectro: '分光光度',
-  lab: '实验台计算',
-  colligative: '依数性',
-  reaction: '反应计量',
-  electro: '电化学',
+/**
+ * The same five columns, per locale.
+ *
+ * The CSV header was Chinese in both locales, so an English user opening the
+ * file got Chinese column headings — and, worse, so did the Markdown table
+ * they paste into an English notebook. The keys stay Chinese in the default
+ * locale because that is the app's default and the shipped behaviour.
+ */
+const COLUMNS_BY_LOCALE = {
+  zh: CSV_COLUMNS,
+  en: ['Time', 'Type', 'Summary', 'Inputs', 'Results'],
 };
+
+export function columnsFor(locale = 'zh') {
+  return COLUMNS_BY_LOCALE[locale] ?? COLUMNS_BY_LOCALE.zh;
+}
+
+/**
+ * The tab a record came from, per locale.
+ *
+ * The key is the record's stored `kind`, which is part of the data format and
+ * must not change when a label is reworded — the same reasoning as
+ * `field-labels.mjs`. The English column was missing until the export was
+ * reviewed: an English user's CSV said `称量配制` in the Type column, which is
+ * the one column that tells them what the row even is.
+ */
+const KIND_NAMES = {
+  massForMolarity: { zh: '称量配制', en: 'Weigh & prepare' },
+  stockFromSolid: { zh: '称量配制', en: 'Weigh & prepare' },
+  dilution: { zh: '稀释', en: 'Dilution' },
+  dilutionSeries: { zh: '梯度稀释', en: 'Serial dilution' },
+  bufferRecipe: { zh: '缓冲液', en: 'Buffer' },
+  phCalc: { zh: 'pH 计算', en: 'pH' },
+  percentSolution: { zh: '百分比配制', en: 'Percent solution' },
+  titrationCurve: { zh: '滴定曲线', en: 'Titration curve' },
+  reagent: { zh: '浓试剂', en: 'Concentrated reagent' },
+  spectro: { zh: '分光光度', en: 'Spectrophotometry' },
+  lab: { zh: '实验台计算', en: 'Bench calculator' },
+  colligative: { zh: '依数性', en: 'Colligative' },
+  reaction: { zh: '反应计量', en: 'Reaction stoichiometry' },
+  electro: { zh: '电化学', en: 'Electrochemistry' },
+};
+
+/** A record's kind in the reader's language, falling back to the stored key. */
+export function kindName(kind, locale = 'zh') {
+  const entry = KIND_NAMES[kind];
+  if (!entry) return kind ?? '';
+  return entry[locale] ?? entry.zh;
+}
 
 /**
  * RFC 4180 field escaping.
@@ -46,24 +80,55 @@ export function escapeCsvField(value) {
   return s;
 }
 
-/** Flatten the inputs/outputs objects into a readable single cell. */
-function flatten(obj) {
+/**
+ * Flatten the inputs/outputs objects into a readable single cell.
+ *
+ * The field is labelled and the value carries its unit, because the alternative
+ * is a cell reading `massG=14.61` — which is the key the code uses, not a word
+ * anyone reads. `fieldLabel` already returns the unit inside the label
+ * (`质量 (g)`), so the value itself stays a bare number: writing `14.61 g`
+ * beside a header that already says `(g)` would state the unit twice, and in a
+ * spreadsheet column that is what breaks the ability to sum it.
+ */
+function flatten(obj, locale = 'zh') {
   if (!obj || typeof obj !== 'object') return '';
   return Object.entries(obj)
     .filter(([, v]) => v !== null && v !== undefined && typeof v !== 'object')
-    .map(([k, v]) => `${k}=${v}`)
+    .map(([k, v]) => `${fieldLabel(k, locale)}=${v}`)
     .join('; ');
 }
 
-export function toCsv(entries) {
-  const rows = [CSV_COLUMNS.join(',')];
+/**
+ * A timestamp a person can read.
+ *
+ * Records store ISO-8601 in UTC, which is right for storage — it sorts, it
+ * round-trips, and it does not depend on where the machine was. It is wrong for
+ * a document: `2026-09-25T17:12:14.457Z` in a lab notebook column is noise, and
+ * its reader has to do the timezone arithmetic themselves. This renders the
+ * same instant in the reader's own zone.
+ *
+ * The seconds are dropped. A history entry's second is not information anyone
+ * acts on, and keeping it makes every column wider for no gain.
+ */
+export function localStamp(at, locale = 'zh') {
+  if (!at) return '';
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return String(at);
+  return d.toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-GB', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+export function toCsv(entries, locale = 'zh') {
+  const rows = [columnsFor(locale).join(',')];
   for (const e of entries ?? []) {
     rows.push([
-      e?.at ?? '',
-      KIND_NAMES[e?.kind] ?? e?.kind ?? '',
+      localStamp(e?.at, locale),
+      kindName(e?.kind, locale),
       e?.summary ?? '',
-      flatten(e?.inputs),
-      flatten(e?.outputs),
+      flatten(e?.inputs, locale),
+      flatten(e?.outputs, locale),
     ].map(escapeCsvField).join(','));
   }
   // Trailing newline: POSIX convention, and it keeps `wc -l` honest.
@@ -73,16 +138,17 @@ export function toCsv(entries) {
 /** Escape a pipe so it cannot break out of its table cell. */
 const escapeMd = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
-export function toMarkdown(entries) {
-  const header = `| ${CSV_COLUMNS.join(' | ')} |`;
-  const sep = `|${CSV_COLUMNS.map(() => '---').join('|')}|`;
+export function toMarkdown(entries, locale = 'zh') {
+  const columns = columnsFor(locale);
+  const header = `| ${columns.join(' | ')} |`;
+  const sep = `|${columns.map(() => '---').join('|')}|`;
   const rows = (entries ?? []).map((e) => `| ${
     [
-      e?.at ?? '',
-      KIND_NAMES[e?.kind] ?? e?.kind ?? '',
+      localStamp(e?.at, locale),
+      kindName(e?.kind, locale),
       e?.summary ?? '',
-      flatten(e?.inputs),
-      flatten(e?.outputs),
+      flatten(e?.inputs, locale),
+      flatten(e?.outputs, locale),
     ].map(escapeMd).join(' | ')
   } |`);
   return [header, sep, ...rows].join('\n');
@@ -104,7 +170,9 @@ export function toMarkdown(entries) {
  * A missing value is left blank rather than zero-filled: an entry that never
  * recorded a temperature is not an entry that recorded 0 °C.
  */
-const DETAIL_META = ['时间', '类型', '说明'];
+const DETAIL_META = { zh: ['时间', '类型', '说明'], en: ['Time', 'Type', 'Summary'] };
+
+const detailMeta = (locale) => DETAIL_META[locale] ?? DETAIL_META.zh;
 
 /** Every input/output key across the set, in first-seen order. */
 function detailColumns(entries) {
@@ -130,32 +198,48 @@ function cell(v) {
   return String(v);
 }
 
-function toXlsxRows(entries) {
-  const rows = [CSV_COLUMNS];
+function toXlsxRows(entries, locale = 'zh') {
+  const rows = [columnsFor(locale)];
   for (const e of entries ?? []) {
     rows.push([
-      e?.at ?? '',
-      KIND_NAMES[e?.kind] ?? e?.kind ?? '',
+      localStamp(e?.at, locale),
+      kindName(e?.kind, locale),
       e?.summary ?? '',
-      flatten(e?.inputs),
-      flatten(e?.outputs),
+      flatten(e?.inputs, locale),
+      flatten(e?.outputs, locale),
     ]);
   }
   return rows;
 }
 
-function toXlsxDetailedRows(entries) {
+/**
+ * The detailed sheet: one column per input and per output.
+ *
+ * The header is the **label**, with its unit, in a single cell — `体积 (mL)`,
+ * not `volumeMl（输入）`. This is the change the export needed most: the raw
+ * key is a code identifier, and a spreadsheet column headed `massG` is a data
+ * dump rather than a lab record. The unit belongs in the header cell rather
+ * than in every data cell, which is also what keeps the column numerically
+ * sortable — `14.61 g` as text cannot be summed, and a second header row
+ * carrying the units would break every machine reader of the file.
+ *
+ * The `(输入)` / `(结果)` suffix is kept because a field can appear on both
+ * sides — `molarity` is an input on one tab and a result on another — and two
+ * columns with the same heading and different contents is a trap.
+ */
+function toXlsxDetailedRows(entries, locale = 'zh') {
   const { inputKeys, outputKeys } = detailColumns(entries);
+  const io = locale === 'en' ? { in: 'in', out: 'out' } : { in: '输入', out: '结果' };
   const header = [
-    ...DETAIL_META,
-    ...inputKeys.map((k) => `${k}（输入）`),
-    ...outputKeys.map((k) => `${k}（结果）`),
+    ...detailMeta(locale),
+    ...inputKeys.map((k) => `${fieldLabel(k, locale)}（${io.in}）`),
+    ...outputKeys.map((k) => `${fieldLabel(k, locale)}（${io.out}）`),
   ];
   const rows = [header];
   for (const e of entries ?? []) {
     rows.push([
-      e?.at ?? '',
-      KIND_NAMES[e?.kind] ?? e?.kind ?? '',
+      localStamp(e?.at, locale),
+      kindName(e?.kind, locale),
       e?.summary ?? '',
       ...inputKeys.map((k) => cell(e?.inputs?.[k])),
       ...outputKeys.map((k) => cell(e?.outputs?.[k])),
@@ -229,16 +313,56 @@ function downloadFile(content, filename, mime = 'text/plain;charset=utf-8') {
 }
 
 /** Download CSV with the BOM Excel needs to read Chinese correctly. */
-export function downloadCsv(entries) {
-  return downloadFile(UTF8_BOM + toCsv(entries), exportFilename('csv'), 'text/csv;charset=utf-8');
+export function downloadCsv(entries, locale = 'zh') {
+  return downloadFile(UTF8_BOM + toCsv(entries, locale), exportFilename('csv'), 'text/csv;charset=utf-8');
 }
 
-export function downloadMarkdown(entries) {
-  return downloadFile(toMarkdown(entries), exportFilename('markdown'), 'text/markdown;charset=utf-8');
+export function downloadMarkdown(entries, locale = 'zh') {
+  return downloadFile(toMarkdown(entries, locale), exportFilename('markdown'), 'text/markdown;charset=utf-8');
 }
 
 export function downloadBundle(entries) {
   return downloadFile(toBundle(entries), exportFilename('json'), 'application/json;charset=utf-8');
+}
+
+/**
+ * The metadata sheet.
+ *
+ * A spreadsheet of numbers with no statement of what they are is only useful to
+ * the person who exported it, on the day they exported it. This records the
+ * things a reader six months later cannot recover from the data: which software
+ * and version wrote the file, when, which fields are present and what each one
+ * is measured in, and the standing caveat that this is a teaching tool.
+ *
+ * The field list is generated from the same `fieldLabel` the columns use, so
+ * the sheet cannot describe a column differently from how the column is headed.
+ */
+function toMetaRows(entries, locale, now) {
+  const { inputKeys, outputKeys } = detailColumns(entries);
+  const zh = locale !== 'en';
+  const L = zh
+    ? { title: '说明', item: '项目', value: '内容', fields: '字段与单位', io: '来源', in: '输入', out: '结果' }
+    : { title: 'Notes', item: 'Item', value: 'Value', fields: 'Fields and units', io: 'Side', in: 'input', out: 'output' };
+
+  const rows = [
+    [L.title, ''],
+    [L.item, L.value],
+    [zh ? '软件' : 'Software', 'Lab Calc'],
+    [zh ? '版本' : 'Version', typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : ''],
+    [zh ? '导出时间' : 'Exported', localStamp(now.toISOString(), locale)],
+    [zh ? '记录条数' : 'Records', entries?.length ?? 0],
+    [zh ? '时区' : 'Time zone', Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''],
+    [],
+    [L.fields, ''],
+    [zh ? '字段' : 'Field', L.io],
+    ...inputKeys.map((k) => [fieldLabel(k, locale), L.in]),
+    ...outputKeys.map((k) => [fieldLabel(k, locale), L.out]),
+    [],
+    [zh
+      ? '本文件由 Lab Calc 导出，仅供教学与预习核对，不可用于临床、诊断或生产。'
+      : 'Exported from Lab Calc. For teaching and pre-lab checking only — not for clinical, diagnostic or production use.', ''],
+  ];
+  return rows;
 }
 
 /**
@@ -248,15 +372,29 @@ export function downloadBundle(entries) {
  * the `Uint8Array` unchanged. The MIME type is the registered one for xlsx;
  * getting it wrong makes Excel refuse the file on a double-click even though
  * the content is fine.
+ *
+ * Two sheets: the data, and the notes that make the data readable later. The
+ * data sheet is first, because that is what the file is for.
  */
-export function downloadXlsx(entries, { detailed = true, now = new Date() } = {}) {
-  const rows = detailed ? toXlsxDetailedRows(entries) : toXlsxRows(entries);
+export function downloadXlsx(entries, { detailed = true, now = new Date(), locale = 'zh' } = {}) {
+  const zh = locale !== 'en';
+  const rows = detailed ? toXlsxDetailedRows(entries, locale) : toXlsxRows(entries, locale);
+  const meta = toMetaRows(entries, locale, now);
   const bytes = toXlsx(rows, {
-    sheetName: detailed ? '计算结果' : 'History',
+    sheetName: detailed ? (zh ? '计算结果' : 'Results') : 'History',
     widths: widthsFor(rows),
+    // The notes sheet is one narrow column of prose and one of values; the
+    // widths come from its own content rather than the data sheet's.
+    extraSheets: [{
+      name: zh ? '说明' : 'Notes',
+      rows: meta,
+      widths: widthsFor(meta, { min: 10, max: 60 }),
+    }],
     now,
   });
-  const name = detailed ? `lab-calc-详细-${now.toISOString().slice(0, 10)}.xlsx` : exportFilename('xlsx', now);
+  const name = detailed
+    ? `lab-calc-${zh ? '详细' : 'detailed'}-${now.toISOString().slice(0, 10)}.xlsx`
+    : exportFilename('xlsx', now);
   return downloadFile(bytes, name, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 

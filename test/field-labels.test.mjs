@@ -69,6 +69,19 @@ const CALLS = [
   ['titration.mjs', 'weakBasePh', { pKb: 4.75, conc: 0.1 }],
   ['titration.mjs', 'equivalenceVolume', { analyteConc: 0.1, analyteVolumeMl: 25, titrantConc: 0.1 }],
   ['titration.mjs', 'preparePercentSolution', { percent: 10, volumeMl: 250 }],
+  /*
+   * The colligative and electrochemistry paths.
+   *
+   * These were missing, and the gap was not theoretical: both tabs record
+   * `tempC`, no label existed for it, and the coverage test passed anyway
+   * because neither call was in this list. The report printed `tempC  25`.
+   * A coverage list only covers what is on it, so the modules whose tabs
+   * record unusual key names belong here too.
+   */
+  ['colligative.mjs', 'freezingPointDepression', { molality: 0.5, i: 1, kf: 1.86 }],
+  ['colligative.mjs', 'boilingPointElevation', { molality: 0.5, i: 1, kb: 0.512 }],
+  ['colligative.mjs', 'osmoticPressure', { molarity: 0.1, tempC: 25, i: 1 }],
+  ['electro.mjs', 'nernst', { e0: 1.1, n: 2, q: 1, tempC: 25 }],
 ];
 
 /** Output keys, from what the modules actually return. */
