@@ -127,6 +127,61 @@ describe('contrast', () => {
     }
     expect(failures).toEqual([]);
   });
+
+  it('should hover the primary button without changing its hue', () => {
+    /*
+     * The button hover used to point at `--accent-hover`, which the community
+     * palettes set to a *companion* role rather than a lighter accent — Rosé
+     * Pine pairs foam with iris. On Rosé Pine Dawn that turned the teal
+     * "Calculate" button purple under the cursor, a 71° hue shift, which reads
+     * as the control changing meaning rather than responding.
+     *
+     * 12° is the tolerance: enough to allow the lightness step to move the
+     * computed hue slightly on a low-saturation colour, far short of a shift
+     * to a different colour family.
+     */
+    const hue = (hex) => {
+      const h = hex.replace('#', '');
+      const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+      const mx = Math.max(r, g, b); const mn = Math.min(r, g, b); const d = mx - mn;
+      if (d === 0) return 0;
+      let x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      x *= 60;
+      return x < 0 ? x + 360 : x;
+    };
+    const failures = [];
+    for (const key of PALETTE_KEYS) {
+      const vars = cssVariables(key);
+      const a = hue(asHex(vars['--accent']));
+      const h = hue(asHex(vars['--accent-hover-solid']));
+      let delta = Math.abs(a - h);
+      if (delta > 180) delta = 360 - delta;
+      if (delta > 12) failures.push(`${key}: ${Math.round(delta)}°`);
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it('should step the solid hover away from the accent, in the scheme direction', () => {
+    // A hover that is the same colour as the rest state is not a hover. It has
+    // to move, and on a dark palette it has to move *lighter* — a darker fill
+    // on a dark background reads as disabled rather than as raised.
+    const luma = (hex) => {
+      const h = hex.replace('#', '');
+      const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+      return (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255;
+    };
+    const failures = [];
+    for (const key of PALETTE_KEYS) {
+      const vars = cssVariables(key);
+      const base = luma(asHex(vars['--accent']));
+      const hover = luma(asHex(vars['--accent-hover-solid']));
+      if (Math.abs(hover - base) < 0.01) failures.push(`${key}: hover is the rest colour`);
+      const dark = PALETTES[key].scheme === 'dark';
+      if (dark && hover <= base) failures.push(`${key}: dark palette hovered darker`);
+      if (!dark && hover >= base) failures.push(`${key}: light palette hovered lighter`);
+    }
+    expect(failures).toEqual([]);
+  });
 });
 
 describe('provenance', () => {

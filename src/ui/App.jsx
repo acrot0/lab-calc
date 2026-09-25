@@ -27,6 +27,7 @@ import ElementsTab from './tabs/ElementsTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
+import BrandMark from './components/BrandMark.jsx';
 
 /**
  * Every tab has its own icon. "Dilute" and "Serial dilution" shared one
@@ -142,7 +143,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true"><Icons.weigh size={ICON_SIZE.display} /></span>
+          <BrandMark size={30} />
           <div className="brand-text">
             <h1>{t('app.title')}</h1>
             <p className="brand-sub">{t('app.tagline')}</p>

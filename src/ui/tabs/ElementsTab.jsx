@@ -230,7 +230,7 @@ export default function ElementsTab({ theme = 'dark' }) {
   const props = selected ? propertiesOf(selected.number) : null;
 
   return (
-    <div className="card">
+    <div className="card is-elements">
       <div className="row">
         <div className="field">
           <label htmlFor="el-color">{t('elements.colorBy')}</label>
@@ -347,6 +347,13 @@ export default function ElementsTab({ theme = 'dark' }) {
         <Molecule smiles={smiles.trim()} theme={theme} size={320} />
       )}
 
+      {/* The table and the selected element's detail share a row: the table
+          takes the width it needs, the detail sits beside it as a rail. One
+          wrapper rather than two siblings placed by `grid-row` arithmetic,
+          because the number of elements between them varies with the search
+          and the comparison — a row span computed against that count would
+          silently misplace the rail the moment one of them appeared. */}
+      <div className="elt-layout">
       <div className="ptable-wrap">
         <div className="ptable" role="group" aria-label={t('elements.tableLabel')} ref={gridRef} onKeyDown={onKeyDown}>
           {/* Group numbers along the top, period numbers down the left. */}
@@ -464,6 +471,7 @@ export default function ElementsTab({ theme = 'dark' }) {
         config={cfg}
         properties={props}
       />
+      </div>
     </div>
   );
 }

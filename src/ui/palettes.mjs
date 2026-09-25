@@ -48,6 +48,62 @@ export function alpha(hex, a) {
 }
 
 /**
+ * A hex colour darkened toward black, for derived tokens.
+ *
+ * Toward black rather than toward the palette's text colour, which was the
+ * first attempt and was wrong in a way worth recording: on a dark palette the
+ * text is near-white, so mixing toward it *lightened* the accent — the gradient
+ * ran from blue to a paler blue and read as a highlight rather than as depth.
+ * Toward black it darkens on every palette, which is what a gradient's far end
+ * is for.
+ *
+ * Linear in sRGB, which is not perceptually even — a 30% step is a bigger
+ * visual change on a dark colour than on a light one. Close enough for a
+ * gradient stop, and exactness here would mean a colour-space conversion for
+ * one token.
+ */
+function darkenHex(hex, t) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const to2 = (v) => Math.round(v).toString(16).padStart(2, '0');
+  return `#${ch.map((c) => to2(c * (1 - t))).join('')}`;
+}
+
+/**
+ * A hex colour moved toward white or black, preserving its hue.
+ *
+ * This exists because `accentHover` was doing two jobs and only one of them
+ * wanted a different colour. The community palettes set it to a *companion*
+ * role — Rosé Pine's accent is `foam` and its "hover" was `iris` — which is
+ * exactly right for the brand wordmark, where the gradient's far end should be
+ * a neighbouring hue. It is wrong for a button, where a hover that changes hue
+ * reads as the control changing meaning rather than responding to the pointer.
+ * Measured on the six palettes, that mistake moved the hue by up to 78°:
+ * Rosé Pine Dawn's teal button turned purple under the cursor.
+ *
+ * So the two jobs get two tokens. `accentHover` keeps the companion hue and
+ * stays the gradient's far end; `accentHoverSolid` is derived here, same hue,
+ * one step of lightness away from the accent — which is what a hover on a
+ * filled control should be.
+ *
+ * The direction follows the scheme: a light accent on a dark palette has to
+ * get lighter to read as "raised", and a dark accent on a light palette has to
+ * get darker. Mixing toward the scheme's own text colour would have done this
+ * automatically, but it is the wrong model — it inverts on a dark palette (as
+ * `darkenHex` above records) and it desaturates as it goes.
+ */
+function shiftLightness(hex, t) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const to2 = (v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0');
+  const target = t < 0 ? 0 : 255;
+  const k = Math.abs(t);
+  return `#${ch.map((c) => to2(c + (target - c) * k)).join('')}`;
+}
+
+/**
  * The theme list, in the order the picker shows them.
  *
  * `scheme` is what gets written to `color-scheme`, which is what makes the
@@ -264,7 +320,7 @@ export function paletteOf(key) {
  * exactly what the browser would be given, instead of re-parsing the CSS.
  */
 export function cssVariables(key) {
-  const { tokens } = paletteOf(key);
+  const { tokens, scheme } = paletteOf(key);
   const shadows = tokens.shadow === 'dark'
     ? {
       '--shadow-1': '0 1px 2px rgba(0, 0, 0, 0.4)',
@@ -291,7 +347,36 @@ export function cssVariables(key) {
     '--text-mid': tokens.textMid,
     '--text-dim': tokens.textDim,
     '--accent': tokens.accent,
+    /*
+     * Two hovers, because they were one token doing two incompatible jobs.
+     *
+     * `--accent-hover` keeps the palette's own companion hue — Rosé Pine pairs
+     * foam with iris, Catppuccin pairs blue with lavender. That is the right
+     * relationship for the brand gradient, whose far end should be a
+     * neighbouring hue rather than a lighter copy of the near end.
+     *
+     * `--accent-hover-solid` is for filled controls, where the pointer must
+     * look like it is pressing the same button rather than a different one. It
+     * is derived from the accent so the hue cannot drift, and stepped in the
+     * direction the scheme reads as "raised": lighter on a dark palette,
+     * darker on a light one.
+     */
     '--accent-hover': tokens.accentHover,
+    '--accent-hover-solid': shiftLightness(tokens.accent, scheme === 'dark' ? 0.14 : -0.16),
+    /*
+     * The dark end of the brand gradient.
+     *
+     * Derived rather than declared per palette. A third hand-picked brand
+     * colour would be one more thing to keep in step across six themes, and the
+     * one most likely to be got wrong: a "deep" colour chosen against a dark
+     * background goes muddy on a light one. A fixed darkening of the palette's
+     * own accent is right on all six by construction.
+     *
+     * Dark palettes darken less, because their accents are already light and a
+     * large step would push the far end of the gradient below the contrast the
+     * accent was checked at.
+     */
+    '--brand-deep': darkenHex(tokens.accent, scheme === 'dark' ? 0.28 : 0.34),
     '--accent-soft': alpha(tokens.accent, 0.12),
     '--accent-line': alpha(tokens.accent, 0.35),
     '--accent-ink': tokens.accentInk,

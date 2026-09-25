@@ -283,16 +283,19 @@ body {
   min-width: 0;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
+/*
+ * The mark needs no container.
+ *
+ * It used to be a glyph inside a rounded gradient square, which is the shape of
+ * a generic app icon — the box did the visual work and the glyph inside it read
+ * as decoration. The mark now carries its own silhouette and gradient, so the
+ * only thing it needs is room and a slight optical nudge: the flask's mass sits
+ * low, so aligning its box centres it a touch high against the wordmark.
+ */
+.brand-glyph {
   flex-shrink: 0;
-  border-radius: var(--r-md);
-  background: linear-gradient(145deg, var(--accent), #7d3cff);
-  box-shadow: var(--shadow-1);
-  color: var(--accent-ink);
+  margin-top: 2px;
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--accent) 30%, transparent));
 }
 
 .brand-text { min-width: 0; }
@@ -687,18 +690,47 @@ select.control {
  * their share, and a viewport query cannot see that.
  */
 @container card (min-width: 620px) {
-  .card {
+  /*
+   * The split is gated on there being something to split against.
+   *
+   * Without the `:has()`, ten of the fifteen tabs — the ones whose result
+   * appears only after a calculation, or which have no result at all — were
+   * laid out in two columns with the right-hand one permanently empty. The
+   * effect was a form squeezed into half the card, a lone primary button
+   * marooned at the bottom of the left half, and a large blank field to its
+   * right. That is the "space is too empty" complaint, and it is the same
+   * defect as the stranded button: neither is a styling problem, both are this
+   * query firing when it has nothing to lay out.
+   *
+   * A card earns two columns by having a result in it. Until then it is one
+   * column, and the form gets the full width it was always meant to have.
+   */
+  .card:has(> .result):not(.is-elements) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--s5) var(--s6);
     align-items: start;
+    /*
+     * `dense` is the whole trick, and without it this layout is broken.
+     *
+     * The default packing is sparse: the placement cursor only moves forward,
+     * never back. The result is the last element in every tab's markup, so by
+     * the time the cursor reached it, the form had already consumed rows 1-3 of
+     * column 1 — and the result landed on row 3 of column 2, level with nothing,
+     * with rows 1 and 2 of its own column empty. That is exactly what "the
+     * result is at the bottom and the top-right is blank" was.
+     *
+     * Dense packing backfills: a result assigned to column 2 takes the earliest
+     * free row there, which is row 1, so it sits level with the first input.
+     */
+    grid-auto-flow: row dense;
   }
 
   /* Column 1: everything the user fills in, plus the button and any message. */
   .card > :not(.result) { grid-column: 1; }
 
-  /* Column 2: results only, and they start at the top so the answer sits level
-     with the first input rather than below the form. */
+  /* Column 2: results only. Several queue down this column in source order —
+     Reagent has five — which is the order they are meant to be read in. */
   .card > .result { grid-column: 2; }
 
   /*
@@ -711,21 +743,115 @@ select.control {
   .card > button { justify-self: start; }
 
   /*
-   * Column 2 gets a full-height rule between it and the form.
+   * The result is not a card inside a card.
    *
-   * Without it the two halves read as one wide column with a gap, and the eye
-   * runs from an input on the left straight into a result on the right as if
-   * they were in the same list. The border says where the input stops and the
-   * answer starts.
-   *
-   * `grid-row: 1 / span 99` makes it span whatever the form's height turns out
-   * to be, so the rule runs the full column rather than stopping level with the
-   * first result. A fixed span would break the moment a tab grew a field.
+   * It kept its own background, border and margin from the single-column
+   * layout, where it was a panel sitting below a form. Here it is already in a
+   * column of its own, so the border drew a box inside a box and the 20px
+   * margin pushed it below the first input — nothing in the two columns lined
+   * up. This is the fix for the misalignment that made the layout look broken.
    */
-  .card > .result:first-of-type {
-    grid-row: 1 / span 99;
-    padding-left: var(--s5);
-    border-left: 1px solid var(--border);
+  .card > .result {
+    margin-top: 0;
+    padding: 0 0 0 var(--s6);
+    background: none;
+    border: none;
+    border-radius: 0;
+  }
+
+  /*
+   * The rule between the form and the results, drawn on the card.
+   *
+   * Drawn here rather than as a `border-left` on the first result because
+   * `:first-of-type` matches the first element *of its tag*, not the first of
+   * its class — and the first div in every card is a `.field`, so that selector
+   * silently matched nothing and the divider never appeared.
+   *
+   * Drawing it on the card also gets the full height for free, instead of
+   * stopping level with the last result and leaving the rule visibly short of
+   * the form it is meant to separate. The padding is symmetric, so 50% of the
+   * padding box is exactly the column boundary.
+   *
+   * `:has()` gates it on there being a result to separate; a tab with no
+   * result yet gets no line down the middle of an empty card.
+   */
+  .card:has(> .result):not(.is-elements) {
+    background-image: linear-gradient(
+      to right,
+      transparent calc(50% - 0.5px),
+      var(--border) calc(50% - 0.5px),
+      var(--border) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
+  }
+}
+
+/* ==========================================================================
+   Periodic table — full-bleed table with a detail rail
+   ========================================================================== */
+
+/*
+ * The table is the one screen whose content is genuinely wider than a form.
+ *
+ * Eighteen groups cannot be read in half a card: at 643px the grid was 51px a
+ * cell before the gutter, so `.ptable` declared `min-width: 750px` to defend
+ * its own legibility and the wrapper scrolled permanently — the table was cut
+ * off at the right edge on every screen wide enough to show it in full.
+ *
+ * So this card opts out of the input/result split above and lays itself out:
+ * a narrow control strip, then the table at the full card width with the
+ * selected element's detail beside it. The detail is a rail rather than a
+ * result column because it is not an answer to a question — it is a readout of
+ * whatever cell is selected, and it stays put while the selection moves.
+ */
+.card.is-elements {
+  display: block;
+}
+
+/*
+ * The table block and the detail rail share a row.
+ *
+ * 340px is the rail: wide enough for the two-column property grid the detail
+ * already uses, narrow enough to leave the table ~980px on a 1360px card —
+ * 52px a cell, which is what the table wanted all along, with no scrollbar.
+ *
+ * Below 900px the rail drops under the table at full width, because the detail
+ * is the answer to "what did I just tap" and on a phone there is no beside.
+ */
+.elt-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s5) var(--s6);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .elt-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+/* The table already owns its own bottom margin; inside the rail layout the row
+   gap does the spacing, and both would double it. */
+.elt-layout > .ptable-wrap { margin-bottom: 0; }
+
+/*
+ * The detail rail.
+ *
+ * It is a readout, not an answer: it shows whatever cell is selected and stays
+ * put while the selection moves. Sticky keeps it in view while the table is
+ * scrolled horizontally on a narrow screen, and the panel chrome is dropped
+ * because it is already a column of its own — the box-inside-a-box the result
+ * panel was fixed for above applies here identically.
+ */
+@media (min-width: 900px) {
+  .elt-layout > .result {
+    position: sticky;
+    top: var(--s4);
+    margin-top: 0;
+    padding: 0;
+    background: none;
+    border: none;
   }
 }
 
@@ -881,6 +1007,27 @@ select.control {
    Buttons
    ========================================================================== */
 
+/*
+ * The primary action.
+ *
+ * It is the only filled control in the app, and it used to be the flattest:
+ * a single accent fill under a neutral grey shadow, which on a light palette
+ * reads as a coloured rectangle rather than as something raised off the page.
+ * Three things fix that without adding a second colour to the theme:
+ *
+ *   - The shadow is tinted with the button's own accent. A grey shadow under a
+ *     teal button is light that could not have come from the button; tinting it
+ *     is what makes the two read as one object.
+ *   - A one-pixel inner highlight along the top edge, which is the standard
+ *     cue for a lit bevel and costs nothing.
+ *   - A hairline inset border in the same accent, so the fill has a defined
+ *     edge against a card of a similar lightness.
+ *
+ * Hover moves to `--accent-hover-solid`, not `--accent-hover`: the latter is
+ * the palette's companion hue and is the wrong thing for a filled control —
+ * see the token's comment in palettes.mjs. The accent still carries the focus
+ * ring via the global `:focus-visible` rule.
+ */
 button.primary {
   display: inline-flex;
   align-items: center;
@@ -897,14 +1044,33 @@ button.primary {
   font-size: var(--t-base);
   font-weight: 600;
   letter-spacing: -0.005em;
-  box-shadow: var(--shadow-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, black),
+    0 1px 2px color-mix(in srgb, var(--accent) 26%, transparent),
+    0 2px 6px color-mix(in srgb, var(--accent) 18%, transparent);
   transition: background var(--dur-fast) var(--ease),
               transform var(--dur-fast) var(--ease),
               box-shadow var(--dur-fast) var(--ease);
 }
 
-button.primary:hover:not(:disabled) { background: var(--accent-hover); box-shadow: var(--shadow-2); }
-button.primary:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--shadow-1); }
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover-solid, var(--accent-hover));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, black),
+    0 2px 4px color-mix(in srgb, var(--accent) 30%, transparent),
+    0 6px 16px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+button.primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 2px color-mix(in srgb, var(--accent) 55%, black),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, black),
+    0 1px 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
 button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
 /* Secondary action: present and clickable, but never competing with the
@@ -1562,6 +1728,14 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
  * so the wrapper scrolls horizontally — the table keeps its shape, which is the
  * whole point of a periodic table, rather than reflowing into something that no
  * longer shows the periodic trends.
+ *
+ * The floor below which it scrolls is expressed on the columns, not as a
+ * `min-width` on the table. A `min-width: 750px` was a guess at the width the
+ * columns needed, and it was both too small (the real requirement was 764px,
+ * so the wrapper scrolled even when the card was wider than the guess) and too
+ * rigid (it held the table at 750px inside a card with room for more). Sizing
+ * the columns and letting the table be as wide as its content is the same
+ * intent without the arithmetic going stale.
  */
 .ptable-wrap {
   overflow-x: auto;
@@ -1573,13 +1747,14 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .ptable {
   display: grid;
   /* Column 1 is the gutter for period numbers and the f-block labels; groups
-     1-18 follow, so a cell lands at gridColumn group + 1. */
+     1-18 follow, so a cell lands at gridColumn group + 1. The 38px floor is
+     what makes the wrapper scroll rather than the cells crushing: 26 + 18*38 +
+     19 gaps is 764px, the table's true minimum. */
   grid-template-columns: 26px repeat(18, minmax(38px, 1fr));
   grid-template-rows: 16px repeat(7, 46px) 12px 46px 46px;
   /* Row 9 (the 12px band) stays empty: that gap is what detaches the f-block
      rows below it. Row 1 holds the group numbers. */
   gap: 3px;
-  min-width: 750px;
 }
 
 /* Axis labels: group numbers across the top, period numbers down the gutter.
