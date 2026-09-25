@@ -147,7 +147,7 @@ export function activityCoefficient({ ionicStrength: I, charge }) {
  * that wants to know whether to trust it asks. Silently returning 2.59 for a
  * figure the user reads as a correction factor is the failure this guards.
  */
-export const DAVIES_I_MAX = 0.5;
+const DAVIES_I_MAX = 0.5;
 
 /** Whether an ionic strength is inside the range the Davies fit covers. */
 export const withinDaviesRange = (I) => Number.isFinite(I) && I <= DAVIES_I_MAX;

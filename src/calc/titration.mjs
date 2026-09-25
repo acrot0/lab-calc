@@ -66,7 +66,7 @@ export function molarityToPercent({ molarity, formula }) {
  * that is wrong is worse than no entry, because it produces a warning the user
  * learns to ignore.
  */
-export const SOLUBILITY_G_PER_100ML = {
+const SOLUBILITY_G_PER_100ML = {
   NaCl: 36.0,
   KCl: 34.0,
   KNO3: 31.0,

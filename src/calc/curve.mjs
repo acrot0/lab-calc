@@ -18,11 +18,11 @@
 
 import { fail, requirePositive, requireFinite } from './errors.mjs';
 
-export const KW = 1e-14;
+const KW = 1e-14;
 
 /** Most protons a single acid can realistically have. Phosphoric (3) is common;
  *  6 is already exotic, and beyond that the inputs are almost certainly wrong. */
-export const MAX_PROTONS = 6;
+const MAX_PROTONS = 6;
 
 /**
  * Accept the several shapes callers use for "what acid is this".

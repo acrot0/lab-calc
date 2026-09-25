@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import { detectLocale, loadLocale, saveLocale, makeTranslator, LOCALES } from './i18n.mjs';
+import { detectLocale, loadLocale, saveLocale, makeTranslator } from './i18n.mjs';
 import { zh } from './locales/zh.mjs';
 import { en } from './locales/en.mjs';
 
@@ -41,18 +41,3 @@ export function useI18n() {
   return v;
 }
 
-/** Language switcher. A select rather than a toggle so adding a third locale
- *  does not require redesigning the control. */
-export function LocaleSwitcher() {
-  const { locale, setLocale, t } = useI18n();
-  return (
-    <label className="locale-switch">
-      <span className="sr-only">{t('app.langLabel')}</span>
-      <select value={locale} onChange={(e) => setLocale(e.target.value)} aria-label={t('app.langLabel')}>
-        {Object.entries(LOCALES).map(([code, name]) => (
-          <option key={code} value={code}>{name}</option>
-        ))}
-      </select>
-    </label>
-  );
-}

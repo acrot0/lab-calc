@@ -41,9 +41,6 @@ function loadSmilesDrawer() {
   return drawerPromise;
 }
 
-/** Whether the renderer has been loaded yet. Used by the tests, not the UI. */
-export const isRendererLoaded = () => drawerPromise !== null;
-
 /** Render options: vector, theme-aware, and quiet enough to sit in a panel. */
 const BASE_OPTIONS = {
   width: 320,

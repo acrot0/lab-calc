@@ -12,6 +12,7 @@ import { fmtSci } from './format.mjs';
  * The record itself stores only `kind`, `inputs` and `outputs` — the summary is
  * derived, never persisted. That is what makes a language switch retroactive.
  */
+
 /**
  * Format a number for a history line.
  *

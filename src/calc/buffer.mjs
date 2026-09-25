@@ -26,7 +26,7 @@ export function hendersonHasselbalch({ pKa, acidConc, baseConc }) {
 }
 
 /** A buffer is useful within roughly pKa ± 1; beyond that capacity collapses. */
-export const USEFUL_RANGE = 1;
+const USEFUL_RANGE = 1;
 
 /**
  * The acid:base ratio for a target pH, and the split of a total concentration.

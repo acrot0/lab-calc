@@ -24,24 +24,6 @@ export const fail = (code, params) => {
   throw new CalcError(code, params);
 };
 
-/** Names passed as `{ name: '浓度' }` used to be prose. They are keys now. */
-export const FIELD = {
-  molarity: 'molarity',
-  volume: 'volume',
-  concentration: 'concentration',
-  stockConc: 'stockConc',
-  targetConc: 'targetConc',
-  titrantConc: 'titrantConc',
-  percent: 'percent',
-  pka: 'pka',
-  pkb: 'pkb',
-  factor: 'factor',
-  steps: 'steps',
-  points: 'points',
-  overshoot: 'overshoot',
-  stepVolume: 'stepVolume',
-};
-
 export function requirePositive(value, field) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     fail('mustBePositive', { name: field, value });

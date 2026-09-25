@@ -1539,12 +1539,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   font-size: 10px;
 }
 
-.diagram-bar-label {
-  fill: var(--accent-ink);
-  font-size: 9px;
-  font-weight: 600;
-}
-
 /* The second curve in a diagram that shows two things at once. Dashed so the
    two are not read as one series, and in the mid-text token rather than the
    accent so the first curve stays the one the eye lands on. */

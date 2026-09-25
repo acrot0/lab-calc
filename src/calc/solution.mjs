@@ -183,7 +183,7 @@ function parseSegment(body, whole) {
  * not the 1.008 average. Falling through to ATOMIC_WEIGHTS for them would give
  * `undefined` and turn the whole molar mass into NaN.
  */
-export function atomicMassOf(element) {
+function atomicMassOf(element) {
   if (element in ISOTOPES) return ISOTOPES[element].mass;
   const mass = ATOMIC_WEIGHTS[element];
   if (mass === undefined) fail('unknownElement', { element });

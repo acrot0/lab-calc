@@ -107,7 +107,7 @@ export function toMarkdown(entries) {
 const DETAIL_META = ['时间', '类型', '说明'];
 
 /** Every input/output key across the set, in first-seen order. */
-export function detailColumns(entries) {
+function detailColumns(entries) {
   const inputKeys = [];
   const outputKeys = [];
   for (const e of entries ?? []) {
@@ -130,7 +130,7 @@ function cell(v) {
   return String(v);
 }
 
-export function toXlsxRows(entries) {
+function toXlsxRows(entries) {
   const rows = [CSV_COLUMNS];
   for (const e of entries ?? []) {
     rows.push([
@@ -144,7 +144,7 @@ export function toXlsxRows(entries) {
   return rows;
 }
 
-export function toXlsxDetailedRows(entries) {
+function toXlsxDetailedRows(entries) {
   const { inputKeys, outputKeys } = detailColumns(entries);
   const header = [
     ...DETAIL_META,
@@ -173,7 +173,7 @@ export function toXlsxDetailedRows(entries) {
  * is correct without this, but unreadable, and an unreadable export is the
  * failure the user actually notices.
  */
-export function widthsFor(rows, { min = 8, max = 42 } = {}) {
+function widthsFor(rows, { min = 8, max = 42 } = {}) {
   const cols = rows.reduce((n, r) => Math.max(n, r.length), 0);
   const out = [];
   for (let c = 0; c < cols; c += 1) {
@@ -214,7 +214,7 @@ export const UTF8_BOM = '﻿';
  * Kept out of the pure functions above so they stay testable, and wrapped in a
  * guard because it touches DOM APIs that do not exist in Node.
  */
-export function downloadFile(content, filename, mime = 'text/plain;charset=utf-8') {
+function downloadFile(content, filename, mime = 'text/plain;charset=utf-8') {
   if (typeof document === 'undefined') return false;
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);

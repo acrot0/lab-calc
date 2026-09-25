@@ -47,7 +47,7 @@ export const ISOTOPES = {
  * the modern convention is Bz = benzoyl and Bn = benzyl, and following the
  * modern one is the only way to be right more often than not.
  */
-export const ABBREVIATIONS = {
+const ABBREVIATIONS = {
   // --- alkyl ---
   Me: { expansion: 'CH3', note: 'methyl' },
   Et: { expansion: 'C2H5', note: 'ethyl' },

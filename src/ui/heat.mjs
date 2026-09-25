@@ -166,7 +166,7 @@ export function fitTicks(range, minGap = 0.3) {
  * sample: eight axes each labelled with their own range, where two labels at
  * the top of an axis collide exactly as they do on the legend.
  */
-export function thinTicks(all, range, minGap = 0.3) {
+function thinTicks(all, range, minGap = 0.3) {
   const lastIdx = all.length - 1;
   const endPos = positionOf(all[lastIdx], range);
   const kept = [];

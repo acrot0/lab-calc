@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useId } from 'react';
+import React, { useId } from 'react';
 
 /**
  * The shared drawing surface for explanatory diagrams.
@@ -166,76 +166,4 @@ export function Note({ x, y, to, anchor = 'end', children }) {
       <text x={x + dx} y={y + 4} textAnchor={anchor}>{children}</text>
     </g>
   );
-}
-
-/**
- * A bar showing a quantity, for diagrams about proportions.
- *
- * `segments` is `[{ value, color, label }]`; the widths come from the values,
- * so a bar cannot show a proportion its numbers do not support.
- */
-export function Bar({ x, y, width, height, segments, showLabels = true }) {
-  const total = segments.reduce((s, seg) => s + seg.value, 0) || 1;
-  let cursor = x;
-  return (
-    <g className="diagram-bar">
-      {segments.map((seg) => {
-        const w = (seg.value / total) * width;
-        const el = (
-          <g key={seg.label}>
-            <rect x={cursor} y={y} width={w} height={height} fill={seg.color} rx={2} />
-            {showLabels && w > 34 && (
-              <text x={cursor + w / 2} y={y + height / 2 + 4} textAnchor="middle" className="diagram-bar-label">
-                {seg.label}
-              </text>
-            )}
-          </g>
-        );
-        cursor += w;
-        return el;
-      })}
-    </g>
-  );
-}
-
-/**
- * Draws `render(ctx)` once the figure scrolls into view, and never before.
- *
- * Not used by the diagrams above — those are static SVG, which costs nothing
- * off-screen. This is for the canvas figures in later phases, where a chart
- * with hundreds of points should not be drawn until someone looks at it. The
- * observer disconnects after the first intersection: redrawing on every scroll
- * would undo the saving.
- */
-export function useDrawWhenVisible(draw, deps) {
-  const ref = useRef(null);
-  const drawn = useRef(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-
-    const run = () => {
-      if (drawn.current) return;
-      drawn.current = true;
-      draw(el);
-    };
-
-    if (typeof IntersectionObserver === 'undefined') {
-      run();
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        run();
-        observer.disconnect();
-      }
-    }, { rootMargin: '120px' });
-    observer.observe(el);
-    return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-
-  return ref;
 }
