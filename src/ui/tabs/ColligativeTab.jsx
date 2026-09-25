@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   colligative, osmoticPressure, molarMassFromFreezingPoint, SOLVENTS, DILUTE_LIMIT,
 } from '../../calc/colligative.mjs';
@@ -77,6 +77,60 @@ export default function ColligativeTab({ onRecord, restored }) {
   }
 
   const shown = shownFor(out, 'mode', mode);
+  /*
+   * The colligative laws, with the van't Hoff factor visible.
+   *
+   * i is the term students drop. A 0.1 mol/kg NaCl solution depresses the
+   * freezing point twice as far as 0.1 mol/kg glucose, and the reason is this
+   * one number — so the derivation shows it as a factor rather than folding it
+   * into the result.
+   */
+  const worked = useMemo(() => {
+    if (!shown) return null;
+    const i = n(iFactor);
+
+    if (shown.mode === 'shift') {
+      return [
+        { term: 'ΔTf', value: t('common.worked_DeltaTf') },
+        {
+          term: '',
+          value: t('common.worked_DeltaTfStep', {
+            i: fmt(i, 3), kf: fmt(shown.kf, 4), m: fmtSci(n(molality), 4), dtf: fmt(shown.deltaTf, 4),
+          }),
+        },
+        {
+          term: 'ΔTb',
+          value: t('common.worked_DeltaTbStep', {
+            i: fmt(i, 3), kb: fmt(shown.kb, 4), m: fmtSci(n(molality), 4), dtb: fmt(shown.deltaTb, 4),
+          }),
+        },
+      ];
+    }
+
+    if (shown.mode === 'osmotic') {
+      return [
+        { term: 'π', value: t('common.worked_Pi') },
+        {
+          term: '',
+          value: t('common.worked_PiStep', {
+            i: fmt(i, 3), m: fmtSci(n(molarity), 4), temp: fmt(shown.tempK, 2), pi: fmt(shown.atm, 4),
+          }),
+        },
+      ];
+    }
+
+    return [
+      { term: 'M', value: t('common.worked_MolarMassFromKf') },
+      {
+        term: '',
+        value: t('common.worked_MolarMassStep', {
+          i: fmt(i, 3), kf: fmt(shown.kf, 4), mass: fmt(n(massG), 4),
+          dtf: fmt(n(deltaTf), 4), solvent: fmt(n(solventKg), 4), M: fmt(shown.molarMass, 4),
+        }),
+      },
+    ];
+  }, [shown, iFactor, molality, molarity, massG, deltaTf, solventKg, t]);
+
   const solventName = t(`colligative.solvent_${solvent}`);
 
   return (
@@ -141,7 +195,8 @@ export default function ColligativeTab({ onRecord, restored }) {
             [t('colligative.freezingPoint'), `${fmt(shown.freezingPoint, 3)} °C`],
             [t('colligative.deltaTb'), `${fmt(shown.deltaTb, 4)} K`],
             [t('colligative.deltaTf'), `${fmt(shown.deltaTf, 4)} K`],
-          ]} />
+          ]}
+          worked={worked} workedLabel={t('common.worked')} />
       )}
       {shown?.mode === 'shift' && shown.diluteWarning && (
         <Warn>{errorMessage(shown.diluteWarning, t)}</Warn>
@@ -156,7 +211,8 @@ export default function ColligativeTab({ onRecord, restored }) {
           rows={[
             [t('colligative.kPa'), `${fmt(shown.kPa, 3)} kPa`],
             [t('colligative.osmolarity'), `${fmtSci(shown.osmolarity, 4)} osmol/L`],
-          ]} />
+          ]}
+          worked={worked} workedLabel={t('common.worked')} />
       )}
 
       {shown?.mode === 'unknown' && (
@@ -165,7 +221,8 @@ export default function ColligativeTab({ onRecord, restored }) {
           rows={[
             [t('colligative.molality'), `${fmtSci(shown.molality, 5)} mol/kg`],
             [t('colligative.moles'), `${fmtSci(shown.moles, 5)} mol`],
-          ]} />
+          ]}
+          worked={worked} workedLabel={t('common.worked')} />
       )}
     </div>
   );

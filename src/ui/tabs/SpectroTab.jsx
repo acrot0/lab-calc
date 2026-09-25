@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { beerLambert, standardCurve, predictFromCurve, LINEAR_ABSORBANCE_MAX } from '../../calc/reagent.mjs';
-import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
+import { NumField, Result, Warn, Err, Worked } from '../components/Fields.jsx';
 import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -211,6 +211,64 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
   // its own mode makes the mismatch impossible to render.
   const shown = shownFor(out, 'mode', mode);
 
+  /*
+   * Beer-Lambert, shown both directions.
+   *
+   * The same equation is solved two ways depending on which variable the user
+   * supplied, and writing out the substitution is what lets them check that
+   * the extinction coefficient and path length they entered are the ones that
+   * produced the answer.
+   */
+  const worked = useMemo(() => {
+    if (!shown) return null;
+    if (mode === 'absorbance') {
+      return [
+        { term: t('common.worked_Beer'), value: '' },
+        {
+          term: 'A',
+          value: t('common.worked_BeerConc', {
+            epsilon: fmtSci(n(epsilon), 4),
+            path: fmt(n(path), 4),
+            conc: fmtSci(n(conc), 4),
+            abs: fmt(shown.absorbance ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    if (mode === 'concentration') {
+      return [
+        {
+          term: 'c',
+          value: t('common.worked_BeerSolve', {
+            abs: fmt(n(absorbance), 4),
+            epsilon: fmtSci(n(epsilon), 4),
+            path: fmt(n(path), 4),
+            conc: fmtSci(shown.conc ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    return [
+      { term: t('common.worked_CurveFit'), value: '' },
+      {
+        term: 'k, b',
+        value: t('common.worked_CurveFitStep', {
+          slope: fmt(shown.fit?.slope ?? 0, 5),
+          intercept: fmt(shown.fit?.intercept ?? 0, 5),
+        }),
+      },
+      {
+        term: 'c',
+        value: t('common.worked_CurvePredict', {
+          reading: fmt(n(reading), 4),
+          intercept: fmt(shown.fit?.intercept ?? 0, 5),
+          slope: fmt(shown.fit?.slope ?? 0, 5),
+          conc: fmtSci(shown.pred?.value ?? 0, 4),
+        }),
+      },
+    ];
+  }, [shown, mode, epsilon, conc, path, absorbance, reading, t]);
+
   return (
     <div className="card">
       <div className="field">
@@ -254,7 +312,8 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
         <>
           <Result value={fmt(shown.absorbance, 4)} unit="AU"
             note={t('spectro.absNote')}
-            rows={[[t('spectro.absorbance'), fmt(shown.absorbance, 5)]]} />
+            rows={[[t('spectro.absorbance'), fmt(shown.absorbance, 5)]]}
+            worked={worked} workedLabel={t('common.worked')} />
           {warnMsg(shown.linearityWarning) && <Warn>{warnMsg(shown.linearityWarning)}</Warn>}
         </>
       )}
@@ -269,7 +328,8 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
             rows={[
               [t('spectro.conc'), `${fmtSci(shown.conc, 4)} mol/L`],
               [t('spectro.concUm'), `${fmtSci(shown.conc * 1e6, 4)} µmol/L`],
-            ]} />
+            ]}
+            worked={worked} workedLabel={t('common.worked')} />
           {warnMsg(shown.linearityWarning) && <Warn>{warnMsg(shown.linearityWarning)}</Warn>}
         </>
       )}
@@ -305,6 +365,7 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
           {shown.pred.outOfRange && (
             <Warn>{t('spectro.outOfRange', { min: fmt(shown.fit.xMin, 4), max: fmt(shown.fit.xMax, 4) })}</Warn>
           )}
+          <Worked steps={worked} label={t('common.worked')} />
           {shown.fit.r2 < 0.99 && <Warn>{t('spectro.lowR2', { r2: fmt(shown.fit.r2, 4) })}</Warn>}
         </>
       )}

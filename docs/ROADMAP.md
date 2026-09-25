@@ -7,7 +7,7 @@ sequencing has dependencies that are not obvious from the feature list.
 
 15 calculation tabs, a 118-element periodic table with exam properties, an
 interactive titration curve, bilingual UI, PWA-installable, offline-capable,
-and a portable Windows build. 565 tests. 407 KB of JS (129 KB gzipped), no
+and a portable Windows build. 698 tests. 471 KB of JS (140 KB gzipped), no
 charting dependency — the titration curve is hand-drawn SVG.
 
 ## Principles that constrain everything below
@@ -56,10 +56,32 @@ Every calculation tab plots its own result: buffer capacity against pH, serial
 dilution decay, standard-curve fit with residuals, Nernst potential against
 concentration. Extends what the titration curve already does.
 
-### Phase 4 — Periodic trends
+### Phase 4 — Periodic trends — done
 
-The heat-map colouring already in the table extends to every numeric property,
-plus a comparison view (radar or parallel coordinates) for two or more elements.
+The heat-map colouring extends to every numeric property, and a comparison
+view takes two to four elements.
+
+What the phase settled, in case a later change is tempted to undo it:
+
+- **Scale is chosen per property, not per chart.** Electronegativity spans a
+  factor of 5.7 and stays linear; density spans 251,000 and goes logarithmic.
+  `LOG_THRESHOLD` in `src/ui/heat.mjs` is the switch, and it is pinned by a
+  test so that changing it forces a re-check of every property.
+- **A missing measurement is a gap, not a low value.** 22 elements have no
+  density in the source data. Drawing them at the bottom of the ramp asserts a
+  value nobody measured, so they render as an unfilled cell, and the legend
+  says how many of the 118 the scale actually covers.
+- **The radar normalises every axis to its own range**, which is the only way
+  to put a radius and a density on one diagram — and is also its limitation. A
+  factor of two looks the same on both axes. That is why the value table sits
+  directly beneath the chart: the shape is the overview, the table is the
+  measurement.
+- **The outline stays open where the data does.** Helium has no
+  electronegativity, so its polygon is drawn as an open path rather than
+  closed through the centre. Filling it would fabricate an area.
+- **Series colour is per theme.** Okabe-Ito is designed for a dark surface; on
+  white its yellow falls to 1.32:1. The light set is the palette's own
+  recommended substitution, and a test holds every colour above 4.5:1.
 
 ### Phase 5 — Exportable procedure diagrams
 

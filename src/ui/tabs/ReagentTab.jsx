@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   molarityFromPercent, volumeForMolarity, normality, equivalentWeight,
   molality, moleFraction, ionicStrength, activityCoefficient,
 } from '../../calc/reagent.mjs';
+import { molarMass } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
 import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
@@ -102,6 +103,107 @@ export default function ReagentTab({ onRecord, restored }) {
   // numbers under the new mode's labels for one frame.
   const shown = shownFor(out, 'mode', mode);
 
+  /*
+   * The arithmetic, spelled out.
+   *
+   * Every mode here reduces to one substituted formula, and each is a place
+   * where a user can see that the tool used the number they typed — the
+   * density and percentage in particular are the two values people most often
+   * leave at the default and then wonder about the answer.
+   */
+  const worked = useMemo(() => {
+    if (!shown) return null;
+    if (mode === 'stock') {
+      return [
+        { term: t('common.worked_StockMolarity'), value: '' },
+        {
+          term: 'C',
+          value: t('common.worked_StockStep', {
+            density: fmt(n(density), 4),
+            percent: fmt(n(percent), 4),
+            molarMass: fmt(shown.molarMass ?? 0, 4),
+            conc: fmtSci(shown.molarity ?? 0, 4),
+          }),
+        },
+        {
+          term: t('reagent.gramsPerL'),
+          value: t('common.worked_GramsPerL', {
+            density: fmt(n(density), 4),
+            percent: fmt(n(percent), 4),
+            grams: fmt(shown.gramsPerL ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    if (mode === 'volume') {
+      return [
+        { term: t('common.worked_StockVolume'), value: '' },
+        {
+          term: 'V₁',
+          value: t('common.worked_StockVolumeStep', {
+            target: fmtSci(n(targetM), 4),
+            targetVol: fmt(n(targetV), 4),
+            stock: fmt(shown.stockMolarity ?? 0, 4),
+            vol: fmt(shown.volumeMl ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    if (mode === 'normality') {
+      const M = (() => { try { return molarMass(formula); } catch { return 0; } })();
+      return [
+        {
+          term: 'N',
+          value: t('common.worked_Normality', {
+            conc: fmtSci(n(molarity), 4),
+            n: fmt(n(nEq), 4),
+            normality: fmt(shown.normality ?? 0, 4),
+          }),
+        },
+        {
+          term: t('reagent.equivalentWeight'),
+          value: t('common.worked_EquivalentWeight', {
+            molarMass: fmt(M, 4),
+            n: fmt(n(nEq), 4),
+            eq: fmt(shown.equivalentWeight ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    if (mode === 'molality') {
+      const solventMoles = n(solventKg) * 55.51;
+      return [
+        {
+          term: 'm',
+          value: t('common.worked_Molality', {
+            moles: fmtSci(n(moles), 4),
+            solvent: fmtSci(n(solventKg), 4),
+            molality: fmtSci(shown.molality ?? 0, 4),
+          }),
+        },
+        {
+          term: 'x',
+          value: t('common.worked_MoleFraction', {
+            moles: fmtSci(n(moles), 4),
+            solventMoles: fmtSci(solventMoles, 4),
+            x: fmtSci(shown.moleFraction ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    // Ionic strength: the sum inside the ½ is 2I by construction.
+    return [
+      { term: t('common.worked_Ionic'), value: '' },
+      {
+        term: 'I',
+        value: t('common.worked_IonicStep', {
+          sum: fmtSci((shown.ionicStrength ?? 0) * 2, 4),
+          I: fmtSci(shown.ionicStrength ?? 0, 4),
+        }),
+      },
+    ];
+  }, [shown, mode, density, percent, targetM, targetV, molarity, nEq, moles, solventKg, formula, t]);
+
   return (
     <div className="card">
       <div className="field">
@@ -195,6 +297,7 @@ export default function ReagentTab({ onRecord, restored }) {
            percentage input floors it around 1 M. fmt is correct here. */
         <Result value={fmt(shown.molarity, 2)} unit="mol/L"
           note={t('reagent.stockNote', { percent, density })}
+          worked={worked} workedLabel={t('common.worked')}
           rows={[
             [t('reagent.gramsPerL'), `${fmt(shown.gramsPerL, 1)} g/L`],
             [t('common.molarMass'), `${fmt(shown.molarMass, 2)} g/mol`],
@@ -204,6 +307,7 @@ export default function ReagentTab({ onRecord, restored }) {
       {shown?.mode === 'volume' && (
         <Result value={fmt(shown.volumeMl, 2)} unit="mL"
           note={t('reagent.volumeNote', { molarity: targetM, volume: targetV })}
+          worked={worked} workedLabel={t('common.worked')}
           rows={[
             [t('reagent.stockMolarity'), `${fmt(shown.stockMolarity, 2)} mol/L`],
             [t('reagent.volume'), `${fmt(shown.volumeMl, 3)} mL`],
@@ -213,6 +317,7 @@ export default function ReagentTab({ onRecord, restored }) {
       {shown?.mode === 'normality' && (
         <Result value={fmt(shown.normality, 3)} unit="N"
           note={t('reagent.normalityNote', { n: nEq })}
+          worked={worked} workedLabel={t('common.worked')}
           rows={[
             [t('reagent.normality'), `${fmt(shown.normality, 4)} N`],
             [t('reagent.equivalentWeight'), `${fmt(shown.equivalentWeight, 3)} g/eq`],
@@ -222,6 +327,7 @@ export default function ReagentTab({ onRecord, restored }) {
       {shown?.mode === 'molality' && (
         <Result value={fmtSci(shown.molality, 4)} unit="mol/kg"
           note={t('reagent.molalityNote')}
+          worked={worked} workedLabel={t('common.worked')}
           rows={[
             [t('reagent.molality'), `${fmtSci(shown.molality, 4)} mol/kg`],
             [t('reagent.moleFraction'), fmtSci(shown.moleFraction, 5)],
@@ -232,6 +338,7 @@ export default function ReagentTab({ onRecord, restored }) {
       {shown?.mode === 'ionic' && (
         <Result value={fmtSci(shown.ionicStrength, 4)} unit="mol/L"
           note={t('reagent.ionicNote')}
+          worked={worked} workedLabel={t('common.worked')}
           rows={[
             [t('reagent.ionicStrength'), `${fmtSci(shown.ionicStrength, 4)} mol/L`],
             [t('reagent.gammaMono'), fmt(shown.gammaMono, 4)],

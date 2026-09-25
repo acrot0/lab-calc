@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { nernst, cellFromHalfCells, STANDARD_POTENTIALS } from '../../calc/electro.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
 import { fmt, n, fmtSci, shownFor } from '../format.mjs';
@@ -55,6 +55,65 @@ export default function ElectroTab({ onRecord, restored }) {
   }
 
   const shown = shownFor(out, 'mode', mode);
+
+  /*
+   * Nernst, term by term.
+   *
+   * The two constants that produce the familiar "0.05916 V per decade" are
+   * shown rather than quoted: RT/nF at this temperature, then the log term,
+   * then the subtraction. A student who has only memorised the shortcut cannot
+   * tell what happens at another temperature; one who has seen it as RT/nF can.
+   */
+  const worked = useMemo(() => {
+    if (!shown) return null;
+    const lnQ = Math.log(n(q));
+
+    if (mode === 'cell') {
+      return [
+        {
+          term: 'E°',
+          value: t('electro.cellNote', {
+            cathode: shown.cathode,
+            anode: shown.anode,
+            ec: fmt(shown.cathodePotential, 4),
+            ea: fmt(shown.anodePotential, 4),
+          }),
+        },
+        {
+          term: t('electro.e0'),
+          value: `${fmt(shown.cathodePotential, 4)} V − ${fmt(shown.anodePotential, 4)} V = ${fmt(shown.e0, 4)} V`,
+        },
+        {
+          term: t('electro.deltaG'),
+          value: `ΔG° = −nFE° = −${shown.n} × 96485 C/mol × ${fmt(shown.e0, 4)} V = ${fmt(shown.deltaGKJ, 4)} kJ/mol`,
+        },
+        {
+          term: t('electro.equilibriumK'),
+          value: `lg K = nE° / 0.05916 = ${shown.n} × ${fmt(shown.e0, 4)} ÷ 0.05916 = ${fmt((shown.n * shown.e0) / 0.05916, 4)}`,
+        },
+      ];
+    }
+
+    return [
+      { term: 'E', value: t('common.worked_Nernst') },
+      {
+        term: 'RT/nF',
+        value: t('common.worked_NernstStep', {
+          slope: fmt(shown.slope, 6), temp: fmt(shown.tempK, 2), lnq: fmt(lnQ, 4),
+        }),
+      },
+      {
+        term: t('electro.deltaG'),
+        value: t('common.worked_NernstResult', {
+          e0: fmt(shown.e0, 4), slope: fmt(shown.slope, 6), lnq: fmt(lnQ, 4), e: fmt(shown.e, 4),
+        }),
+      },
+      {
+        term: t('electro.equilibriumK'),
+        value: `lg K = E° / (RT/nF × ln10) = ${fmt(shown.e0, 4)} ÷ ${fmt(shown.slope * Math.LN10, 6)} = ${fmt(shown.e0 / (shown.slope * Math.LN10), 4)}`,
+      },
+    ];
+  }, [shown, mode, q, t]);
 
   return (
     <div className="card">
@@ -113,7 +172,9 @@ export default function ElectroTab({ onRecord, restored }) {
               [t('electro.equilibriumK'), shown.equilibriumK == null ? '—' : fmtSci(shown.equilibriumK)],
               [t('electro.logQ'), fmt(shown.logQ, 4)],
               [t('electro.tempK'), `${fmt(shown.tempK, 2)} K`],
-            ]} />
+            ]}
+            worked={worked}
+            workedLabel={t('common.worked')} />
           <Warn>{shown.spontaneous ? t('electro.spontaneous') : t('electro.notSpontaneous')}</Warn>
         </>
       )}

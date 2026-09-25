@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { percentToMolarity, molarityToPercent, preparePercentSolution } from '../../calc/titration.mjs';
 import { molarMass } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
@@ -56,6 +56,54 @@ export default function PercentTab({ onRecord, restored }) {
   // result under the new direction's labels for one frame.
   const shown = shownFor(out, 'mode', mode);
 
+  /*
+   * The conversion, shown.
+   *
+   * Percentage by mass and molarity are two views of one solution, and the
+   * bridge between them is the molar mass alone — w/v% is grams per 100 mL, so
+   * multiplying mol/L by g/mol and dividing by 10 lands in the right unit.
+   * Density plays no part, which is worth knowing because it is the term people
+   * reach for first and the reason a hand-check against a measured density
+   * disagrees.
+   */
+  const worked = useMemo(() => {
+    if (!shown) return null;
+    if (mode === 'prepare') {
+      const mass = shown.massG ?? 0;
+      const volMl = n(volume);
+      return [
+        {
+          term: 'm',
+          value: t('common.worked_PercentStep', {
+            percent: fmt(n(percent), 4),
+            volume: fmt(volMl, 4),
+            grams: fmtSci(mass, 4),
+            per100: fmtSci(volMl > 0 ? (mass / volMl) * 100 : 0, 4),
+          }),
+        },
+        {
+          term: 'C',
+          value: t('common.worked_MolarityStep', {
+            molarMass: fmt(shown.molarMass ?? 0, 4),
+            conc: fmtSci(shown.molarity ?? 0, 4),
+            percent: fmt(n(percent), 4),
+          }),
+        },
+      ];
+    }
+    return [
+      {
+        term: 'C → w/v%',
+        value: t('common.worked_MolarityStep', {
+          molarMass: fmt(shown.molarMass ?? 0, 4),
+          conc: fmtSci(shown.molarity ?? 0, 4),
+          percent: fmt(shown.percent ?? 0, 4),
+        }),
+      },
+    ];
+  }, [shown, mode, percent, volume, t]);
+
+
   // The solubility check returns a code plus params, so the message follows the
   // UI language rather than being frozen in whichever language produced it.
   const solubilityMsg = shown?.solubilityWarning
@@ -102,6 +150,8 @@ export default function PercentTab({ onRecord, restored }) {
             [t('percent.equivalentConc'), `${fmtSci(shown.molarity, 4)} mol/L`],
             [t('common.molarMass'), `${fmt(shown.molarMass, 3)} g/mol`],
           ] : null}
+          worked={worked}
+          workedLabel={t('common.worked')}
         />
       ) : (
         <Result
@@ -113,6 +163,8 @@ export default function PercentTab({ onRecord, restored }) {
             [t('common.concentration'), `${shown.molarity} mol/L`],
             [t('common.molarMass'), `${fmt(shown.molarMass, 3)} g/mol`],
           ] : null}
+          worked={worked}
+          workedLabel={t('common.worked')}
         />
       )}
     </div>

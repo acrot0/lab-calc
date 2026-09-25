@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Icons, ICON_SIZE } from './icons.jsx';
 import {
-  resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
+  resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay, MAX_ENTRIES,
 } from './history.mjs';
+import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
 import { useTheme, ThemeToggle } from './ThemeContext.jsx';
@@ -111,6 +112,13 @@ export default function App() {
   const remove = useCallback((id) => setEntries((prev) => removeEntry(prev, id)), []);
   const clear = useCallback(() => setEntries(clearHistory()), []);
 
+  // Import merges rather than replaces: a backup is usually one machine's
+  // history being added to another's, and overwriting would destroy work the
+  // user never agreed to lose.
+  const importEntries = useCallback((incoming) => {
+    setEntries((prev) => mergeEntries(prev, incoming, MAX_ENTRIES));
+  }, []);
+
   const replay = useCallback((entry) => {
     const plan = planReplay(entry);
     if (!plan) return;
@@ -166,7 +174,8 @@ export default function App() {
         <div>
           <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
         </div>
-        <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear} />
+        <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear}
+          onImport={importEntries} />
       </main>
 
       <footer className="footer">

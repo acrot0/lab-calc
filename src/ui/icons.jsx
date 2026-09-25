@@ -1,10 +1,11 @@
 import React from 'react';
 import {
   Activity, AlertTriangle, ArrowLeftRight, Atom, Beaker, Calculator, Check,
-  Download, Droplet, Droplets, Dna, FileSpreadsheet, FileText, FlaskConical,
-  FlaskRound, Gauge, GitBranch, History, Languages, Layers, LineChart,
-  Microscope, Percent, Pipette, RotateCcw, Scale, Search, ShieldAlert, Sun,
-  Syringe, TestTube, TestTubes, Thermometer, Trash2, TrendingUp, Waves, X, Zap,
+  Download, Droplet, Droplets, Dna, FileJson, FileSpreadsheet, FileText,
+  FlaskConical, FlaskRound, Gauge, GitBranch, History, Languages, Layers,
+  LineChart, Microscope, Percent, Pipette, RotateCcw, Scale, Search,
+  ShieldAlert, Sun, Syringe, TestTube, TestTubes, Thermometer, Trash2,
+  TrendingUp, Upload, Waves, X, Zap,
 } from 'lucide-react';
 
 /*
@@ -101,6 +102,8 @@ export const Icons = {
   download: styled(Download),
   csv: styled(FileSpreadsheet),
   markdown: styled(FileText),
+  json: styled(FileJson),
+  upload: styled(Upload),
   warning: styled(AlertTriangle),
   notice: styled(ShieldAlert),
   check: styled(Check),

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { dilutionSeries } from '../../calc/buffer.mjs';
-import { NumField, Err } from '../components/Fields.jsx';
+import { NumField, Err, Worked } from '../components/Fields.jsx';
 import DilutionDiagram from '../components/diagrams/DilutionDiagram.jsx';
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
@@ -16,6 +16,51 @@ export default function SeriesTab({ onRecord, restored }) {
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
   const [showDiagram, setShowDiagram] = useState(false);
+
+  /*
+   * The series, shown as the recurrence it is.
+   *
+   * A table of tubes answers "what do I pipette", but not "why is tube 5 that
+   * number" — the answer is that each tube divides the previous one by the
+   * factor, and the last tube is the stock divided by factor^steps. Both are
+   * written out here so the pattern is visible rather than inferred.
+   */
+  const worked = useMemo(() => {
+    if (!out || out.length === 0) return null;
+    const f = n(factor);
+    const first = out[0];
+    const last = out[out.length - 1];
+    return [
+      { term: t('common.worked_SeriesFold'), value: '' },
+      {
+        term: t('series.colTube') + ' 1',
+        value: t('common.worked_SeriesStep', {
+          stock: fmtSci(n(stock), 4),
+          factor: fmtSci(f, 4),
+          c1: fmtSci(first.conc, 4),
+          take: fmt(first.stockVolumeMl, 3),
+          diluent: fmt(first.diluentVolumeMl, 3),
+        }),
+      },
+      {
+        term: t('series.colTube') + ' ' + last.step,
+        value: t('common.worked_SeriesLast', {
+          step: last.step,
+          stock: fmtSci(n(stock), 4),
+          factor: fmtSci(f, 4),
+          conc: fmtSci(last.conc, 4),
+        }),
+      },
+      {
+        term: 'Σ',
+        value: t('common.worked_SeriesTotal', {
+          factor: fmtSci(f, 4),
+          step: last.step,
+          fold: fmtSci(Math.pow(f, last.step), 4),
+        }),
+      },
+    ];
+  }, [out, stock, factor, t]);
 
   useEffect(() => { setOut(null); setErr(null); }, [stock, factor, steps, vol]);
 
@@ -88,6 +133,7 @@ export default function SeriesTab({ onRecord, restored }) {
               ))}
             </tbody>
           </table>
+          <Worked steps={worked} label={t('common.worked')} />
         </div>
       )}
     </div>

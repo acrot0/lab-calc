@@ -8,6 +8,11 @@ import {
   downloadMarkdown,
   UTF8_BOM,
   CSV_COLUMNS,
+  toBundle,
+  parseBundle,
+  mergeEntries,
+  BUNDLE_FORMAT,
+  BUNDLE_VERSION,
 } from '../src/ui/export.mjs';
 
 const entry = (over = {}) => ({
@@ -145,5 +150,112 @@ describe('download helpers', () => {
     expect(() => downloadCsv([entry()])).not.toThrow();
     expect(() => downloadMarkdown([entry()])).not.toThrow();
     expect(downloadCsv([entry()])).toBe(false);
+  });
+});
+
+describe('toBundle', () => {
+  it('should record the format and version from the first release', () => {
+    // A format that gains a version only when it first breaks has already
+    // shipped files that nobody can migrate.
+    const b = JSON.parse(toBundle([entry()], new Date('2026-09-25T00:00:00Z')));
+    expect(b.format).toBe(BUNDLE_FORMAT);
+    expect(b.version).toBe(BUNDLE_VERSION);
+    expect(b.exportedAt).toBe('2026-09-25T00:00:00.000Z');
+  });
+
+  it('should keep the records intact, unlike the CSV export', () => {
+    // The whole point of the bundle: inputs survive so the calculation can be
+    // replayed, which the flattened CSV cannot support.
+    const b = JSON.parse(toBundle([entry()]));
+    expect(b.entries[0].inputs).toEqual({ formula: 'NaCl', molarity: 0.5, volumeMl: 500 });
+  });
+
+  it('should round-trip through parseBundle unchanged', () => {
+    const original = [entry(), entry({ id: 'b2', kind: 'dilution' })];
+    const back = parseBundle(toBundle(original));
+    expect(back.ok).toBe(true);
+    expect(back.entries).toEqual(original);
+  });
+});
+
+describe('parseBundle', () => {
+  it('should reject a file that is not JSON', () => {
+    expect(parseBundle('not json at all').code).toBe('notJson');
+  });
+
+  it('should reject JSON that is not a bundle', () => {
+    expect(parseBundle('{"hello":"world"}').code).toBe('wrongFormat');
+  });
+
+  it('should reject a top-level array', () => {
+    // An array is valid JSON and would otherwise reach the version check and
+    // fail with a confusing message.
+    expect(parseBundle('[1,2,3]').code).toBe('notBundle');
+  });
+
+  it('should reject a bundle from a newer version rather than importing part of it', () => {
+    // Importing a subset would silently drop fields this build does not know,
+    // and the next save would erase them from the stored copy.
+    const b = JSON.stringify({ format: BUNDLE_FORMAT, version: BUNDLE_VERSION + 1, entries: [entry()] });
+    expect(parseBundle(b).code).toBe('newerVersion');
+  });
+
+  it('should reject a missing or non-integer version', () => {
+    const b = JSON.stringify({ format: BUNDLE_FORMAT, entries: [entry()] });
+    expect(parseBundle(b).code).toBe('badVersion');
+  });
+
+  it('should drop unusable rows and report how many, not fail the whole file', () => {
+    const b = JSON.stringify({
+      format: BUNDLE_FORMAT,
+      version: 1,
+      entries: [entry(), null, { nope: true }, 'string', entry({ id: 'c3' })],
+    });
+    const r = parseBundle(b);
+    expect(r.ok).toBe(true);
+    expect(r.entries).toHaveLength(2);
+    expect(r.dropped).toBe(3);
+  });
+
+  it('should accept an empty entry list as a valid import', () => {
+    const b = JSON.stringify({ format: BUNDLE_FORMAT, version: 1, entries: [] });
+    expect(parseBundle(b)).toMatchObject({ ok: true, entries: [], dropped: 0 });
+  });
+});
+
+describe('mergeEntries', () => {
+  it('should be idempotent when the same file is imported twice', () => {
+    // Distinct timestamps so the assertion is about deduplication rather than
+    // which way a tie happened to fall.
+    const rows = [
+      entry({ id: 'a1', at: '2026-09-24T10:00:00.000Z' }),
+      entry({ id: 'b2', at: '2026-09-24T11:00:00.000Z' }),
+    ];
+    const once = mergeEntries([], rows);
+    const twice = mergeEntries(once, rows);
+    expect(twice.map((e) => e.id)).toEqual(['b2', 'a1']);
+    expect(twice).toHaveLength(2);
+  });
+
+  it('should sort newest first regardless of which side an entry came from', () => {
+    const older = entry({ id: 'old', at: '2026-01-01T00:00:00.000Z' });
+    const newer = entry({ id: 'new', at: '2026-09-01T00:00:00.000Z' });
+    expect(mergeEntries([older], [newer]).map((e) => e.id)).toEqual(['new', 'old']);
+  });
+
+  it('should keep existing entries when the incoming set is empty', () => {
+    expect(mergeEntries([entry()], []).map((e) => e.id)).toEqual(['a1']);
+  });
+
+  it('should respect the cap so the merged list cannot exceed storage', () => {
+    const many = Array.from({ length: 10 }, (_, i) => entry({ id: `x${i}` }));
+    expect(mergeEntries([], many, 3)).toHaveLength(3);
+  });
+
+  it('should skip rows without an id rather than merging them under undefined', () => {
+    // Without this, every id-less row would dedupe against the first one and
+    // the import would silently lose all but one of them.
+    const rows = [entry({ id: undefined }), entry({ id: undefined }), entry({ id: 'ok' })];
+    expect(mergeEntries([], rows).map((e) => e.id)).toEqual(['ok']);
   });
 });

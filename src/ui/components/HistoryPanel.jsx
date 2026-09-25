@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { filterHistory } from '../history.mjs';
-import { downloadCsv, downloadMarkdown } from '../export.mjs';
+import { downloadCsv, downloadMarkdown, downloadBundle, parseBundle } from '../export.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { recordSummary } from '../summaries.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 
-export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
+export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onImport }) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const fileRef = useRef(null);
   const shown = useMemo(() => filterHistory(entries, query), [entries, query]);
 
   // Export what is currently visible, not the whole history — after a search,
@@ -20,7 +22,38 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
     // the user is looking at, rather than whatever language wrote the record.
     const rows = shown.map((e) => ({ ...e, summary: recordSummary(e, t) }));
     if (format === 'csv') downloadCsv(rows);
+    else if (format === 'json') downloadBundle(entries);
     else downloadMarkdown(rows);
+  }
+
+  /*
+   * Importing reads the whole history, not the filtered view.
+   *
+   * Export is scoped to what is on screen because "export these results" is
+   * what a search implies; import has no such reading — a backup file is the
+   * whole history, and silently dropping the rows that did not match a stale
+   * search box would be data loss with no warning.
+   */
+  async function doImport(file) {
+    if (!file) return;
+    const result = parseBundle(await file.text());
+    if (!result.ok) {
+      setNotice({ kind: 'err', text: t(`history.importErr_${result.code}`) });
+    } else if (result.entries.length === 0) {
+      setNotice({ kind: 'err', text: t('history.importErr_empty') });
+    } else {
+      const before = entries.length;
+      onImport(result.entries);
+      // The count reported is what the merge actually kept, not what the file
+      // held — otherwise importing the same file twice claims new records.
+      const dup = before + result.entries.length - new Set(
+        [...entries, ...result.entries].map((e) => e.id),
+      ).size;
+      const key = dup > 0 ? 'history.importDup' : 'history.importOk';
+      const extra = result.dropped > 0 ? t('history.importDropped', { dropped: result.dropped }) : '';
+      setNotice({ kind: 'ok', text: t(key, { n: result.entries.length - dup, dup }) + extra });
+    }
+    if (fileRef.current) fileRef.current.value = '';
   }
 
   return (
@@ -50,13 +83,35 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear }) {
                   <button role="menuitem" onClick={() => doExport('markdown')}>
                     <Icons.markdown size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportMarkdown')}
                   </button>
+                  <button role="menuitem" onClick={() => doExport('json')}>
+                    <Icons.json size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportJson')}
+                  </button>
                 </div>
               )}
             </div>
+            <button className="link-btn" onClick={() => fileRef.current?.click()}>
+              <Icons.upload size={ICON_SIZE.inline} style={{ verticalAlign: '-1px', marginRight: 3 }} aria-hidden="true" />
+              {t('history.import')}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="sr-only"
+              aria-label={t('history.import')}
+              onChange={(e) => doImport(e.target.files?.[0])}
+            />
             <button className="link-btn" onClick={onClear}>{t('history.clearAll')}</button>
           </div>
         )}
       </div>
+
+      {notice && (
+        <div className={`notice notice-${notice.kind}`} role="status">
+          {notice.text}
+          <button className="link-btn" onClick={() => setNotice(null)} aria-label={t('history.dismiss')}>×</button>
+        </div>
+      )}
 
       {entries.length > 0 && (
         <div className="search">

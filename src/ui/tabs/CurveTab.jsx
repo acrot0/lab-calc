@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { titrationCurve, findEquivalencePoint, equivalenceVolumes } from '../../calc/curve.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, n } from '../format.mjs';
+import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -157,6 +157,55 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
 
+  /*
+   * Where the equivalence volume comes from.
+   *
+   * The curve itself shows the answer; this shows the one line that produces
+   * it — moles of analyte divided by titrant concentration — because that is
+   * the number people want to check against their own burette reading.
+   */
+  const worked = useMemo(() => {
+    if (!out) return null;
+    const analyteMoles = n(conc) * (n(volume) / 1000);
+    const steps = [
+      {
+        term: 'n',
+        value: t('common.worked_EquivMoles', {
+          conc: fmtSci(n(conc), 4),
+          volume: fmt(n(volume) / 1000, 4),
+          moles: fmtSci(analyteMoles, 4),
+        }),
+      },
+      {
+        term: 'V',
+        value: t('common.worked_EquivVolume', {
+          moles: fmtSci(analyteMoles, 4),
+          titrant: fmtSci(n(titrant), 4),
+          volume: fmt(out.first.volumeMl, 3),
+        }),
+      },
+      {
+        term: 'pH',
+        value: t('common.worked_EquivPh', { ph: fmt(out.first.ph, 3) }),
+      },
+    ];
+    if (acidType === 'weakAcid') {
+      steps.push({
+        term: t('curve.halfEquivalence'),
+        value: t('common.worked_HalfEquiv', { pka: fmt(n(pka), 3) }),
+      });
+    } else if (acidType === 'polyprotic') {
+      const pKas = parsePkaList(pkaList) ?? [];
+      if (pKas.length > 0) {
+        steps.push({
+          term: t('curve.halfEquivalence'),
+          value: t('common.worked_HalfEquiv', { pka: pKas.map((k) => fmt(k, 3)).join(' / ') }),
+        });
+      }
+    }
+    return steps;
+  }, [out, conc, volume, titrant, acidType, pka, pkaList, t]);
+
   useEffect(() => { setOut(null); setErr(null); }, [acidType, pka, pkaList, conc, volume, titrant]);
 
   function buildSpec() {
@@ -229,6 +278,7 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
             value={fmt(out.first.volumeMl, 2)}
             unit={t('curve.equivalenceUnit')}
             note={t('curve.equivalenceNote', { ph: fmt(out.first.ph, 2) })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('curve.equivalenceVolume'), `${fmt(out.first.volumeMl, 3)} mL`],
               [t('curve.equivalencePh'), fmt(out.first.ph, 3)],

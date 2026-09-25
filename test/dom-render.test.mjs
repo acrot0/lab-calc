@@ -193,6 +193,110 @@ describe('tab mounting with effects', () => {
     expect([...failures, ...logged]).toEqual([]);
   }, 90000);
 
+  it('should label the periodic table ramp with the real range of the property', async () => {
+    /*
+     * The bug this catches. `rangeOf` takes a function from element to its
+     * properties, and `propertiesOf` is keyed by atomic number — the tab
+     * passed `propertiesOf` itself, so every PubChem-backed property read
+     * null, the range collapsed to the empty fallback, and the legend
+     * announced "0 to 1" over a density ramp that actually runs 8.99e-5 to
+     * 22.57. The cells were still shaded, so it looked plausible.
+     *
+     * Nothing caught it: heat.test.mjs calls rangeOf with a correct callback,
+     * and the mount tests above only assert that nothing threw. What is
+     * asserted here is the join between the two — the legend a reader sees.
+     */
+    const { default: ElementsTab } = await import('../src/ui/tabs/ElementsTab.jsx');
+    const { container, unmount } = await mount(
+      React.createElement(LocaleProvider, { store: null },
+        React.createElement(ElementsTab, { onRecord: () => {}, restored: null, theme: 'dark' })),
+    );
+
+    const select = container.querySelector('#el-color');
+    expect(select, 'the periodic table should offer a colour-by selector').toBeTruthy();
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLSelectElement.prototype, 'value',
+    ).set;
+    await act(async () => {
+      setter.call(select, 'density');
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    const ticks = [...container.querySelectorAll('.legend-track .legend-tick')]
+      .map((n) => n.textContent.trim());
+    expect(ticks.length, 'a six-decade ramp needs more than its two ends').toBeGreaterThan(2);
+
+    // The fallback range the arity bug produced. Neither end of the real
+    // density range is 0 or 1, so either value here means the range was not
+    // read from the data.
+    expect(ticks[0]).not.toBe('0');
+    expect(ticks[ticks.length - 1]).not.toBe('1');
+
+    // The ramp ends are the true range ends, and density is reported in
+    // scientific notation because it spans more than three orders of
+    // magnitude below 1e-3.
+    expect(ticks[0]).toContain('10⁻⁵');
+    expect(ticks[ticks.length - 1]).toContain('22.57');
+
+    // A logarithmic scale has to be labelled as one, and the coverage line
+    // has to say how much of the table the ramp actually covers.
+    const legend = container.querySelector('.legend').textContent;
+    expect(legend).toContain('g/cm³');
+
+    await unmount();
+  }, 30000);
+
+  it('should open the element comparison when two cells are ctrl-clicked', async () => {
+    /*
+     * The comparison is the one feature on this tab that needs more than a
+     * mount to reach, and it is the one whose geometry has the most ways to be
+     * wrong — eight axes, a normalised radius, and an outline that has to stay
+     * open when a value is missing. This drives it the way a user does.
+     */
+    const { default: ElementsTab } = await import('../src/ui/tabs/ElementsTab.jsx');
+    const { container, unmount } = await mount(
+      React.createElement(LocaleProvider, { store: null },
+        React.createElement(ElementsTab, { onRecord: () => {}, restored: null, theme: 'dark' })),
+    );
+
+    const cell = (sym) => container.querySelector(`[data-symbol="${sym}"]`);
+    const ctrlClick = async (sym) => {
+      await act(async () => {
+        cell(sym).dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
+      });
+    };
+
+    expect(container.querySelector('.compare'), 'nothing to compare with one element')
+      .toBeNull();
+
+    await ctrlClick('Na');
+    // One element is not a comparison: the panel waits for the second.
+    expect(container.querySelector('.compare')).toBeNull();
+    expect(cell('Na').className).toContain('is-cmp');
+
+    await ctrlClick('Cl');
+    const panel = container.querySelector('.compare');
+    expect(panel, 'two elements should open the comparison').toBeTruthy();
+
+    // Eight axes, and the radar's own spokes and rings to match.
+    const axes = panel.querySelectorAll('.cmp-axis-name');
+    expect(axes.length).toBeGreaterThanOrEqual(6);
+    expect(panel.querySelectorAll('.cmp-grid line').length).toBe(axes.length);
+
+    // One outline per element, and a row of numbers per property.
+    const rows = panel.querySelectorAll('.cmp-table tbody tr');
+    expect(rows.length).toBe(axes.length);
+    expect(rows[0].querySelectorAll('td').length).toBe(2);
+    expect(panel.querySelectorAll('.cmp-table thead th').length).toBe(3);
+
+    // Removing one leaves a single element, which closes the panel again.
+    const remove = panel.querySelector('.chip-x');
+    await act(async () => { remove.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(container.querySelector('.compare')).toBeNull();
+
+    await unmount();
+  }, 30000);
+
   it('should draw a chart when a tab that has one is given data', async () => {
     // The stub makes a chart's drawing observable. Without this, a chart whose
     // effect silently returned early would pass every test above.

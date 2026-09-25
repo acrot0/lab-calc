@@ -811,6 +811,31 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .search { position: relative; margin-bottom: var(--s3); }
 
+/*
+ * Import feedback.
+ *
+ * Sits between the header and the list, and carries a role="status" so a
+ * screen reader announces the result without moving focus — the import is
+ * triggered from a file picker, so the user's focus is already back on the
+ * button and a silent success would read as "nothing happened".
+ */
+.notice {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: var(--t-sm);
+  color: var(--text-mid);
+}
+
+.notice-ok { border-color: var(--ok); }
+.notice-err { border-color: var(--warn); }
+
 .search > svg {
   position: absolute;
   left: var(--s3);

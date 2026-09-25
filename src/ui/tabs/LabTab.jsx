@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   moleConvert, cfuPerMl, nucleicAcid, masterMix, COUNTABLE_MIN, COUNTABLE_MAX,
 } from '../../calc/lab.mjs';
-import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
+import { NumField, TextField, Result, Warn, Err, Worked } from '../components/Fields.jsx';
 import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -126,6 +126,90 @@ export default function LabTab({ onRecord, restored }) {
   }
 
   const shown = shownFor(out, 'mode', mode);
+
+  /*
+   * Each mode's arithmetic, written out.
+   *
+   * These four are the bench calculations people most often do from memory and
+   * get wrong by a factor of ten, so the point is to show the unit handling —
+   * where the 10⁶ or the 10⁹ comes from — not just the answer.
+   */
+  const worked = useMemo(() => {
+    if (!shown) return null;
+    if (mode === 'moles') {
+      const steps = [
+        {
+          term: t('common.worked_LabMoles'),
+          value: t('common.worked_LabMolesStep', {
+            mass: fmtSci(n(massG), 4),
+            molarMass: fmt(shown.molarMass ?? 0, 4),
+            moles: fmtSci(shown.moles ?? 0, 4),
+          }),
+        },
+        {
+          term: t('lab.particles'),
+          value: t('common.worked_LabParticles', {
+            moles: fmtSci(shown.moles ?? 0, 4),
+            particles: fmtSci(shown.particles ?? 0, 4),
+          }),
+        },
+      ];
+      if (shown.molarity != null) {
+        steps.push({
+          term: 'C',
+          value: t('common.worked_LabMolarity', {
+            moles: fmtSci(shown.moles ?? 0, 4),
+            volume: fmt(n(volumeMl) / 1000, 4),
+            conc: fmtSci(shown.molarity, 4),
+          }),
+        });
+      }
+      return steps;
+    }
+    if (mode === 'cfu') {
+      return [
+        { term: t('common.worked_Cfu'), value: '' },
+        {
+          term: 'CFU/mL',
+          value: t('common.worked_CfuStep', {
+            colonies: fmtSci(n(colonies), 4),
+            plated: fmt(n(platedVolume), 4),
+            dilution: fmtSci(n(dilutionFactor), 4),
+            cfu: fmtSci(shown.cfuPerMl ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    if (mode === 'nucleic') {
+      return [
+        { term: t('common.worked_NaPmol'), value: '' },
+        {
+          term: 'pmol/µL',
+          value: t('common.worked_NaStep', {
+            conc: fmtSci(shown.concNgPerUl ?? 0, 4),
+            bp: fmt(n(lengthBp), 4),
+            pmol: fmtSci(shown.pmolPerUl ?? 0, 4),
+          }),
+        },
+        {
+          term: 'copies/µL',
+          value: t('common.worked_NaCopies', {
+            copies: fmtSci(shown.copiesPerUl ?? 0, 4),
+          }),
+        },
+      ];
+    }
+    return [
+      {
+        term: 'n',
+        value: t('common.worked_MixStep', {
+          reactions: fmt(n(reactions), 4),
+          excess: fmt(n(excess), 4),
+          total: fmt(shown.totalReactions ?? 0, 2),
+        }),
+      },
+    ];
+  }, [shown, mode, massG, volumeMl, colonies, platedVolume, dilutionFactor, lengthBp, reactions, excess, t]);
   const setComponent = (i, patch) => setComponents(components.map((c, j) => (j === i ? { ...c, ...patch } : c)));
 
   return (
@@ -228,12 +312,14 @@ export default function LabTab({ onRecord, restored }) {
             ...(shown.molarity != null
               ? [[t('lab.molarity'), `${fmtSci(shown.molarity, 4)} mol/L`]]
               : []),
-          ]} />
+          ]}
+          worked={worked} workedLabel={t('common.worked')} />
       )}
 
       {shown?.mode === 'cfu' && (
         <Result value={fmtSci(shown.cfuPerMl)} unit="CFU/mL"
-          note={t('lab.cfuNote', { min: COUNTABLE_MIN, max: COUNTABLE_MAX })} />
+          note={t('lab.cfuNote', { min: COUNTABLE_MIN, max: COUNTABLE_MAX })}
+          worked={worked} workedLabel={t('common.worked')} />
       )}
       {shown?.mode === 'cfu' && shown.countWarning && (
         <Warn>{errorMessage(shown.countWarning, t)}</Warn>
@@ -248,7 +334,8 @@ export default function LabTab({ onRecord, restored }) {
             ...(shown.totalNg != null
               ? [[t('lab.totalMass'), `${fmtSci(shown.totalNg, 3)} ng`], [t('lab.totalPmol'), `${fmtSci(shown.totalPmol, 3)} pmol`]]
               : []),
-          ]} />
+          ]}
+          worked={worked} workedLabel={t('common.worked')} />
       )}
 
       {shown?.mode === 'mix' && (
@@ -280,6 +367,7 @@ export default function LabTab({ onRecord, restored }) {
               </tr>
             </tbody>
           </table>
+          <Worked steps={worked} label={t('common.worked')} />
         </div>
       )}
     </div>

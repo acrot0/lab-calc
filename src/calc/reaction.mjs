@@ -148,9 +148,23 @@ export function balanceEquation({ equation }) {
     coefficient: ints[offset + i],
   }));
 
+  // Per-element atom counts on each side. The coefficients above are only
+  // credible if this table balances, so it is computed here rather than
+  // re-derived by every caller that wants to show its work.
+  const balanced = elements.map((el) => ({
+    element: el,
+    left: species.reduce((sum, f, idx) => (
+      idx < reactants.length ? sum + (counts[idx].get(el) ?? 0) * ints[idx] : sum
+    ), 0),
+    right: species.reduce((sum, f, idx) => (
+      idx >= reactants.length ? sum + (counts[idx].get(el) ?? 0) * ints[idx] : sum
+    ), 0),
+  }));
+
   return {
     reactants: wrap(reactants, 0),
     products: wrap(products, reactants.length),
+    balanced,
     equation: [
       wrap(reactants, 0).map((s) => `${s.coefficient === 1 ? '' : s.coefficient}${s.formula}`).join(' + '),
       wrap(products, reactants.length).map((s) => `${s.coefficient === 1 ? '' : s.coefficient}${s.formula}`).join(' + '),
@@ -256,6 +270,7 @@ export function limitingReagent({ equation, amounts, yieldOf, actualG }) {
 
   const extents = balanced.reactants.map((s) => ({
     formula: s.formula,
+    coefficient: s.coefficient,
     extent: supplied.get(s.formula) / s.coefficient,
   }));
   const winner = extents.reduce((a, b) => (b.extent < a.extent ? b : a));
@@ -279,6 +294,7 @@ export function limitingReagent({ equation, amounts, yieldOf, actualG }) {
   const productRows = balanced.products.map((s) => ({
     formula: s.formula,
     coefficient: s.coefficient,
+    molarMass: molarMass(s.formula),
     moles: s.coefficient * extent,
     massG: s.coefficient * extent * molarMass(s.formula),
   }));

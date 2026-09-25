@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   balanceEquation, limitingReagent, empiricalFormula, percentComposition,
 } from '../../calc/reaction.mjs';
@@ -110,6 +110,117 @@ export default function ReactionTab({ onRecord, restored }) {
   }
 
   const shown = shownFor(out, 'mode', mode);
+
+  /*
+   * The reasoning behind each mode's answer.
+   *
+   * Balancing is the one case where the result is not a number, so what is
+   * shown is the check rather than a substitution: the per-element atom counts
+   * on each side. For the other two the chain is short but every link matters
+   * — moles, then extent, then the limiting reagent, then the yield.
+   */
+  const worked = useMemo(() => {
+    if (!shown) return null;
+    if (mode === 'balance') {
+      return [
+        { term: t('common.worked_Balance'), value: '' },
+        ...(shown.balanced ?? []).map((b) => ({
+          term: b.element,
+          value: t('common.worked_BalanceRow', { element: b.element, left: b.left, right: b.right }),
+        })),
+      ];
+    }
+    if (mode === 'limiting') {
+      const steps = [];
+      for (const r of shown.reactants ?? []) {
+        steps.push({
+          term: r.formula,
+          value: t('common.worked_LimitingMoles', {
+            formula: r.formula,
+            amount: fmtSci(n(amounts[r.formula]), 4),
+            unit,
+            moles: fmtSci(r.extent * r.coefficient, 4),
+          }),
+        });
+        steps.push({
+          term: `ξ ${r.formula}`,
+          value: t('common.worked_Extent', {
+            moles: fmtSci(r.extent * r.coefficient, 4),
+            coeff: r.coefficient,
+            extent: fmtSci(r.extent, 5),
+          }),
+        });
+      }
+      steps.push({
+        term: t('reaction.limitingUnit'),
+        value: t('common.worked_LimitingWinner', {
+          formula: shown.limiting,
+          extent: fmtSci(shown.extent, 5),
+        }),
+      });
+      for (const p of shown.products ?? []) {
+        steps.push({
+          term: p.formula,
+          value: t('common.worked_Theoretical', {
+            formula: p.formula,
+            coeff: p.coefficient,
+            extent: fmtSci(shown.extent, 5),
+            molarMass: fmt(p.molarMass ?? 0, 4),
+            mass: fmtSci(p.massG ?? 0, 4),
+          }),
+        });
+      }
+      if (shown.percentYield != null) {
+        const row = (shown.products ?? []).find((p) => p.formula === shown.yieldOf);
+        steps.push({
+          term: t('reaction.percentYield'),
+          value: t('common.worked_PercentYield', {
+            actual: fmtSci(n(actualG), 4),
+            theoretical: fmtSci(row?.massG ?? 0, 4),
+            pct: fmt(shown.percentYield, 2),
+          }),
+        });
+      }
+      return steps;
+    }
+    // Empirical formula: the ratios only mean something once you can see the
+    // division that produced them and the multiplier that scaled them back up.
+    const ratios = shown.ratios ?? [];
+    const min = Math.min(...ratios.map((r) => r.ratio || Infinity));
+    const steps = ratios.map((r, i) => {
+      const amount = n(entries[i]?.amount) || 0;
+      const atomic = ATOMIC_WEIGHTS[r.element] ?? 1;
+      return {
+        term: r.element,
+        value: t('common.worked_FormulaMoles', {
+          element: r.element,
+          amount: fmtSci(amount, 4),
+          atomic: fmt(atomic, 4),
+          mol: fmtSci(amount / atomic, 4),
+        }),
+      };
+    });
+    steps.push({
+      term: '÷ min',
+      value: ratios.map((r) => t('common.worked_FormulaRatio', {
+        element: r.element,
+        mol: fmtSci(r.ratio * min, 4),
+        min: fmtSci(min, 4),
+        ratio: fmt(r.ratio, 3),
+      })).join('；'),
+    });
+    if (shown.multiplier != null) {
+      steps.push({
+        term: 'n',
+        value: t('common.worked_FormulaMultiplier', {
+          measured: fmt(n(molarMassGmol), 4),
+          empirical: fmt(shown.molarMass / shown.multiplier, 4),
+          n: shown.multiplier,
+        }),
+      });
+    }
+    return steps;
+  }, [shown, mode, amounts, unit, entries, actualG, molarMassGmol, t]);
   const composition = mode === 'formula'
     ? (() => { try { return percentComposition({ formula: shown?.formula }); } catch { return null; } })()
     : null;
@@ -194,6 +305,7 @@ export default function ReactionTab({ onRecord, restored }) {
       {shown?.mode === 'balance' && (
         <Result value={shown.equation}
           note={t('reaction.balanceNote')}
+          worked={worked} workedLabel={t('common.worked')}
           rows={[
             ...shown.reactants.map((s) => [s.formula, String(s.coefficient)]),
             ...shown.products.map((s) => [s.formula, String(s.coefficient)]),
@@ -204,6 +316,7 @@ export default function ReactionTab({ onRecord, restored }) {
         <>
           <Result value={shown.limiting} unit={t('reaction.limitingUnit')}
             note={t('reaction.extentNote', { extent: fmtSci(shown.extent, 5) })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={shown.products.map((p) => [
               `${p.formula} ${t('reaction.theoretical')}`,
               `${fmtSci(p.massG, 4)} g / ${fmtSci(p.moles, 5)} mol`,
@@ -231,6 +344,7 @@ export default function ReactionTab({ onRecord, restored }) {
             note={shown.molecularFormula
               ? t('reaction.formulaNoteMolecular', { empirical: shown.empiricalFormula, n: shown.multiplier, M: fmt(shown.molecularMass, 3) })
               : t('reaction.formulaNote', { M: fmt(shown.molarMass, 3) })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={shown.ratios.map((r) => [`${r.element} :`, fmt(r.ratio, 4)])} />
           {composition && (
             <div className="result-grid">

@@ -86,7 +86,7 @@ export function toMarkdown(entries) {
   return [header, sep, ...rows].join('\n');
 }
 
-const EXT = { csv: 'csv', markdown: 'md', md: 'md' };
+const EXT = { csv: 'csv', markdown: 'md', md: 'md', json: 'json' };
 
 /** Date-stamped so repeated exports do not overwrite each other. */
 export function exportFilename(format, now = new Date()) {
@@ -133,3 +133,95 @@ export function downloadCsv(entries) {
 export function downloadMarkdown(entries) {
   return downloadFile(toMarkdown(entries), exportFilename('markdown'), 'text/markdown;charset=utf-8');
 }
+
+export function downloadBundle(entries) {
+  return downloadFile(toBundle(entries), exportFilename('json'), 'application/json;charset=utf-8');
+}
+
+/* ==========================================================================
+   Portable bundle (JSON)
+   --------------------------------------------------------------------------
+   CSV and Markdown are for reading — they flatten the inputs and lose the
+   structure needed to replay a calculation. The bundle keeps the records
+   intact so history can move between machines, which is the actual need: a
+   bench computer, a laptop, a new browser profile.
+   ========================================================================== */
+
+export const BUNDLE_FORMAT = 'lab-calc.history';
+export const BUNDLE_VERSION = 1;
+
+/**
+ * The version is written from the first release, even though nothing reads it
+ * yet. A format that gains a version only when it first breaks has already
+ * shipped files nobody can migrate.
+ */
+export function toBundle(entries, now = new Date()) {
+  return JSON.stringify({
+    format: BUNDLE_FORMAT,
+    version: BUNDLE_VERSION,
+    exportedAt: now.toISOString(),
+    entries: entries ?? [],
+  }, null, 2);
+}
+
+/** Reject anything without the shape a replayed entry needs. */
+function isUsableEntry(e) {
+  return Boolean(e) && typeof e === 'object' && typeof e.kind === 'string';
+}
+
+/**
+ * Parse a bundle back into entries.
+ *
+ * Returns a result object rather than throwing: a wrong file is an ordinary
+ * mistake, and the caller needs the reason to tell the user which file to
+ * pick instead. Rows that fail validation are dropped with a count instead of
+ * failing the whole import — a partially usable file beats no import at all.
+ */
+export function parseBundle(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { ok: false, code: 'notJson', entries: [], dropped: 0 };
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, code: 'notBundle', entries: [], dropped: 0 };
+  }
+  if (data.format !== BUNDLE_FORMAT) {
+    return { ok: false, code: 'wrongFormat', entries: [], dropped: 0 };
+  }
+  if (!Number.isInteger(data.version) || data.version < 1) {
+    return { ok: false, code: 'badVersion', entries: [], dropped: 0 };
+  }
+  if (data.version > BUNDLE_VERSION) {
+    // Fail loudly rather than importing a subset: a newer file may carry
+    // fields this build would silently drop on the next save, and quietly
+    // destroying data is worse than refusing to open it.
+    return { ok: false, code: 'newerVersion', entries: [], dropped: 0 };
+  }
+  if (!Array.isArray(data.entries)) {
+    return { ok: false, code: 'notBundle', entries: [], dropped: 0 };
+  }
+  const entries = data.entries.filter(isUsableEntry);
+  return { ok: true, code: null, entries, dropped: data.entries.length - entries.length };
+}
+
+/**
+ * Merge imported entries with the existing history.
+ *
+ * Deduplicated by `id`, which `addEntry` makes unique per calculation — so
+ * importing the same file twice is idempotent rather than doubling the list.
+ * Newest first, matching how the list is ordered everywhere else.
+ */
+export function mergeEntries(existing, incoming, max = Infinity) {
+  const seen = new Set();
+  const merged = [];
+  for (const e of [...(existing ?? []), ...(incoming ?? [])]) {
+    if (!e || typeof e.id !== 'string' || seen.has(e.id)) continue;
+    seen.add(e.id);
+    merged.push(e);
+  }
+  merged.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+  return merged.slice(0, max);
+}
+
