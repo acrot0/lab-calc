@@ -230,7 +230,7 @@ export default function ElementsTab() {
       </div>
 
       <div className="ptable-wrap">
-        <div className="ptable" role="grid" aria-label={t('elements.tableLabel')} ref={gridRef} onKeyDown={onKeyDown}>
+        <div className="ptable" role="group" aria-label={t('elements.tableLabel')} ref={gridRef} onKeyDown={onKeyDown}>
           {/* Group numbers along the top, period numbers down the left. */}
           {Array.from({ length: 18 }, (_, i) => (
             <span className="paxis paxis-group" key={`g${i + 1}`} style={{ gridColumn: i + 2, gridRow: 1 }}>
@@ -255,7 +255,6 @@ export default function ElementsTab() {
             <button
               key={el.symbol}
               type="button"
-              role="gridcell"
               data-symbol={el.symbol}
               // One tab stop for the whole grid; arrows move within it.
               tabIndex={selected?.symbol === el.symbol ? 0 : -1}
@@ -276,9 +275,13 @@ export default function ElementsTab() {
               onFocus={(e) => setHover({ el, rect: e.currentTarget.getBoundingClientRect() })}
               onBlur={() => setHover(null)}
             >
-              <span className="pcell-z">{el.number}</span>
+              {/* The number and the Chinese name are already in the button's
+                  accessible name, so the visible copies are hidden from
+                  assistive tech — otherwise the cell announces its contents
+                  twice, and the visible text stops matching the label. */}
+              <span className="pcell-z" aria-hidden="true">{el.number}</span>
               <span className="pcell-sym">{el.symbol}</span>
-              <span className="pcell-name">{el.zh}</span>
+              <span className="pcell-name" aria-hidden="true">{el.zh}</span>
             </button>
           ))}
         </div>

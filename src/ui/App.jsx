@@ -157,12 +157,15 @@ export default function App() {
         ))}
       </div>
 
-      <div className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
+      {/* The tab panel is the page's main content; the topbar and footer are
+          chrome around it. Without this landmark a screen reader can only jump
+          by heading, and every tab change re-announces the whole page. */}
+      <main className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
         <div>
           <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
         </div>
         <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear} />
-      </div>
+      </main>
 
       <footer className="footer">
         <ShieldAlert size={12} aria-hidden="true" />

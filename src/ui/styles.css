@@ -1244,9 +1244,15 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
    so the table's shape is still visible around the hits. */
 .pcell.is-dim { opacity: 0.18; }
 
+/*
+ * The two 9px labels sit on a category tint, which lightens the cell background
+ * enough that --text-dim falls under the 4.5:1 contrast floor — and at 9px it
+ * has no large-text exemption to fall back on. --text-mid clears the floor on
+ * every tint in both themes.
+ */
 .pcell-z {
   font-size: 9px;
-  color: var(--text-dim);
+  color: var(--text-mid);
   align-self: flex-start;
   padding-left: 3px;
 }
@@ -1255,7 +1261,7 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .pcell-name {
   font-size: 9px;
-  color: var(--text-dim);
+  color: var(--text-mid);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
