@@ -1,4 +1,6 @@
 import { fail, requirePositive, requireNonNegative } from './errors.mjs';
+import { ISOTOPES, expandShorthand } from './shorthand.mjs';
+import { ELEMENTS } from './elements.mjs';
 
 /**
  * Solution chemistry — molar mass, mass-to-weigh, dilution.
@@ -12,23 +14,22 @@ import { fail, requirePositive, requireNonNegative } from './errors.mjs';
  * pipetting 10x too much of something is not a rounding error.
  */
 
-/** IUPAC 2021 standard atomic weights, g/mol. */
-export const ATOMIC_WEIGHTS = {
-  H: 1.008, He: 4.0026, Li: 6.94, Be: 9.0122, B: 10.81, C: 12.011,
-  N: 14.007, O: 15.999, F: 18.998, Ne: 20.180, Na: 22.990, Mg: 24.305,
-  Al: 26.982, Si: 28.085, P: 30.974, S: 32.06, Cl: 35.45, Ar: 39.948,
-  K: 39.098, Ca: 40.078, Sc: 44.956, Ti: 47.867, V: 50.942, Cr: 51.996,
-  Mn: 54.938, Fe: 55.845, Co: 58.933, Ni: 58.693, Cu: 63.546, Zn: 65.38,
-  Ga: 69.723, Ge: 72.630, As: 74.922, Se: 78.971, Br: 79.904, Kr: 83.798,
-  Rb: 85.468, Sr: 87.62, Y: 88.906, Zr: 91.224, Nb: 92.906, Mo: 95.95,
-  Ru: 101.07, Rh: 102.91, Pd: 106.42, Ag: 107.87, Cd: 112.41, In: 114.82,
-  Sn: 118.71, Sb: 121.76, Te: 127.60, I: 126.90, Xe: 131.29, Cs: 132.91,
-  Ba: 137.33, La: 138.91, Ce: 140.12, Pr: 140.91, Nd: 144.24, Sm: 150.36,
-  Eu: 151.96, Gd: 157.25, Tb: 158.93, Dy: 162.50, Ho: 164.93, Er: 167.26,
-  Tm: 168.93, Yb: 173.05, Lu: 174.97, Hf: 178.49, Ta: 180.95, W: 183.84,
-  Re: 186.21, Os: 190.23, Ir: 192.22, Pt: 195.08, Au: 196.97, Hg: 200.59,
-  Tl: 204.38, Pb: 207.2, Bi: 208.98, Th: 232.04, U: 238.03,
-};
+/**
+ * Standard atomic weights, g/mol, for all 118 elements.
+ *
+ * Derived from the element table rather than written out again. This table
+ * previously listed 83 elements by hand, which meant every formula containing
+ * one of the other 35 — UF6, PuO2, Ac2O3, TcO4- — was rejected as an unknown
+ * element even though the periodic table in the same app showed them. Two
+ * tables for one fact is what let them drift.
+ *
+ * The element table is the source: it carries the IUPAC 2021 values for the
+ * elements that have them and fills the rest from the MIT-licensed data set
+ * (see elements.mjs and NOTICE.md). Deriving here keeps one answer.
+ */
+export const ATOMIC_WEIGHTS = Object.fromEntries(
+  ELEMENTS.map((e) => [e.symbol, e.mass]),
+);
 
 /**
  * Parse a chemical formula into element counts.
@@ -44,7 +45,12 @@ export function parseFormula(formula) {
   if (typeof formula !== 'string' || formula.trim().length === 0) {
     fail('formulaEmpty');
   }
-  const src = formula.trim();
+
+  // Shorthand is rewritten to plain element notation before anything else, so
+  // the counting below never has to know that `Me` or `DMSO` exist.
+  const { formula: expanded, applied, deuterated } = expandShorthand(formula.trim());
+  const src = expanded;
+
   if (/^\d/.test(src)) {
     fail('formulaStartsWithDigit', { formula: src });
   }
@@ -52,9 +58,15 @@ export function parseFormula(formula) {
   // Counts are accumulated per segment; a hydrate dot starts a new segment
   // whose leading coefficient multiplies the whole segment.
   const totals = new Map();
-  const segments = src.split(/[·.]/).filter((s) => s.length > 0);
+  const rawSegments = src.split(/[·.]/);
+  // An empty segment means the input was malformed — `CuSO4·`, `.5H2O`, or a
+  // doubled dot. Dropping those silently (as this once did) turns `NaCl.` into
+  // a valid formula and `H2O·` into plain water, so a typo reads as a result.
+  if (rawSegments.some((s) => s.trim().length === 0)) {
+    fail('malformedFormula', { formula: src });
+  }
 
-  for (const segment of segments) {
+  for (const segment of rawSegments) {
     const mult = (() => {
       const m = /^(\d+)/.exec(segment);
       return m ? Number(m[1]) : 1;
@@ -66,33 +78,73 @@ export function parseFormula(formula) {
     }
   }
 
-  return [...totals.entries()].map(([element, count]) => ({ element, count }));
+  // A deuterium label (`DMSO-d6`) says how many hydrogens are the heavy
+  // isotope. Applied after counting, because the count is what says whether
+  // there are that many hydrogens to replace.
+  if (deuterated > 0) {
+    const hydrogens = totals.get('H') ?? 0;
+    if (deuterated > hydrogens) {
+      fail('tooManyDeuteriums', { formula, asked: deuterated, available: hydrogens });
+    }
+    if (deuterated === hydrogens) totals.delete('H');
+    else totals.set('H', hydrogens - deuterated);
+    totals.set('D', deuterated);
+  }
+
+  const result = [...totals.entries()].map(([element, count]) => ({ element, count }));
+  // Attached so a caller can show which abbreviations were expanded rather
+  // than presenting a rewritten formula as if the user had typed it.
+  if (applied.length > 0) {
+    Object.defineProperty(result, 'expandedFrom', { value: applied, enumerable: false });
+  }
+  return result;
+}
+
+/**
+ * Read the digits at `start`, requiring at least one.
+ *
+ * A subscript of zero is not a smaller quantity, it is an absent one: `Na0Cl`
+ * would otherwise contribute no sodium and quietly return the mass of chlorine,
+ * and `H0` would return zero. Both read as answers. Rejecting them is the same
+ * rule the rest of this module follows.
+ */
+function readCount(body, start, whole) {
+  let j = start;
+  while (j < body.length && /\d/.test(body[j])) j++;
+  if (j === start) return { count: 1, next: start };
+  const count = Number(body.slice(start, j));
+  if (count === 0) fail('zeroSubscript', { formula: whole });
+  return { count, next: j };
 }
 
 /** Parse one segment (no hydrate dot) into element counts. */
 function parseSegment(body, whole) {
   const out = new Map();
   const stack = [out];
+  // Depth tracks whether anything was written into the current group, so an
+  // empty `()` is rejected instead of contributing nothing.
+  const wrote = [false];
 
   for (let i = 0; i < body.length; i++) {
     const ch = body[i];
 
     if (ch === '(') {
-      const inner = new Map();
-      stack.push(inner);
+      stack.push(new Map());
+      wrote.push(false);
       continue;
     }
 
     if (ch === ')') {
       if (stack.length === 1) fail('unbalancedParens', { formula: whole });
       const inner = stack.pop();
+      const hadContent = wrote.pop();
+      if (!hadContent) fail('emptyGroup', { formula: whole });
       i++;
-      let numStart = i;
-      while (i < body.length && /\d/.test(body[i])) i++;
-      const mult = i > numStart ? Number(body.slice(numStart, i)) : 1;
-      i--;
+      const { count: mult, next } = readCount(body, i, whole);
+      i = next - 1;
       const parent = stack[stack.length - 1];
       for (const [el, n] of inner) parent.set(el, (parent.get(el) ?? 0) + n * mult);
+      wrote[wrote.length - 1] = true;
       continue;
     }
 
@@ -102,16 +154,16 @@ function parseSegment(body, whole) {
         sym += body[i + 1];
         i++;
       }
-      if (!(sym in ATOMIC_WEIGHTS)) {
+      // Isotope symbols are hydrogen, and are only recognised as formula
+      // notation — they are deliberately not elements (see shorthand.mjs).
+      if (!(sym in ATOMIC_WEIGHTS) && !(sym in ISOTOPES)) {
         fail('unknownElement', { element: sym, formula: whole });
       }
-      let numStart = i + 1;
-      let j = numStart;
-      while (j < body.length && /\d/.test(body[j])) j++;
-      const count = j > numStart ? Number(body.slice(numStart, j)) : 1;
-      i = j - 1;
+      const { count, next } = readCount(body, i + 1, whole);
+      i = next - 1;
       const cur = stack[stack.length - 1];
       cur.set(sym, (cur.get(sym) ?? 0) + count);
+      wrote[wrote.length - 1] = true;
       continue;
     }
 
@@ -119,13 +171,28 @@ function parseSegment(body, whole) {
   }
 
   if (stack.length !== 1) fail('unbalancedParens', { formula: whole });
+  if (!wrote[0]) fail('malformedFormula', { formula: whole });
   return out;
 }
 
 /** Molar mass in g/mol. */
+/**
+ * Atomic mass of a symbol as it appears in a formula.
+ *
+ * Isotopes are looked up first: `D` is hydrogen, but it is the 2.0141 nuclide,
+ * not the 1.008 average. Falling through to ATOMIC_WEIGHTS for them would give
+ * `undefined` and turn the whole molar mass into NaN.
+ */
+export function atomicMassOf(element) {
+  if (element in ISOTOPES) return ISOTOPES[element].mass;
+  const mass = ATOMIC_WEIGHTS[element];
+  if (mass === undefined) fail('unknownElement', { element });
+  return mass;
+}
+
 export function molarMass(formula) {
   return parseFormula(formula).reduce(
-    (sum, { element, count }) => sum + ATOMIC_WEIGHTS[element] * count,
+    (sum, { element, count }) => sum + atomicMassOf(element) * count,
     0,
   );
 }

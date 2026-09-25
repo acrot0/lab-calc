@@ -7,7 +7,9 @@ import {
   stockFromSolid,
   serializeRecord,
   summarizeRecord,
+  ATOMIC_WEIGHTS,
 } from '../src/calc/solution.mjs';
+import { ELEMENTS } from '../src/calc/elements.mjs';
 
 /**
  * Reference values below were computed by hand from IUPAC 2021 atomic weights
@@ -73,6 +75,30 @@ describe('parseFormula', () => {
     expect(() => parseFormula('Ca(OH2')).toThrow();
   });
 
+  it('should reject a zero subscript rather than dropping the atom', () => {
+    // Na0Cl would contribute no sodium and return the mass of chlorine; H0
+    // would return zero. Both look like answers.
+    expect(() => parseFormula('Na0Cl')).toThrow(expect.objectContaining({ code: 'zeroSubscript' }));
+    expect(() => parseFormula('H0')).toThrow(expect.objectContaining({ code: 'zeroSubscript' }));
+    expect(() => parseFormula('(H2O)0')).toThrow(expect.objectContaining({ code: 'zeroSubscript' }));
+  });
+
+  it('should reject an empty group rather than ignoring it', () => {
+    expect(() => parseFormula('()')).toThrow(expect.objectContaining({ code: 'emptyGroup' }));
+    expect(() => parseFormula('Ca()2')).toThrow(expect.objectContaining({ code: 'emptyGroup' }));
+    expect(() => parseFormula('Na()Cl')).toThrow(expect.objectContaining({ code: 'emptyGroup' }));
+  });
+
+  it('should reject a stray hydrate dot rather than dropping the empty side', () => {
+    // Dropping empty segments silently accepted `NaCl.` as NaCl and `H2O·` as
+    // water — a typo reading as a result.
+    for (const bad of ['NaCl.', '.NaCl', 'NaCl..H2O', 'H2O·5', 'CuSO4·']) {
+      expect(() => parseFormula(bad), bad).toThrow(
+        expect.objectContaining({ code: 'malformedFormula' }),
+      );
+    }
+  });
+
   it('should reject a formula starting with a digit', () => {
     expect(() => parseFormula('2H2O')).toThrow();
   });
@@ -109,6 +135,117 @@ describe('molarMass', () => {
   it('should compute glucose', () => {
     // C6H12O6 = 180.156
     expect(molarMass('C6H12O6')).toBeCloseTo(180.16, 1);
+  });
+});
+
+describe('atomic weight coverage', () => {
+  it('should know every element the periodic table shows', () => {
+    // The two tables drifted once: the arithmetic knew 83 elements while the
+    // periodic table displayed 118, so UF6 and PuO2 were rejected as unknown
+    // elements. The weight table is now derived from the element table, and
+    // this asserts the derivation still holds.
+    for (const el of ELEMENTS) {
+      expect(ATOMIC_WEIGHTS[el.symbol], `${el.symbol} missing`).toBeDefined();
+      expect(ATOMIC_WEIGHTS[el.symbol], `${el.symbol} mass`).toBeCloseTo(el.mass, 10);
+    }
+    expect(Object.keys(ATOMIC_WEIGHTS)).toHaveLength(118);
+  });
+
+  it('should compute the molar mass of a heavy-element compound', () => {
+    // UF6 = 238.03 + 6 x 18.998 = 352.018
+    expect(molarMass('UF6')).toBeCloseTo(352.018, 2);
+    expect(molarMass('PuO2')).toBeCloseTo(275.998, 2);
+  });
+});
+
+describe('isotopes', () => {
+  it('should treat D as deuterium, not as hydrogen', () => {
+    // D2O is 20.027, not 18.015 — the difference is two neutrons, and a
+    // calculator that reads D as H reports heavy water as ordinary water.
+    expect(molarMass('D2O')).toBeCloseTo(20.027, 2);
+    expect(molarMass('H2O')).toBeCloseTo(18.015, 2);
+  });
+
+  it('should treat T as tritium', () => {
+    expect(molarMass('T2O')).toBeCloseTo(22.031, 2);
+  });
+
+  it('should expand a deuterium label into the right number of D atoms', () => {
+    // CD3OD is methanol-d4: one H remains on the oxygen.
+    expect(molarMass('CD3OD')).toBeCloseTo(36.066, 2);
+    expect(molarMass('CH3OH')).toBeCloseTo(32.042, 2);
+  });
+
+  it('should apply a -dN label to the finished molecule', () => {
+    // DMSO is C2H6OS = 78.13; DMSO-d6 is C2D6OS = 84.17.
+    expect(molarMass('DMSO-d6')).toBeCloseTo(84.166, 1);
+    expect(molarMass('DMSO')).toBeCloseTo(78.135, 1);
+  });
+
+  it('should refuse a deuterium label larger than the hydrogen count', () => {
+    // Water has two hydrogens, so H2O-d6 is not a heavier water, it is a typo.
+    expect(() => parseFormula('H2O-d6')).toThrow(
+      expect.objectContaining({ code: 'tooManyDeuteriums' }),
+    );
+  });
+
+  it('should not put isotopes in the element table', () => {
+    // D and T are formula notation, not elements. Adding them to the element
+    // list would make elementBySymbol('D') return something and change what
+    // "the elements" means everywhere else in the app.
+    expect(ELEMENTS.some((e) => e.symbol === 'D')).toBe(false);
+    expect(ELEMENTS.some((e) => e.symbol === 'T')).toBe(false);
+  });
+});
+
+describe('organic shorthand', () => {
+  it('should expand alkyl groups', () => {
+    expect(molarMass('MeOH')).toBeCloseTo(molarMass('CH3OH'), 6);
+    expect(molarMass('Me2CO')).toBeCloseTo(molarMass('CH3COCH3'), 6);
+    expect(molarMass('EtOH')).toBeCloseTo(molarMass('C2H5OH'), 6);
+  });
+
+  it('should expand aryl groups', () => {
+    expect(molarMass('PhOH')).toBeCloseTo(molarMass('C6H5OH'), 6);
+    expect(molarMass('PhMe')).toBeCloseTo(molarMass('C6H5CH3'), 6);
+  });
+
+  it('should expand common solvents and reagents', () => {
+    // Hand-computed from this project's IUPAC 2021 weights, then checked
+    // against the literature value: DMSO 78.13, THF 72.11, EtOAc 88.11.
+    expect(molarMass('DMSO')).toBeCloseTo(2 * 12.011 + 6 * 1.008 + 15.999 + 32.06, 6);
+    expect(molarMass('DMSO')).toBeCloseTo(78.13, 1);
+    expect(molarMass('THF')).toBeCloseTo(72.11, 1);
+    expect(molarMass('EtOAc')).toBeCloseTo(88.11, 1);
+  });
+
+  it('should bracket a subscripted abbreviation so the number binds to the group', () => {
+    // Without brackets Me2CO would parse as CH32CO — the 2 attaching to the
+    // hydrogen instead of the methyl.
+    expect(molarMass('Me2CO')).toBeCloseTo(58.080, 2);
+  });
+
+  it('should NOT expand abbreviations that are also element symbols', () => {
+    // Pr, Ac, Ar, Ts and Am are praseodymium, actinium, argon, tennessine and
+    // americium. Expanding them as propyl/acetyl/aryl/tosyl/amyl would silently
+    // change the meaning of formulas that are already correct, so the element
+    // reading wins and the abbreviation is simply not offered.
+    expect(molarMass('Pr2O3')).toBeCloseTo(2 * 140.91 + 3 * 15.999, 1);
+    expect(molarMass('Ar')).toBeCloseTo(39.948, 2);
+    expect(molarMass('Ac2O3')).toBeCloseTo(2 * 227 + 3 * 15.999, 0);
+  });
+
+  it('should report which abbreviations it expanded', () => {
+    // A caller should be able to show its work rather than presenting a
+    // rewritten formula as if the user had typed it.
+    const parsed = parseFormula('MeOH');
+    expect(parsed.expandedFrom).toEqual([
+      expect.objectContaining({ abbr: 'Me', expansion: 'CH3' }),
+    ]);
+  });
+
+  it('should leave a formula with no shorthand untouched', () => {
+    expect(parseFormula('NaCl').expandedFrom).toBeUndefined();
   });
 });
 
