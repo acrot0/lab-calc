@@ -2227,3 +2227,50 @@ body,
     color: #555555;
   }
 }
+
+/* ==========================================================================
+   Narrow header
+   ==========================================================================
+   The header is one flex row: brand on the left, language and theme controls on
+   the right. At 390px the two controls take about 320px, leaving the brand 65px
+   — and `.brand-text` has `min-width: 0` so it obliges, shrinking to **17px**.
+   The subtitle then renders one character per line in a 417px-tall vertical
+   strip, which is what a phone actually showed.
+
+   The fix is to let the row wrap, so the controls move to their own line and
+   the brand keeps the width it needs. Nothing is hidden: the app's name and
+   the one-line description are the two things a first-time visitor reads.
+   ========================================================================== */
+@media (max-width: 620px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: var(--s3);
+  }
+
+  /* The brand takes the whole first line, so the subtitle has room to be a
+     sentence rather than a column of characters. */
+  .brand {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .brand-text { flex: 1 1 auto; }
+
+  .brand-sub {
+    /* One line, ellipsised. A wrapped subtitle on a phone pushes the tabs off
+       the first screen, and the tabs are what the user came for. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-actions {
+    /* Both of these are set on the base rule and both fight this one:
+       `margin-left: auto` would push the row to the right edge of its own
+       line, and `flex-shrink: 0` would keep it from wrapping at all. */
+    flex: 1 1 100%;
+    margin-left: 0;
+    flex-shrink: 1;
+    justify-content: flex-start;
+  }
+}
