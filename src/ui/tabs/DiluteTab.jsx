@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { dilution } from '../../calc/solution.mjs';
 import { NumField, Result, Err } from '../components/Fields.jsx';
-import { fmt, n } from '../format.mjs';
+import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
@@ -13,6 +13,38 @@ export default function DiluteTab({ onRecord, restored }) {
   const [volume, setVolume] = useState(restored?.targetVolumeMl != null ? String(restored.targetVolumeMl) : '100');
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+
+  // The derivation behind the result: C1V1 = C2V2, then the diluent as the
+  // difference, then the factor — the order someone would do it by hand.
+  const worked = useMemo(() => {
+    if (!out) return null;
+    const c1 = n(stock);
+    const c2 = n(target);
+    const v2 = n(volume);
+    return [
+      { term: t('dilute.fold'), value: t('common.worked_Dilution') },
+      {
+        term: '',
+        value: t('common.worked_DilutionStep', {
+          c2: fmtSci(c2, 4), v2: fmt(v2, 4), c1: fmtSci(c1, 4), v1: fmt(out.stockVolumeMl, 4),
+        }),
+      },
+      {
+        term: t('dilute.diluentVolume'),
+        value: t('common.worked_DiluentStep', {
+          v2: fmt(v2, 4), v1: fmt(out.stockVolumeMl, 4), diluent: fmt(out.diluentVolumeMl, 4),
+        }),
+      },
+      ...(out.foldDilution
+        ? [{
+          term: t('dilute.fold'),
+          value: t('common.worked_FoldStep', {
+            c1: fmtSci(c1, 4), c2: fmtSci(c2, 4), fold: fmt(out.foldDilution, 4),
+          }),
+        }]
+        : []),
+    ];
+  }, [out, stock, target, volume, t]);
 
   useEffect(() => { setOut(null); setErr(null); }, [stock, target, volume]);
 
@@ -50,6 +82,8 @@ export default function DiluteTab({ onRecord, restored }) {
           [t('dilute.diluentVolume'), `${fmt(out.diluentVolumeMl, 3)} mL`],
           [t('dilute.fold'), out.foldDilution ? `${fmt(out.foldDilution, 2)}×` : '—'],
         ] : null}
+        worked={worked}
+        workedLabel={t('common.worked')}
       />
     </div>
   );

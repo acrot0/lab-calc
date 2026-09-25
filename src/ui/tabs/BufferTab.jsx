@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { bufferRecipe } from '../../calc/buffer.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
 import BufferDiagram from '../components/diagrams/BufferDiagram.jsx';
@@ -15,6 +15,30 @@ export default function BufferTab({ onRecord, restored }) {
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
   const [showDiagram, setShowDiagram] = useState(false);
+
+  // Henderson-Hasselbalch rearranged for the ratio, then the ratio applied to
+  // the total concentration — the two steps the equation hides.
+  const worked = useMemo(() => {
+    if (!out) return null;
+    const ratio = out.ratio;
+    return [
+      { term: 'pH', value: t('common.worked_Henderson') },
+      {
+        term: t('buffer.ratioUnit'),
+        value: t('common.worked_RatioStep', {
+          ph: fmt(n(ph), 4), pka: fmt(out.pKa, 4), ratio: fmt(ratio, 4),
+        }),
+      },
+      {
+        term: t('buffer.totalConc'),
+        value: t('common.worked_ConcStep', {
+          total: fmtSci(n(total), 4),
+          acid: fmtSci(out.acidConc, 4),
+          base: fmtSci(out.baseConc, 4),
+        }),
+      },
+    ];
+  }, [out, ph, total, t]);
 
   useEffect(() => { setOut(null); setErr(null); }, [pka, ph, total]);
 
@@ -62,6 +86,8 @@ export default function BufferTab({ onRecord, restored }) {
           [t('buffer.base'), `${fmtSci(out.baseConc, 4)} mol/L`],
           [t('buffer.range'), out.inRange ? t('buffer.inRange') : t('buffer.outOfRange')],
         ] : null}
+        worked={worked}
+        workedLabel={t('common.worked')}
       />
     </div>
   );
