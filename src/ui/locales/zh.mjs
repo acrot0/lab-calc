@@ -4,7 +4,10 @@ export const zh = {
     title: 'Lab Calc',
     tagline: '实验室溶液计算 · 每次计算自动留存，随时可查',
     langLabel: '语言',
-    footerVersion: 'v0.4.0 · 开源 · MIT',
+    // The version is injected at build time from package.json (see
+    // vite.config.js) — it was a literal here and in en.mjs, two strings that
+    // nothing tied to the manifest.
+    footerVersion: `v${__APP_VERSION__} · 开源 · MIT`,
   },
   tabs: {
     weigh: '称量配制',

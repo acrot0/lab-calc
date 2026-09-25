@@ -8,7 +8,8 @@ export const en = {
     title: 'Lab Calc',
     tagline: 'Solution chemistry, with every calculation kept',
     langLabel: 'Language',
-    footerVersion: 'v0.4.0 · open source · MIT',
+    // Injected at build time from package.json (see vite.config.js).
+    footerVersion: `v${__APP_VERSION__} · open source · MIT`,
   },
   tabs: {
     weigh: 'Weigh out',

@@ -4,9 +4,42 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] — 2026-09-25
+
+### Added
+
+- **The exam properties on the element detail panel** — electronegativity,
+  common oxidation states, melting point, boiling point, density, first
+  ionization energy and year of discovery, for all 118 elements. The panel
+  previously showed mass, radii, category and electron configuration, which
+  describe an element but are not what an exam asks about.
+  - Data comes from the PubChem periodic table (NCBI/NIH, **public domain**).
+    Community datasets were rejected for licence reasons: the usual ones are
+    CC BY-SA, whose ShareAlike term is incompatible with this project's MIT
+    licence.
+  - `scripts/fetch-element-properties.mjs` generates
+    `src/calc/element-properties.mjs`; both are committed, so any value can be
+    re-derived rather than trusted and the app itself needs no network.
+  - `null` means PubChem has no value — 23 elements have no measured
+    electronegativity, and the superheavies have no melting point. Those render
+    as an em dash. A zero would be a fabrication.
+  - Density spans five orders of magnitude (hydrogen 8.99×10⁻⁵, osmium 22.57),
+    so it uses `fmtSci`.
 
 ### Fixed
+
+- **The light theme's dim text failed the contrast floor** — `--text-dim`
+  measured 3.91:1 against `--surface-3` and 4.21:1 against `--surface-2`, under
+  the 4.5:1 minimum for text below 18pt. It passed on white (4.59:1), which is
+  why it went unnoticed. Now 5.02 / 5.40 / 5.89.
+- **Six accessibility failures Lighthouse reports**, all of them real:
+  `role="grid"` wrapped 118 `role="gridcell"` buttons with no rows (a grid needs
+  row children and a gridcell needs a row parent, so the roles described a
+  structure that did not exist); no `<main>` landmark; the 9px cell labels used
+  `--text-dim` on a category tint; and the number and name were announced twice
+  because they sat in the button's text as well as its label. Accessibility now
+  scores 100, up from 79.
+- **`robots.txt` was a 404**, costing the SEO score its only failing audit.
 
 - **Six malformed formulas were accepted as valid** — `Na0Cl` (a zero subscript
   contributed no sodium, so the molar mass came back as the mass of chlorine
@@ -169,7 +202,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - 3-OS × 2-Node CI, plus a smoke test asserting known answers and a check for
   unused imports.
 
-[Unreleased]: https://github.com/acrot0/lab-calc/compare/v0.4.0...HEAD
+[0.5.0]: https://github.com/acrot0/lab-calc/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/acrot0/lab-calc/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/acrot0/lab-calc/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/acrot0/lab-calc/compare/v0.1.0...v0.2.0

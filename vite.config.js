@@ -42,4 +42,11 @@ export default defineConfig(() => ({
   // /lab-calc/ subpath GitHub Pages serves project sites from.
   base: './',
   build: { outDir: 'dist' },
+  define: {
+    // The footer version used to be a literal in each locale file, which meant
+    // a release had to remember to edit two strings that nothing else linked
+    // to package.json. Reading it from the manifest at build time removes the
+    // drift rather than relying on the release checklist to catch it.
+    __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version),
+  },
 }));
