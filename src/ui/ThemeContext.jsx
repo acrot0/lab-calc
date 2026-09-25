@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  createContext, useContext, useState, useEffect, useCallback, useMemo, useRef,
+} from 'react';
 import {
-  detectTheme, resolveTheme, loadTheme, saveTheme, nextTheme, applyTheme, THEMES,
+  detectTheme, resolveTheme, loadTheme, saveTheme, nextTheme, applyTheme, chromeColor,
+  THEMES, THEME_GROUPS,
 } from './theme.mjs';
+import { PALETTES } from './palettes.mjs';
 import { useI18n } from './LocaleContext.jsx';
 
 const Ctx = createContext(null);
@@ -29,8 +33,18 @@ export function ThemeProvider({ store, children }) {
   const resolved = resolveTheme(preference, osDark);
 
   useEffect(() => {
-    applyTheme(typeof document !== 'undefined' ? document.documentElement : null, resolved);
-  }, [resolved]);
+    applyTheme(
+      typeof document !== 'undefined' ? document.documentElement : null,
+      resolved,
+      preference,
+    );
+    // The browser paints the mobile status bar from this tag, so leaving it at
+    // the build-time default gives a Catppuccin theme a blue-black chrome.
+    if (typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', chromeColor(resolved));
+    }
+  }, [resolved, preference]);
 
   useEffect(() => { if (store) saveTheme(store, preference); }, [store, preference]);
 
@@ -49,37 +63,102 @@ export function useTheme() {
   return v;
 }
 
-/** Cycles dark → light → system. Shows the current mode's name. */
-export function ThemeToggle() {
-  const { preference, cycle } = useTheme();
-  const { locale } = useI18n();
-  const theme = THEMES[preference] ?? THEMES.dark;
-  const label = locale === 'zh' ? theme.zh : theme.en;
+/** The label for a theme key in the current locale. */
+function labelOf(key, locale) {
+  const t = THEMES[key];
+  return t ? (locale === 'zh' ? t.zh : t.en) : key;
+}
 
+/**
+ * A swatch showing a palette's own colours.
+ *
+ * Three bars — background, surface and accent — drawn from the palette
+ * registry rather than from the active theme, so the menu shows what each
+ * option *is* before it is chosen. A list of names alone asks the reader to
+ * remember what "Catppuccin Mocha" looks like.
+ */
+function Swatch({ themeKey }) {
+  const p = PALETTES[themeKey];
+  if (!p) return <span className="swatch swatch-system" aria-hidden="true" />;
+  const { tokens } = p;
   return (
-    <button className="control" onClick={cycle} title={label} aria-label={label}>
-      {preference === 'dark' && <MoonIcon />}
-      {preference === 'light' && <SunIcon />}
-      {preference === 'system' && <MonitorIcon />}
-      <span className="control-label">{label}</span>
-    </button>
+    <span className="swatch" aria-hidden="true" style={{ background: tokens.bg }}>
+      <span className="swatch-bar" style={{ background: tokens.surface3 }} />
+      <span className="swatch-bar" style={{ background: tokens.accent }} />
+    </span>
   );
 }
 
-/* Inline SVGs rather than a lucide import: these three are used once and the
-   stroke weights need to match each other exactly across the set. */
-const iconProps = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true };
+/**
+ * The theme picker.
+ *
+ * A menu rather than a cycling button. Cycling was right when there were three
+ * states; with seven it means up to six clicks to reach the one you want, and
+ * no way to see what the options are. The menu also groups them by scheme,
+ * which is the distinction that matters most — a user looking for a light
+ * theme should not have to read the dark ones to find it.
+ */
+export function ThemeToggle() {
+  const { preference, resolved, setPreference } = useTheme();
+  const { locale, t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
 
-const MoonIcon = () => <svg {...iconProps}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>;
-const SunIcon = () => (
-  <svg {...iconProps}>
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4" />
-  </svg>
-);
-const MonitorIcon = () => (
-  <svg {...iconProps}>
-    <rect x="2" y="3" width="20" height="14" rx="2" />
-    <path d="M8 21h8M12 17v4" />
-  </svg>
-);
+  // Close on an outside click or Escape. Without this the menu stays open
+  // behind the next interaction and looks like a stuck panel.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const current = labelOf(preference, locale);
+
+  return (
+    <div className="theme-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="control"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        title={t('theme.pick')}
+      >
+        <Swatch themeKey={resolved} />
+        <span className="control-label">{current}</span>
+      </button>
+
+      {open && (
+        <div className="theme-menu" role="menu">
+          {THEME_GROUPS.map((group) => (
+            <div className="theme-group" key={group.id}>
+              <div className="theme-group-label">{t(`theme.group_${group.id}`)}</div>
+              {group.keys.map((key) => (
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={preference === key}
+                  className={`theme-item${preference === key ? ' is-on' : ''}`}
+                  key={key}
+                  onClick={() => { setPreference(key); setOpen(false); }}
+                >
+                  <Swatch themeKey={key === 'system' ? resolved : key} />
+                  <span className="theme-name">{labelOf(key, locale)}</span>
+                  {PALETTES[key]?.credit && (
+                    <span className="theme-credit">{PALETTES[key].credit}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   THEMES,
+  CONCRETE_THEMES,
   THEME_KEY,
   detectTheme,
   resolveTheme,
@@ -92,19 +93,30 @@ describe('theme persistence', () => {
 });
 
 describe('nextTheme', () => {
-  it('should cycle dark → light → system → dark', () => {
-    // Cycling through three states rather than toggling two means a user who
-    // wants "follow my OS" can get back to it without clearing storage.
-    expect(nextTheme('dark')).toBe('light');
-    expect(nextTheme('light')).toBe('system');
-    expect(nextTheme('system')).toBe('dark');
+  it('should visit every theme exactly once before repeating', () => {
+    // The picker is a menu, so this is only the keyboard shortcut's path — but
+    // a cycle that skipped a theme would make it unreachable by keyboard, and
+    // one that repeated would never reach the last option. "system" is part of
+    // the cycle too: it is a preference a user can hold, not just a fallback.
+    const all = Object.keys(THEMES);
+    const order = ['dark'];
+    let t = 'dark';
+    // One step per remaining theme: after all.length - 1 steps the cycle has
+    // shown every theme and is back where it started.
+    for (let i = 1; i < all.length; i++) {
+      t = nextTheme(t);
+      expect(order, `revisited ${t}`).not.toContain(t);
+      order.push(t);
+    }
+    expect(order.sort()).toEqual(all.sort());
+    // And the next step closes the loop.
+    expect(nextTheme(t)).toBe('dark');
   });
 
-  it('should never get stuck', () => {
+  it('should return to the start after a full cycle', () => {
     let t = 'dark';
-    const seen = new Set();
-    for (let i = 0; i < 6; i++) { t = nextTheme(t); seen.add(t); }
-    expect(seen.size).toBe(3);
+    for (let i = 0; i < Object.keys(THEMES).length; i++) t = nextTheme(t);
+    expect(t).toBe('dark');
   });
 });
 
@@ -133,8 +145,8 @@ describe('applyTheme', () => {
 });
 
 describe('THEMES', () => {
-  it('should offer exactly the three supported modes', () => {
-    expect(Object.keys(THEMES).sort()).toEqual(['dark', 'light', 'system']);
+  it('should offer the system preference plus every palette', () => {
+    expect(Object.keys(THEMES).sort()).toEqual(['system', ...CONCRETE_THEMES].sort());
   });
 
   it('should label each mode', () => {

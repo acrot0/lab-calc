@@ -49,83 +49,54 @@
   --focus-ring: 0 0 0 3px;
 }
 
-/* --- Dark (default) --- */
-:root,
-[data-theme="dark"] {
+/*
+ * The theme palettes are NOT defined here.
+ *
+ * Every colour this app uses is a custom property written onto <html> by
+ * `theme.mjs`, from the palette registry in `palettes.mjs`. The values come
+ * from the upstream theme packages (Catppuccin and Rose Pine, both MIT) or
+ * from this app's own two themes, and each one is measured against the
+ * surfaces it is drawn on by `test/palettes.test.mjs`.
+ *
+ * The stylesheet used to carry a `:root` block and a `[data-theme="light"]`
+ * block. Keeping them here would mean a third place to edit per theme and a
+ * contrast check that reads the CSS rather than what the browser was given —
+ * so the values moved to the module and this file only consumes them.
+ *
+ * The fallbacks below are what a browser with JavaScript disabled sees. They
+ * are the dark palette, because that is the default, and they exist so the
+ * page is legible before the first script runs rather than flashing unstyled.
+ */
+:root {
   --bg: #0b0d12;
-  --bg-grad: radial-gradient(1200px 600px at 15% -10%, #16203a 0%, transparent 60%);
   --surface: #12151d;
   --surface-2: #171b25;
   --surface-3: #1d222e;
   --border: #262c3a;
   --border-strong: #333b4d;
-
   --text: #eef0f4;
   --text-mid: #b6bdcc;
-  --text-dim: #7d8697;
-
+  --text-dim: #858d9d;
   --accent: #5aa9ff;
-  --accent-hover: #7cbbff;
-  --accent-soft: rgba(90, 169, 255, 0.12);
-  --accent-line: rgba(90, 169, 255, 0.35);
   --accent-ink: #04121f;
-
   --ok: #45d19a;
   --warn: #f0b429;
-  --warn-soft: rgba(240, 180, 41, 0.1);
-  --warn-line: rgba(240, 180, 41, 0.32);
-  --warn-ink: #f7d488;
   --err: #ff7a7a;
-  --err-soft: rgba(255, 122, 122, 0.1);
-  --err-line: rgba(255, 122, 122, 0.32);
-  --err-ink: #ffabab;
-
+  --grid-line: rgba(255, 255, 255, 0.07);
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.55);
   --scrim: rgba(5, 7, 11, 0.72);
-  --grid-line: rgba(255, 255, 255, 0.07);
-}
-
-/* --- Light --- */
-[data-theme="light"] {
-  --bg: #f6f7fa;
-  --bg-grad: radial-gradient(1200px 600px at 15% -10%, #e2ebff 0%, transparent 60%);
-  --surface: #ffffff;
-  --surface-2: #f3f5f9;
-  --surface-3: #e9edf4;
-  --border: #dfe4ed;
-  --border-strong: #c4ccda;
-
-  --text: #131722;
-  --text-mid: #414a5c;
-  /* Darkened from #6b7688: that value measured 3.91:1 against --surface-3 and
-     4.21:1 against --surface-2, both under the 4.5:1 floor for body text. It
-     looked fine on --surface (#ffffff, 4.59:1), which is why it survived — the
-     failure only shows on the two darker surfaces, and only at small sizes. */
-  --text-dim: #5a6577;
-
-  --accent: #1f6feb;
-  --accent-hover: #175bc4;
-  --accent-soft: rgba(31, 111, 235, 0.08);
-  --accent-line: rgba(31, 111, 235, 0.3);
-  --accent-ink: #ffffff;
-
-  --ok: #128a5b;
-  --warn: #a56a00;
-  --warn-soft: rgba(198, 137, 0, 0.09);
-  --warn-line: rgba(198, 137, 0, 0.3);
-  --warn-ink: #7a5100;
-  --err: #c92a2a;
-  --err-soft: rgba(201, 42, 42, 0.07);
-  --err-line: rgba(201, 42, 42, 0.28);
-  --err-ink: #a01f1f;
-
-  --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06);
-  --shadow-2: 0 4px 14px rgba(16, 24, 40, 0.08);
-  --shadow-3: 0 16px 48px rgba(16, 24, 40, 0.16);
-  --scrim: rgba(16, 24, 40, 0.4);
-  --grid-line: rgba(16, 24, 40, 0.07);
+  --bg-grad: radial-gradient(1200px 600px at 15% -10%, #16203a 0%, transparent 60%);
+  --accent-soft: rgba(90, 169, 255, 0.12);
+  --accent-line: rgba(90, 169, 255, 0.35);
+  --accent-hover: #7cbbff;
+  --warn-soft: rgba(240, 180, 41, 0.1);
+  --warn-line: rgba(240, 180, 41, 0.32);
+  --warn-ink: #f7d488;
+  --err-soft: rgba(255, 122, 122, 0.1);
+  --err-line: rgba(255, 122, 122, 0.32);
+  --err-ink: #ffabab;
 }
 
 /* ==========================================================================
@@ -1604,8 +1575,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   background: none;
 }
 
-[data-theme="light"] .legend-sw-band { background: rgba(31, 111, 235, 0.22); }
-[data-theme="light"] .legend-sw-eq { border-top-color: rgba(165, 106, 0, 0.9); }
+/* Keyed on the scheme, not on a theme name.
+   These two swatches are drawn at low opacity, which reads correctly on a dark
+   surface and washes out on a light one. Selecting on `data-theme="light"`
+   would have missed every light theme added later — Catppuccin Latte and
+   Rosé Pine Dawn would silently have kept the dark-theme swatches.
+   `data-theme-scheme` is written by theme.mjs for exactly this. */
+[data-theme-scheme="light"] .legend-sw-band { background: rgba(31, 111, 235, 0.22); }
+[data-theme-scheme="light"] .legend-sw-eq { border-top-color: rgba(165, 106, 0, 0.9); }
 
 /* The residual plot sits under the statistics it justifies, and is deliberately
    shorter than the main chart — its y range is the residual spread, which is
@@ -1841,4 +1818,98 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   font-size: 9px;
   color: var(--text-dim);
   opacity: 0.8;
+}
+
+/* ==========================================================================
+   Theme picker
+   ========================================================================== */
+
+.theme-wrap { position: relative; }
+
+.theme-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 268px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--s1);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-3);
+  animation: rise var(--dur-fast) var(--ease);
+}
+
+.theme-group + .theme-group { margin-top: var(--s1); }
+
+.theme-group-label {
+  padding: var(--s2) var(--s3) var(--s1);
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.theme-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.theme-item:hover { background: var(--accent-soft); }
+.theme-item.is-on { background: var(--accent-soft); color: var(--accent); }
+
+/* The name takes the free space and must not wrap: "Catppuccin 摩卡" broke
+   across two lines at the first width tried, which made the menu's rows
+   uneven and pushed the credit out of alignment. The menu is wide enough for
+   the longest name it actually has rather than for the shortest. */
+.theme-name { flex: 1; white-space: nowrap; }
+
+/* The credit is provenance, not a label — it is there so a reader can check
+   the colours against upstream, so it is present but never competes with the
+   theme's own name. It gets its own line when the row runs out of width
+   rather than wrapping mid-word. */
+.theme-credit {
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* A palette's own three colours: background, a raised surface, and the accent.
+   Drawn from the palette registry rather than the active theme, so the menu
+   shows what each option is before it is chosen — a list of names alone asks
+   the reader to remember what "Catppuccin Mocha" looks like. */
+.swatch {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 26px;
+  height: 26px;
+  padding: 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  flex: none;
+}
+
+.swatch-bar { height: 5px; border-radius: 1.5px; }
+
+/* The system entry has no palette of its own, so it shows the one currently
+   resolved — which is what "follow the system" means right now. */
+.swatch-system {
+  background: linear-gradient(135deg, var(--text-dim) 0%, var(--surface-3) 100%);
 }

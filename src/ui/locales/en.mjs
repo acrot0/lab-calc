@@ -28,6 +28,12 @@ export const en = {
     electro: 'Electrochem',
     elements: 'Elements',
   },
+  theme: {
+    pick: 'Change theme',
+    group_system: 'System',
+    group_dark: 'Dark themes',
+    group_light: 'Light themes',
+  },
   common: {
     formula: 'Formula',
     formulaPlaceholder: 'e.g. NaCl, Ca(OH)2, CuSO4·5H2O',

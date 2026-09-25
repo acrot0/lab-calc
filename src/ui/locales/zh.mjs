@@ -26,6 +26,12 @@ export const zh = {
     electro: '电化学',
     elements: '元素周期表',
   },
+  theme: {
+    pick: '切换主题',
+    group_system: '跟随系统',
+    group_dark: '深色主题',
+    group_light: '浅色主题',
+  },
   common: {
     formula: '化学式',
     formulaPlaceholder: '如 NaCl、Ca(OH)2、CuSO4·5H2O',
