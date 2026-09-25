@@ -21,3 +21,8 @@ memory/
 # wrong directory by an earlier run.
 docs/maintain-logs/
 src/calc/docs/
+
+# Scratch space for one-off investigation scripts and fetched source data —
+# the audit that produced element-discovery.mjs lived here. Never part of the
+# app, and 3 MB of HTML and JSON is not something to commit by accident.
+.tmp/
