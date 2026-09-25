@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   THEMES,
   CONCRETE_THEMES,
@@ -154,5 +155,53 @@ describe('THEMES', () => {
       expect(v.zh, `${k} zh`).toBeTruthy();
       expect(v.en, `${k} en`).toBeTruthy();
     }
+  });
+});
+
+describe('reduced motion', () => {
+  /*
+   * Apple's guidance is not "remove all motion" — it is to keep animations
+   * that convey meaning and replace them with a non-motion equivalent:
+   *
+   *   "If the motion itself conveys some meaning, such as a status change,
+   *    don't remove the animation entirely. Instead, consider providing a new
+   *    animation that avoids motion, such as a dissolve, highlight fade, or
+   *    color shift."
+   *
+   * A blanket `animation-duration: 0.01ms` deletes the meaning along with the
+   * motion. These assertions hold the stylesheet to the standard: the default
+   * is collapsed, but the status-change animations survive as fades.
+   */
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+
+  it('should collapse the default animation duration', () => {
+    expect(css).toMatch(/prefers-reduced-motion[\s\S]*?animation-duration:\s*0\.01ms/);
+  });
+
+  it('should keep a fade for the recomputed result', () => {
+    // The number changing is a status change; the user still needs to see it.
+    const block = css.slice(css.indexOf('prefers-reduced-motion'));
+    expect(block).toContain('.result-main');
+    expect(block).toMatch(/value-fade-soft/);
+  });
+
+  it('should define the replacement fade as opacity only', () => {
+    // A fade that translates or scales is not a reduced-motion alternative.
+    const m = css.match(/@keyframes value-fade-soft\s*\{([^}]*)\}/);
+    expect(m, 'value-fade-soft should be defined').toBeTruthy();
+    expect(m[1]).not.toMatch(/translate|scale|rotate/);
+    expect(m[1]).toMatch(/opacity/);
+  });
+
+  it('should keep a fade for other status changes', () => {
+    const block = css.slice(css.indexOf('prefers-reduced-motion'));
+    for (const sel of ['.history-item', '.msg', '.worked']) {
+      expect(block, `${sel} should still appear`).toContain(sel);
+    }
+  });
+
+  it('should remove transforms rather than shorten them', () => {
+    const block = css.slice(css.indexOf('prefers-reduced-motion'));
+    expect(block).toMatch(/transform:\s*none/);
   });
 });

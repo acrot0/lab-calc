@@ -614,6 +614,25 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
    was the more complete. Consolidated here, at the top, so it applies to
    everything below it. */
 @media (prefers-reduced-motion: reduce) {
+  /*
+   * Apple's own guidance is not "remove all motion" — it is:
+   *
+   *   "Removing animations entirely can have a negative effect on usability and
+   *    understandability. If the motion itself conveys some meaning, such as a
+   *    status change, don't remove the animation entirely. Instead, consider
+   *    providing a new animation that avoids motion, such as a dissolve,
+   *    highlight fade, or color shift."
+   *   — developer.apple.com, Reduced Motion evaluation criteria
+   *
+   * A blanket `animation-duration: 0.01ms` violates that: it deletes the
+   * *meaning* along with the motion. A recomputed result and a row arriving in
+   * the history are both status changes, and a user with vestibular sensitivity
+   * needs to know they happened at least as much as anyone else.
+   *
+   * So the default is collapsed, and the handful of animations that carry
+   * meaning are then given a non-motion equivalent below: opacity only, no
+   * translate, no scale.
+   */
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
@@ -621,10 +640,33 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /*
+   * The result number: a value that changed is information, so it fades in
+   * rather than popping. Slower than the pop it replaces, because a fade has
+   * no motion to carry the eye and needs to be legible on its own.
+   */
+  .result-main {
+    animation: value-fade-soft 260ms ease both !important;
+  }
+
+  .result-grid strong,
+  .worked,
+  .msg,
+  .history-item {
+    animation: value-fade-soft 220ms ease both !important;
+  }
+
   /* Transforms are removed rather than shortened: a 0.01ms translate is still
      a position change, and for a user who asked for no motion the point is
-     that nothing moves at all. */
-  .pcell:hover, .primary:active, .card:hover { transform: none; }
+     that nothing moves. */
+  .pcell:hover, .primary:active, .card:hover, .history-item:hover { transform: none; }
+}
+
+/* Opacity only. No translate, no scale — nothing that moves. */
+@keyframes value-fade-soft {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .result-main {
