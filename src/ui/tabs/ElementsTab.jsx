@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   ELEMENTS, elementBySymbol, categoryOf, blockOf, periodOf, isFBlock,
   ELEMENT_CATEGORIES,
@@ -9,7 +9,11 @@ import {
 import { electronConfig } from '../../calc/config.mjs';
 import { propertiesOf } from '../../calc/element-properties.mjs';
 import { fmt, fmtSci } from '../format.mjs';
+import {
+  COLOR_PROPERTIES, NUMERIC_KEYS, rangeOf, positionOf, valueOf, fitTicks,
+} from '../heat.mjs';
 import { useI18n } from '../LocaleContext.jsx';
+import ElementCompare from '../components/ElementCompare.jsx';
 
 /**
  * Interactive periodic table.
@@ -31,20 +35,19 @@ import { useI18n } from '../LocaleContext.jsx';
  * positional rule that used to live in this file mislabelled thirteen elements.
  */
 
-/** What the cell background is keyed off. */
-const COLOR_BY = ['category', 'block', 'mass', 'rcow', 'rvdw'];
-
-/** The numeric properties, and their range across the whole table. */
-const NUMERIC_KEYS = ['mass', 'rcow', 'rvdw'];
+/**
+ * The colouring modes, in menu order: the two categorical ones first, then
+ * every numeric property the data supports.
+ *
+ * Derived from COLOR_PROPERTIES rather than written out, so adding a property
+ * to heat.mjs is the only edit needed to make it selectable.
+ */
+const COLOR_BY = ['category', 'block', ...NUMERIC_KEYS];
 
 const BLOCKS = ['s', 'p', 'd', 'f'];
 
-/** Where a value sits in its range, 0 to 1. */
-function heat(el, key, range) {
-  const v = el[key];
-  if (!Number.isFinite(v) || range.max === range.min) return 0.5;
-  return (v - range.min) / (range.max - range.min);
-}
+/** How many elements the radar comparison can hold before it stops reading. */
+const MAX_COMPARE = 4;
 
 /**
  * Cell background and border for a colour, at fill and border strength.
@@ -69,13 +72,32 @@ function tinted(color) {
   return { background: `${color}33`, borderColor: `${color}88` };
 }
 
-export default function ElementsTab() {
+export default function ElementsTab({ theme = 'dark' }) {
   const { t } = useI18n();
   const [colorBy, setColorBy] = useState('category');
   const [selected, setSelected] = useState(() => elementBySymbol('Na'));
   const [query, setQuery] = useState('');
   const [hover, setHover] = useState(null);
+  const [compare, setCompare] = useState([]);
+  const [full, setFull] = useState(false);
   const gridRef = useRef(null);
+
+  /**
+   * Add or remove an element from the comparison.
+   *
+   * The cap is four because the radar's palette has eight hues and its axes
+   * eight spokes — beyond four outlines the chart stops being readable long
+   * before it runs out of colours. A refusal has to say so: silently dropping
+   * the click would look like the button had stopped working.
+   */
+  const toggleCompare = useCallback((symbol) => {
+    setCompare((prev) => {
+      if (prev.includes(symbol)) return prev.filter((s) => s !== symbol);
+      if (prev.length >= MAX_COMPARE) { setFull(true); return prev; }
+      setFull(false);
+      return [...prev, symbol];
+    });
+  }, []);
 
   // The table scrolls horizontally, so a tooltip positioned inside it would be
   // clipped at the edge. Fixed positioning escapes that, at the cost of going
@@ -88,12 +110,20 @@ export default function ElementsTab() {
     return () => globalThis.removeEventListener('scroll', hide, { capture: true });
   }, [hover]);
 
+  /*
+   * Ranges are computed over the whole table, not the filtered view.
+   *
+   * A scale that re-fits itself to a search result makes two elements
+   * incomparable with two others — the same shade would mean different numbers
+   * depending on what happened to be typed in the search box.
+   */
   const ranges = useMemo(() => {
     const out = {};
-    for (const key of NUMERIC_KEYS) {
-      const vals = ELEMENTS.map((e) => e[key]).filter((v) => Number.isFinite(v) && v > 0);
-      out[key] = { min: Math.min(...vals), max: Math.max(...vals) };
-    }
+    // `propertiesOf` is keyed by atomic number, so it takes a number — passing
+    // the element object yields null for every PubChem-backed property, which
+    // silently collapses the range to the empty fallback and shades the table
+    // on raw values instead of on the ramp.
+    for (const key of NUMERIC_KEYS) out[key] = rangeOf(ELEMENTS, (e) => propertiesOf(e.number), key);
     return out;
   }, []);
 
@@ -169,13 +199,18 @@ export default function ElementsTab() {
 
   /** Inline style for one cell: background follows the chosen colouring. */
   function cellStyle(el) {
+    const props = propertiesOf(el.number);
     if (colorBy === 'category') return tinted(ELEMENT_CATEGORY_COLOR[categoryOf(el)]);
     if (colorBy === 'block') return tinted(BLOCK_COLOR[blockOf(el)]);
     // Viridis, not a rainbow. A rainbow ramp is not monotonic in lightness, so
     // it draws boundaries where the data is smooth and is unreadable in
     // greyscale; see the note in palette.mjs. Same function the legend uses, so
     // the two cannot drift apart.
-    return tinted(sequentialColor(heat(el, colorBy, ranges[colorBy])));
+    const pos = positionOf(valueOf(el, props, colorBy), ranges[colorBy]);
+    // No measurement for this element: render it as an explicit gap rather
+    // than a shade at the bottom of the ramp, which would assert a value.
+    if (pos === null) return { background: 'transparent', borderColor: 'var(--border)' };
+    return tinted(sequentialColor(pos));
   }
 
   const dim = (el) => (matched && !matched.has(el.symbol) ? ' is-dim' : '');
@@ -225,23 +260,65 @@ export default function ElementsTab() {
             {t(`elements.block_${b}`)}
           </span>
         ))}
-        {NUMERIC_KEYS.includes(colorBy) && (
-          <>
-            <span className="legend-item">{fmt(ranges[colorBy].min, 3)}</span>
-            {/* Built from the same ramp the cells use, so the legend cannot
-                show a scale the table does not follow. It was a hand-written
-                rainbow gradient in CSS until the ramp changed to cividis and
-                the two silently disagreed. */}
-            <span
-              className="legend-ramp"
-              style={{ background: `linear-gradient(90deg, ${CIVIDIS.join(', ')})` }}
-            />
-            <span className="legend-item">{fmt(ranges[colorBy].max, 3)}</span>
-            <span className="legend-item legend-unit">
-              {t(`elements.unit_${colorBy}`)}
-            </span>
-          </>
-        )}
+        {NUMERIC_KEYS.includes(colorBy) && (() => {
+          const r = ranges[colorBy];
+          const fmtTick = (v) => (r.log ? fmtSci(v, 3) : fmt(v, 3));
+          /*
+           * Both ends of a six-decade ramp is not a scale. Density spans
+           * 8.99e-5 to 22.57, and a reader who sees only those two numbers
+           * cannot tell whether 1 g/cm³ sits a third of the way along or at
+           * the far edge. The intermediates come from the same module that
+           * chose the scale, so a log range is labelled with powers of ten and
+           * a linear one with round numbers — and a tick that would land on
+           * its neighbour is thinned rather than overprinted.
+           */
+          const ticks = fitTicks(r);
+          return (
+            <>
+              {/* The ramp is drawn from the same palette the cells use, so the
+                  legend cannot show a scale the table does not follow. It was a
+                  hand-written rainbow gradient in CSS until the ramp changed to
+                  cividis and the two silently disagreed. */}
+              <span className="legend-track">
+                <span
+                  className="legend-ramp"
+                  style={{ background: `linear-gradient(90deg, ${CIVIDIS.join(', ')})` }}
+                />
+                {ticks.map((tk, i) => (
+                  <span
+                    className="legend-tick"
+                    key={tk.value}
+                    style={{ left: `${tk.pos * 100}%` }}
+                    data-first={i === 0 ? '' : undefined}
+                    data-last={i === ticks.length - 1 ? '' : undefined}
+                  >
+                    {fmtTick(tk.value)}
+                  </span>
+                ))}
+              </span>
+              {/* Only properties that have a unit get one. A missing key
+                  would render as the raw key name, which is worse than no
+                  unit at all — it looks like a bug in the table. */}
+              {COLOR_PROPERTIES[colorBy].unit !== '' && (
+                <span className="legend-item legend-unit">
+                  {t(`elements.unit_${colorBy}`)}
+                </span>
+              )}
+              {/* A logarithmic scale has to say so. The same three colours
+                  cover a factor of 6 or a factor of 250,000, and only the
+                  label distinguishes them. */}
+              {r.log && <span className="legend-item legend-unit">{t('elements.logScale')}</span>}
+              {/* How much of the table the scale actually covers. Density is
+                  measured for 96 of 118; an unlabelled ramp would read as if
+                  it covered all of them. */}
+              {r.count < ELEMENTS.length && (
+                <span className="legend-item legend-unit">
+                  {t('elements.coverage', { count: r.count, total: ELEMENTS.length })}
+                </span>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       <div className="ptable-wrap">
@@ -273,7 +350,7 @@ export default function ElementsTab() {
               data-symbol={el.symbol}
               // One tab stop for the whole grid; arrows move within it.
               tabIndex={selected?.symbol === el.symbol ? 0 : -1}
-              className={`pcell${dim(el)}${selected?.symbol === el.symbol ? ' is-on' : ''}`}
+              className={`pcell${dim(el)}${selected?.symbol === el.symbol ? ' is-on' : ''}${compare.includes(el.symbol) ? ' is-cmp' : ''}`}
               // --i drives the staggered entrance; it is capped so the last
               // element does not arrive visibly late behind the first.
               style={{
@@ -284,7 +361,14 @@ export default function ElementsTab() {
               }}
               aria-label={`${el.number} ${el.symbol} ${el.zh}`}
               aria-pressed={selected?.symbol === el.symbol}
-              onClick={() => setSelected(el)}
+              onClick={(e) => {
+                // Ctrl/Cmd-click adds to the comparison. A plain click still
+                // selects, because that is what the cell has always done and
+                // turning every click into a comparison would break the detail
+                // panel for the reader who only wants to look one element up.
+                if (e.ctrlKey || e.metaKey) { e.preventDefault(); toggleCompare(el.symbol); return; }
+                setSelected(el);
+              }}
               onMouseEnter={(e) => setHover({ el, rect: e.currentTarget.getBoundingClientRect() })}
               onMouseLeave={() => setHover(null)}
               onFocus={(e) => setHover({ el, rect: e.currentTarget.getBoundingClientRect() })}
@@ -324,6 +408,21 @@ export default function ElementsTab() {
           </div>
         );
       })()}
+
+      {/* The comparison is opt-in and stays out of the way until it is asked
+          for: two elements is the minimum that compares to anything, so a
+          single Ctrl-click changes nothing visible except the cell's marker.
+          The refusal notice is here rather than inside the panel because the
+          panel does not render at all in that state. */}
+      {full && <div className="msg warn">{t('elements.compareFull')}</div>}
+      {compare.length >= 2 && (
+        <ElementCompare
+          symbols={compare}
+          theme={theme}
+          onRemove={(s) => { setFull(false); toggleCompare(s); }}
+        />
+      )}
+      {compare.length === 1 && <div className="hint">{t('elements.compareNeed')}</div>}
 
       {matched && matched.size === 0 && (
         <div className="hint">{t('elements.noMatch', { query })}</div>

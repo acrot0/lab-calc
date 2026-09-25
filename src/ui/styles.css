@@ -1191,6 +1191,40 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 }
 
+/* The ramp plus the labels that mark positions on it. The track carries
+   padding above so the labels have a row of their own instead of colliding
+   with the table's own legend row, and below so they are inside the box the
+   track reports rather than overflowing it.
+   The width is what fits three labels of the widest kind this table produces
+   — "8.988×10⁻⁵", "0.1", "22.57" together run about 115px, and labels at the
+   two ends are aligned inward rather than centred, so 160 leaves the middle
+   one clear of both. A narrower track is not a smaller scale bar, it is three
+   labels overprinting each other. */
+.legend-track {
+  position: relative;
+  display: inline-block;
+  width: 160px;
+  padding: 15px 0 14px;
+}
+
+.legend-track .legend-ramp { display: block; width: 100%; }
+
+/* Positioned by fraction along the ramp, so a label sits under the point it
+   names rather than at an evenly-spaced guess. Interior labels are centred on
+   their point; the two ends are aligned inward instead, because centring the
+   first would push half of it outside the track and centring the last would
+   overflow the viewport edge. */
+.legend-tick {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-tick[data-first] { transform: none; }
+.legend-tick[data-last] { transform: translateX(-100%); }
+
 .legend-unit { opacity: 0.75; }
 
 /* Hover readout for one cell. Fixed rather than absolute because the table
@@ -1264,6 +1298,14 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 /* Search results: everything that does not match fades back but stays readable,
    so the table's shape is still visible around the hits. */
 .pcell.is-dim { opacity: 0.18; }
+
+/* In the comparison set. A dashed ring rather than a second box-shadow: the
+   selected cell already owns the solid inset ring, and an element can be both
+   selected and compared — two solid rings would be indistinguishable. */
+.pcell.is-cmp {
+  border-style: dashed;
+  border-color: var(--accent);
+}
 
 /*
  * The two 9px labels sit on a category tint, which lightens the cell background
@@ -1668,4 +1710,110 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     grid-template-columns: 1fr;
     gap: var(--s2);
   }
+}
+
+/* ==========================================================================
+   Element comparison (periodic table)
+   ========================================================================== */
+
+.compare {
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.compare-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.compare-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+  font-size: var(--t-xs);
+}
+
+/* The remove control rides inside the legend chip, so the thing you click to
+   take an element out is attached to the thing that names it. */
+.chip-x {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  margin-left: 2px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: var(--t-sm);
+  line-height: 1;
+}
+
+.chip-x:hover { color: var(--text); }
+
+.compare .diagram { margin: 0; }
+
+.cmp-grid path,
+.cmp-grid line {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.cmp-grid path { stroke-dasharray: 2 3; }
+
+.cmp-axis-name {
+  font-size: 9px;
+  fill: var(--text-mid);
+}
+
+.cmp-axis-unit {
+  font-size: 8px;
+  fill: var(--text-dim);
+}
+
+.cmp-table {
+  width: 100%;
+  margin-top: var(--s3);
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp-table th,
+.cmp-table td {
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--t-sm);
+  text-align: left;
+}
+
+.cmp-table thead th {
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  border-bottom-color: var(--border-strong);
+}
+
+.cmp-table tbody th { color: var(--text-dim); font-weight: 500; }
+
+.cmp-table tbody tr:last-child th,
+.cmp-table tbody tr:last-child td { border-bottom: none; }
+
+.cmp-table thead th .legend-sw {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* Marks a row whose values are spread over orders of magnitude, so the number
+   in the cell is not misread as linear with its neighbours. */
+.cmp-log {
+  margin-left: 6px;
+  font-size: 9px;
+  color: var(--text-dim);
+  opacity: 0.8;
 }
