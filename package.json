@@ -30,7 +30,8 @@
     "@phosphor-icons/react": "^2.1.10",
     "lucide-react": "^1.48.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "smiles-drawer": "^2.4.1"
   },
   "keywords": [
     "chemistry",

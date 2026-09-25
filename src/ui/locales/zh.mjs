@@ -35,6 +35,14 @@ export const zh = {
     outputs: '结果',
     footer: '由 Lab Calc 生成 · 仅供教学使用，不可用于临床、诊断或生产。',
   },
+  molecule: {
+    label: '分子结构式：{smiles}',
+    unparsable: '无法解析这个 SMILES 字符串',
+    title: '分子结构',
+    input: 'SMILES 字符串',
+    placeholder: '例如：c1ccccc1（苯）',
+    examples: '常用示例',
+  },
   theme: {
     pick: '切换主题',
     group_system: '跟随系统',

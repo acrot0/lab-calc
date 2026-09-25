@@ -14,6 +14,7 @@ import {
 } from '../heat.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import ElementCompare from '../components/ElementCompare.jsx';
+import Molecule from '../components/Molecule.jsx';
 
 /**
  * Interactive periodic table.
@@ -79,6 +80,11 @@ export default function ElementsTab({ theme = 'dark' }) {
   const [query, setQuery] = useState('');
   const [hover, setHover] = useState(null);
   const [compare, setCompare] = useState([]);
+  // A SMILES string the user types to see the structure drawn. Kept separate
+  // from the element selection: the two are different questions ("what is this
+  // element" vs "what is this molecule") and sharing one input would make
+  // selecting an element wipe a half-typed structure.
+  const [smiles, setSmiles] = useState('');
   const [full, setFull] = useState(false);
   const gridRef = useRef(null);
 
@@ -320,6 +326,27 @@ export default function ElementsTab({ theme = 'dark' }) {
           );
         })()}
       </div>
+
+      {/* Structure drawing. Its own input rather than a detail of the selected
+          element, because a molecule is not an element — the two are different
+          questions and the panel answers both without conflating them. */}
+      <div className="row">
+        <div className="field">
+          <label htmlFor="el-smiles">{t('molecule.input')}</label>
+          <input
+            id="el-smiles"
+            type="text"
+            value={smiles}
+            placeholder={t('molecule.placeholder')}
+            spellCheck="false"
+            autoComplete="off"
+            onChange={(e) => setSmiles(e.target.value)}
+          />
+        </div>
+      </div>
+      {smiles.trim() !== '' && (
+        <Molecule smiles={smiles.trim()} theme={theme} size={320} />
+      )}
 
       <div className="ptable-wrap">
         <div className="ptable" role="group" aria-label={t('elements.tableLabel')} ref={gridRef} onKeyDown={onKeyDown}>

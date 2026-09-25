@@ -2316,3 +2316,53 @@ body,
     justify-content: flex-start;
   }
 }
+
+/* ==========================================================================
+   Molecule structure diagram
+   ========================================================================== */
+
+.molecule {
+  margin: var(--s3) 0 0;
+  padding: var(--s3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+/* The drawing fills the figure and is centred. SmilesDrawer writes absolute
+   coordinates into the SVG, so the element is given a fixed viewBox and the
+   CSS only decides how large it is shown. */
+.molecule-svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Monospace, because a SMILES string is read character by character — a
+   ring-closure digit or a stereo marker is easy to misread in a proportional
+   face, and the caption's whole job is to let the user check what was parsed. */
+.molecule-caption {
+  margin-top: var(--s2);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * SmilesDrawer paints atom labels with a hardcoded `fill="#ffffff"` and
+ * `class="element"` — the theme object it accepts does not reach them. On a
+ * light palette that is white text on a near-white background, so the
+ * heteroatoms vanish while the bonds re-theme correctly: the structure looks
+ * fine at a glance and is silently missing its N and O labels.
+ *
+ * A CSS rule beats the presentation attribute, so this is the fix rather than
+ * a patch around it. `!important` is not needed — an author rule outranks a
+ * presentation attribute in the cascade by definition.
+ */
+.molecule-svg text,
+.molecule-svg .element {
+  fill: var(--text);
+}
