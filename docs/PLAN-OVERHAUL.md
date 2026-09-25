@@ -96,9 +96,13 @@
 
 ## 文档修正
 
-`docs/ROADMAP.md` 声称有 `scripts/check-licences.mjs` 强制授权检查——
-**该文件不存在**。这是假声明，必须删除或补实现。
-本次要引入第三方主题与图标库，授权检查正好该补上。
+~~`docs/ROADMAP.md` 声称有 `scripts/check-licences.mjs` 强制授权检查——
+**该文件不存在**。这是假声明，必须删除或补实现。~~
+
+**已结案（2026-09-25 复核）**：`scripts/check-licences.mjs` 现已存在并接入
+`npm run verify`，实测扫描 15 个直接依赖并逐条列出授权，全部 MIT。
+ROADMAP 的那句声明现在是真的，无需删除。本节记录的是当时的判断，
+保留下来是因为它说明了 `verify` 门禁里授权检查这一环的来历。
 
 ## 执行顺序
 
