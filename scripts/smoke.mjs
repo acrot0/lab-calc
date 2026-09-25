@@ -14,8 +14,10 @@ import {
   molarMass, massForMolarity, dilution, stockFromSolid,
 } from '../src/calc/solution.mjs';
 import {
-  bufferRecipe, dilutionSeries, unitConvert, hendersonHasselbalch,
+  bufferRecipe, dilutionSeries, hendersonHasselbalch,
 } from '../src/calc/buffer.mjs';
+import { convert } from '../src/calc/units.mjs';
+import { evaluate } from '../src/calc/expression.mjs';
 import {
   weakAcidPh, weakBasePh, equivalenceVolume, percentToMolarity, preparePercentSolution,
 } from '../src/calc/titration.mjs';
@@ -30,7 +32,13 @@ const cases = [
   ['hendersonHasselbalch midpoint', hendersonHasselbalch({ pKa: 4.76, acidConc: 0.1, baseConc: 0.1 }), 4.76, 6],
   ['bufferRecipe ratio', bufferRecipe({ pKa: 4.76, targetPh: 5.76 }).ratio, 10, 4],
   ['dilutionSeries step1', dilutionSeries({ stockConc: 1000, factor: 10, steps: 3 })[0].conc, 100, 6],
-  ['unitConvert g→mg', unitConvert(1, 'g', 'mg'), 1000, 6],
+  ['convert g→mg', convert(1, 'g', 'mg'), 1000, 6],
+  ['convert lb→g', convert(1, 'lb', 'g'), 453.59237, 5],
+  ['convert 0°C→K', convert(0, 'C', 'K'), 273.15, 6],
+  // The calculator's headline case, and the one a wrong unit table gets wrong.
+  ['evaluate 5 g / 250 mL', evaluate('5 g / 250 mL').value, 20, 6],
+  ['evaluate 1 mV / 1 mA', evaluate('1 mV / 1 mA').value, 1, 6],
+  ['evaluate 1 atm * 1 L', evaluate('1 atm * 1 L').value, 101.325, 3],
   ['weakAcidPh 0.1M acetic', weakAcidPh({ pKa: 4.76, conc: 0.1 }), 2.88, 1],
   ['weakBasePh 0.1M ammonia', weakBasePh({ pKb: 4.75, conc: 0.1 }), 11.13, 1],
   ['equivalenceVolume', equivalenceVolume({ analyteConc: 0.1, analyteVolumeMl: 25, titrantConc: 0.1 }).titrantVolumeMl, 25, 6],
