@@ -55,6 +55,25 @@ function oxidationStates(v) {
   return v.split(',').map((s) => Number.parseInt(s.trim(), 10)).filter(Number.isFinite);
 }
 
+/**
+ * PubChem's YearDiscovered, with its known errors corrected.
+ *
+ * PubChem marks twelve elements "Ancient" — a string, not a year — and the
+ * parser below turns any non-number into null. That is right for carbon and
+ * gold, which really are prehistoric, but wrong for aluminium and calcium:
+ * both are marked "Ancient" and both were isolated in the 1800s. Three more
+ * years are simply off. The corrected values come from
+ * src/calc/element-discovery.mjs, which is hand-curated and carries the
+ * discoverer alongside the year — so the two files cannot drift apart.
+ *
+ * The override is applied here rather than by editing the generated file,
+ * because editing it would be undone by the next run of this script.
+ */
+async function correctedYears() {
+  const { DISCOVERY } = await import('../src/calc/element-discovery.mjs');
+  return new Map(DISCOVERY.map((d) => [d.number, d.year]));
+}
+
 /** "Ancient" is PubChem's marker for a pre-record element. */
 function yearDiscovered(v) {
   const n = Number.parseInt(v, 10);
@@ -67,6 +86,7 @@ if (!res.ok) {
   process.exit(1);
 }
 const rows = toRows((await res.json()).Table);
+const corrected = await correctedYears();
 
 const byNumber = new Map(rows.map((r) => [Number.parseInt(r.AtomicNumber, 10), r]));
 
@@ -84,7 +104,7 @@ for (let z = 1; z <= 118; z++) {
   const melt = num(r.MeltingPoint);
   const boil = num(r.BoilingPoint);
   const density = num(r.Density);
-  const year = yearDiscovered(r.YearDiscovered);
+  const year = corrected.has(z) ? corrected.get(z) : yearDiscovered(r.YearDiscovered);
   const ionization = num(r.IonizationEnergy);
   const ox = oxidationStates(r.OxidationStates);
 
@@ -124,6 +144,10 @@ const header = `/**
  *   ionization        electron volts, first ionization energy only
  *   electronegativity Pauling scale
  *   yearDiscovered    null for the elements known since antiquity
+ *
+ * yearDiscovered is NOT pure PubChem: five of its values are wrong and are
+ * overridden from src/calc/element-discovery.mjs, which also carries the
+ * discoverer's name. Read the comment on correctedYears below.
  *
  * null means PubChem has no value — an unstable element with no measured
  * melting point, or one whose electronegativity has never been determined.

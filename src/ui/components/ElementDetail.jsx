@@ -1,7 +1,19 @@
 import React from 'react';
 import { categoryOf, blockOf } from '../../calc/elements.mjs';
+import { discoveryOf } from '../../calc/element-discovery.mjs';
 import { fmt, fmtSci } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
+
+/**
+ * An era as a sentence, e.g. "before 5000 BC" or "c. AD 300".
+ *
+ * The kinds are translated rather than formatted with Intl: these are not dates
+ * — "before 5000 BC" is an upper bound on an archaeological estimate, and a date
+ * formatter would render it as a day in a month that nobody ever recorded.
+ */
+function eraText(era, t) {
+  return t(`elements.era_${era.kind}`, { years: era.years });
+}
 
 /**
  * The detail panel for the selected element.
@@ -21,6 +33,7 @@ export default function ElementDetail({ element, chemPeriod, onDetachedRow, conf
   const props = properties;
   const cat = categoryOf(selected);
   const blk = blockOf(selected);
+  const disc = discoveryOf(selected.number);
 
   return (
     <div className="result" role="status" aria-live="polite">
@@ -109,9 +122,17 @@ export default function ElementDetail({ element, chemPeriod, onDetachedRow, conf
         </div>
         <div>
           <span>{t('elements.yearDiscovered')}</span>
-          <strong>{props.yearDiscovered === null
-            ? t('elements.ancient')
-            : String(props.yearDiscovered)}</strong>
+          {/* Two shapes: a year for anything isolated in recorded history, an
+              approximate era for the twelve elements in use before records
+              began. Aluminium and calcium used to land here as "antiquity"
+              because PubChem files them under "Ancient" — they have years now. */}
+          <strong>{disc.year !== null
+            ? String(disc.year)
+            : t('elements.ancientEra', { era: eraText(disc.era, t) })}</strong>
+        </div>
+        <div>
+          <span>{t('elements.discoveredBy')}</span>
+          <strong>{disc.by}</strong>
         </div>
       </div>
 
@@ -124,6 +145,7 @@ export default function ElementDetail({ element, chemPeriod, onDetachedRow, conf
         })}
       </div>
       <div className="hint">{t('elements.propertySource')}</div>
+      <div className="hint">{t('elements.discoverySource')}</div>
     </div>
 
   );

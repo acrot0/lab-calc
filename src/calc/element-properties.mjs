@@ -15,6 +15,10 @@
  *   electronegativity Pauling scale
  *   yearDiscovered    null for the elements known since antiquity
  *
+ * yearDiscovered is NOT pure PubChem: five of its values are wrong and are
+ * overridden from src/calc/element-discovery.mjs, which also carries the
+ * discoverer's name. Read the comment on correctedYears below.
+ *
  * null means PubChem has no value — an unstable element with no measured
  * melting point, or one whose electronegativity has never been determined.
  * It is not zero, and the UI must not render it as one.
@@ -34,18 +38,18 @@ export const ELEMENT_PROPERTIES = [
   { number: 6, electronegativity: 2.55, oxidationStates: [4, 2, -4], melt: 3823, boil: 4098, density: 2.267, ionization: 11.26, yearDiscovered: null },
   { number: 7, electronegativity: 3.04, oxidationStates: [5, 4, 3, 2, 1, -1, -2, -3], melt: 63.15, boil: 77.36, density: 0.0012506, ionization: 14.534, yearDiscovered: 1772 },
   { number: 8, electronegativity: 3.44, oxidationStates: [-2], melt: 54.36, boil: 90.2, density: 0.001429, ionization: 13.618, yearDiscovered: 1774 },
-  { number: 9, electronegativity: 3.98, oxidationStates: [-1], melt: 53.53, boil: 85.03, density: 0.001696, ionization: 17.423, yearDiscovered: 1670 },
+  { number: 9, electronegativity: 3.98, oxidationStates: [-1], melt: 53.53, boil: 85.03, density: 0.001696, ionization: 17.423, yearDiscovered: 1886 },
   { number: 10, electronegativity: null, oxidationStates: [0], melt: 24.56, boil: 27.07, density: 0.0008999, ionization: 21.565, yearDiscovered: 1898 },
   { number: 11, electronegativity: 0.93, oxidationStates: [1], melt: 370.95, boil: 1156, density: 0.97, ionization: 5.139, yearDiscovered: 1807 },
   { number: 12, electronegativity: 1.31, oxidationStates: [2], melt: 923, boil: 1363, density: 1.74, ionization: 7.646, yearDiscovered: 1808 },
-  { number: 13, electronegativity: 1.61, oxidationStates: [3], melt: 933.437, boil: 2792, density: 2.7, ionization: 5.986, yearDiscovered: null },
-  { number: 14, electronegativity: 1.9, oxidationStates: [4, 2, -4], melt: 1687, boil: 3538, density: 2.3296, ionization: 8.152, yearDiscovered: 1854 },
+  { number: 13, electronegativity: 1.61, oxidationStates: [3], melt: 933.437, boil: 2792, density: 2.7, ionization: 5.986, yearDiscovered: 1825 },
+  { number: 14, electronegativity: 1.9, oxidationStates: [4, 2, -4], melt: 1687, boil: 3538, density: 2.3296, ionization: 8.152, yearDiscovered: 1823 },
   { number: 15, electronegativity: 2.19, oxidationStates: [5, 3, -3], melt: 317.3, boil: 553.65, density: 1.82, ionization: 10.487, yearDiscovered: 1669 },
   { number: 16, electronegativity: 2.58, oxidationStates: [6, 4, -2], melt: 388.36, boil: 717.75, density: 2.067, ionization: 10.36, yearDiscovered: null },
   { number: 17, electronegativity: 3.16, oxidationStates: [7, 5, 1, -1], melt: 171.65, boil: 239.11, density: 0.003214, ionization: 12.968, yearDiscovered: 1774 },
   { number: 18, electronegativity: null, oxidationStates: [0], melt: 83.8, boil: 87.3, density: 0.0017837, ionization: 15.76, yearDiscovered: 1894 },
   { number: 19, electronegativity: 0.82, oxidationStates: [1], melt: 336.53, boil: 1032, density: 0.89, ionization: 4.341, yearDiscovered: 1807 },
-  { number: 20, electronegativity: 1, oxidationStates: [2], melt: 1115, boil: 1757, density: 1.54, ionization: 6.113, yearDiscovered: null },
+  { number: 20, electronegativity: 1, oxidationStates: [2], melt: 1115, boil: 1757, density: 1.54, ionization: 6.113, yearDiscovered: 1808 },
   { number: 21, electronegativity: 1.36, oxidationStates: [3], melt: 1814, boil: 3109, density: 2.99, ionization: 6.561, yearDiscovered: 1879 },
   { number: 22, electronegativity: 1.54, oxidationStates: [4, 3, 2], melt: 1941, boil: 3560, density: 4.5, ionization: 6.828, yearDiscovered: 1791 },
   { number: 23, electronegativity: 1.63, oxidationStates: [5, 4, 3, 2], melt: 2183, boil: 3680, density: 6, ionization: 6.746, yearDiscovered: 1801 },
@@ -69,7 +73,7 @@ export const ELEMENT_PROPERTIES = [
   { number: 41, electronegativity: 1.6, oxidationStates: [5, 3], melt: 2750, boil: 5017, density: 8.57, ionization: 6.759, yearDiscovered: 1801 },
   { number: 42, electronegativity: 2.16, oxidationStates: [6], melt: 2896, boil: 4912, density: 10.2, ionization: 7.092, yearDiscovered: 1778 },
   { number: 43, electronegativity: 1.9, oxidationStates: [7, 6, 4], melt: 2430, boil: 4538, density: 11, ionization: 7.28, yearDiscovered: 1937 },
-  { number: 44, electronegativity: 2.2, oxidationStates: [3], melt: 2607, boil: 4423, density: 12.1, ionization: 7.361, yearDiscovered: 1827 },
+  { number: 44, electronegativity: 2.2, oxidationStates: [3], melt: 2607, boil: 4423, density: 12.1, ionization: 7.361, yearDiscovered: 1844 },
   { number: 45, electronegativity: 2.28, oxidationStates: [3], melt: 2237, boil: 3968, density: 12.4, ionization: 7.459, yearDiscovered: 1803 },
   { number: 46, electronegativity: 2.2, oxidationStates: [3, 2], melt: 1828.05, boil: 3236, density: 12, ionization: 8.337, yearDiscovered: 1803 },
   { number: 47, electronegativity: 1.93, oxidationStates: [1], melt: 1234.93, boil: 2435, density: 10.501, ionization: 7.576, yearDiscovered: null },

@@ -13,6 +13,7 @@ import {
 import { zh } from '../src/ui/locales/zh.mjs';
 import { en } from '../src/ui/locales/en.mjs';
 import { ELEMENT_CATEGORIES } from '../src/calc/elements.mjs';
+import { ERA_KINDS } from '../src/calc/element-discovery.mjs';
 
 describe('detectLocale', () => {
   it('should prefer a stored choice over the browser language', () => {
@@ -174,6 +175,32 @@ describe('locale dictionaries', () => {
         expect(label, `${name} elements.cat_${c}`).not.toBe(`elements.cat_${c}`);
       }
     }
+  });
+
+  it('should translate every era kind the discovery data can produce', () => {
+    // Same failure mode as the missing category label above: a new era kind
+    // would render as the raw key `elements.era_xxx` in the detail panel.
+    // The data module owns the list, so the two cannot drift.
+    for (const kind of ERA_KINDS) {
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        const label = dict.elements[`era_${kind}`];
+        expect(label, `${name} elements.era_${kind}`).toBeTruthy();
+        expect(label, `${name} elements.era_${kind}`).not.toBe(`elements.era_${kind}`);
+        // Each era sentence interpolates its year; a template without the
+        // placeholder would silently drop the number.
+        expect(label, `${name} elements.era_${kind} is missing {years}`).toContain('{years}');
+      }
+    }
+  });
+
+  it('should translate the discovery fields the detail panel reads', () => {
+    for (const key of ['discoveredBy', 'ancientEra', 'discoverySource']) {
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        expect(dict.elements[key], `${name} elements.${key}`).toBeTruthy();
+      }
+    }
+    expect(zh.elements.ancientEra).toContain('{era}');
+    expect(en.elements.ancientEra).toContain('{era}');
   });
 
   it('should translate every block and colour-by option the table offers', () => {

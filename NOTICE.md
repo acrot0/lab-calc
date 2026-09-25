@@ -40,6 +40,40 @@ terms, so the provenance of any given file stays answerable.
   that carries oxidation states, which is the property a student reaches for
   first.
 
+## Discovery years and discoverers — hand-curated, correcting PubChem
+
+- **Source:** `src/calc/element-discovery.mjs`, written for this project.
+- **Licence:** MIT, like the rest of this repository. No third-party table was
+  copied — see "What is not copied" below.
+- **Why it exists:** PubChem's `YearDiscovered` column is wrong for five
+  elements. Aluminium and calcium are both marked `"Ancient"` — a string, which
+  the generator turned into `null`, which the detail panel rendered as "known
+  since antiquity". Both were isolated in the 1800s. Fluorine is dated to
+  Scheele's 1670 observation of the acid rather than Moissan's 1886 isolation of
+  the element, silicon is put at 1854 instead of 1823, and ruthenium at 1827
+  instead of 1844. A user checking when aluminium was discovered got a wrong
+  answer.
+- **What the years mean:** the year the element was first **isolated** as a
+  substance, not the year its existence was first suspected. That is the
+  convention in the textbooks this app is used alongside, and it is why several
+  entries differ from a "discovery" date looked up elsewhere — Davy prepared
+  calcium in 1808 though lime had been known for millennia. Twelve elements have
+  no year at all: they carry an approximate era of earliest surviving use
+  instead, because dating them to a year would claim a precision archaeology
+  does not have.
+- **What is not copied:** a name and a year are facts, and facts are not
+  copyrightable. The wording, the selection and the arrangement of a table are.
+  Every discoverer and date here was checked across multiple sources and written
+  out by hand; no table was transcribed, and no source's prose appears. The
+  sources consulted for cross-checking were Wikipedia's "Timeline of chemical
+  element discoveries" (CC BY-SA 3.0) and Los Alamos National Laboratory's
+  periodic table (all rights reserved) — neither licence permits copying their
+  data into an MIT project, which is precisely why only the facts were taken.
+- **Cross-checking:** `test/element-discovery.test.mjs` pins the values against
+  known textbook years rather than against the data file, and checks that the
+  table agrees with the `yearDiscovered` column the generator produces — the two
+  are written from different places, so drift between them is a test failure.
+
 ## Bowserinator/Periodic-Table-JSON — evaluated, not used
 
 - **Source:** https://github.com/Bowserinator/Periodic-Table-JSON

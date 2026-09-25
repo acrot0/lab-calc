@@ -399,13 +399,32 @@ describe('element detail panel', () => {
        * electronegativity, 25 no boiling point, 22 no density.
        */
       const values = [...container.querySelectorAll('.result-grid strong')].map((s) => s.textContent);
-      if (values.length !== 12) failures.push(`${el.symbol}: ${values.length} values, expected 12`);
+      // 5 in the first grid (mass, radii, category, valence) and 8 in the
+      // properties grid. A count, not a sample, so a field that renders nothing
+      // at all is caught rather than skipped.
+      if (values.length !== 13) failures.push(`${el.symbol}: ${values.length} values, expected 13`);
       for (const v of values) {
         if (v.trim() === '') failures.push(`${el.symbol}: a value rendered blank`);
         else if (v.includes('—') && v.trim() !== '—') {
           failures.push(`${el.symbol}: "${v}" — absent value carries a unit`);
         }
+        // A placeholder or an un-interpolated template reaching the panel.
+        if (/\{era\}|\{years\}|TODO|TBD|\?\?\?/.test(v)) {
+          failures.push(`${el.symbol}: "${v}" — placeholder reached the panel`);
+        }
       }
+      /*
+       * The discovery row, which is what the user reported. Aluminium and
+       * calcium rendered as "known since antiquity" because PubChem files both
+       * under "Ancient"; every element must now carry either a year or an era,
+       * and a named discoverer, with neither reading as the other.
+       */
+      const labels = [...container.querySelectorAll('.result-grid span')].map((s) => s.textContent);
+      const yearIdx = labels.findIndex((l) => /Year discovered|发现年份/.test(l));
+      const byIdx = labels.findIndex((l) => /Discovered by|发现者/.test(l));
+      if (yearIdx < 0) failures.push(`${el.symbol}: no discovery-year row`);
+      if (byIdx < 0) failures.push(`${el.symbol}: no discoverer row`);
+      if (byIdx >= 0 && !values[byIdx]?.trim()) failures.push(`${el.symbol}: empty discoverer`);
       await unmount();
     }
     expect(failures).toEqual([]);
