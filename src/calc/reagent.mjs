@@ -215,6 +215,34 @@ export function standardCurve(points) {
   // R² = 1 would be generous, so report 0.
   const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
 
+  /*
+   * Residuals, and the standard error of the fit.
+   *
+   * R² alone cannot tell a good calibration from a bad one: it says how much of
+   * the variance the line explains, not whether the points actually lie on it.
+   * A curve whose standards are spread widely enough scores R² > 0.99 while
+   * being visibly curved, because the residuals are small next to the spread.
+   *
+   * The residuals are what a scientist plots to check that assumption, and the
+   * standard error is what turns the fitted slope into a number with an
+   * uncertainty attached. Both are returned rather than left to the caller to
+   * recompute from the same inputs.
+   *
+   * `standardError` is the residual standard deviation in the y units — an
+   * absorbance, for a Beer's law curve — and is the honest answer to "how far
+   * off is a single reading".
+   */
+  const residuals = xs.map((x, i) => ys[i] - (slope * xs[i] + intercept));
+
+  // Two degrees of freedom are spent on the slope and the intercept; with n = 3
+  // that leaves one, which is the fewest that gives a meaningful spread.
+  const dof = n - 2;
+  const standardError = dof > 0 ? Math.sqrt(ssRes / dof) : 0;
+
+  // Standard error of the slope: how well the data pin the gradient down. A
+  // slope of 15000 ± 4000 is not the same measurement as 15000 ± 20.
+  const slopeStdError = sxx > 0 && dof > 0 ? Math.sqrt((ssRes / dof) / sxx) : 0;
+
   return {
     slope,
     intercept,
@@ -222,6 +250,9 @@ export function standardCurve(points) {
     n,
     xMin: Math.min(...xs),
     xMax: Math.max(...xs),
+    residuals,
+    standardError,
+    slopeStdError,
   };
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { beerLambert, standardCurve, predictFromCurve, LINEAR_ABSORBANCE_MAX } from '../../calc/reagent.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
 import { fmt, fmtSci, n, shownFor } from '../format.mjs';
@@ -73,6 +73,81 @@ function CurvePlot({ points, fit, reading, width = 520, height = 220, theme = 'd
   }, [points, fit, reading, width, height, palette]);
 
   return <canvas ref={ref} className="curve-canvas" role="img" aria-label="standard curve" />;
+}
+
+/**
+ * The residual plot, which is what actually shows whether a line fits.
+ *
+ * R² alone cannot answer that. Standards spread widely enough score above 0.99
+ * while sitting on a visible curve, because the residuals are small next to the
+ * spread they are being compared against. Plotted against x, the same residuals
+ * make the shape obvious: random scatter around zero means the line is
+ * appropriate, a systematic arc means the relationship is not linear and no
+ * amount of R² will say so.
+ *
+ * Drawn as a strip rather than a full chart — the y range is the residual
+ * spread, which is small by definition, and giving it the same height as the
+ * curve would exaggerate noise into structure.
+ */
+function ResidualPlot({ points, fit, width = 520, height = 110, theme = 'dark' }) {
+  const ref = useRef(null);
+  // The same literals as CurvePlot above: both are canvases, neither can read
+  // CSS custom properties, and the two sit on one tab where a mismatch would
+  // show.
+  const palette = useMemo(() => (theme === 'light'
+    ? { grid: 'rgba(16,24,40,0.1)', label: '#5a6577', dot: '#1f6feb' }
+    : { grid: 'rgba(255,255,255,0.08)', label: '#9aa3b2', dot: '#5aa9ff' }), [theme]);
+
+  useEffect(() => {
+    const c = ref.current;
+    if (!c || !fit?.residuals?.length) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    c.width = width * dpr;
+    c.height = height * dpr;
+    c.style.width = `${width}px`;
+    c.style.height = `${height}px`;
+    const ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    const pad = { l: 52, r: 16, t: 12, b: 22 };
+    const pw = width - pad.l - pad.r;
+    const ph = height - pad.t - pad.b;
+
+    const xs = points.map((p) => p.x);
+    const xMin = Math.min(...xs);
+    const xMax = Math.max(...xs);
+    // Symmetric about zero so the eye reads the zero line as the centre, and
+    // with a floor so a perfect fit does not divide by zero.
+    const span = Math.max(...fit.residuals.map((r) => Math.abs(r)), 1e-9) * 1.25;
+    const X = (v) => pad.l + ((v - xMin) / (xMax - xMin || 1)) * pw;
+    const Y = (v) => pad.t + ph / 2 - (v / span) * (ph / 2);
+
+    // The zero line: a residual's sign is read against it.
+    ctx.strokeStyle = palette.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, Y(0));
+    ctx.lineTo(width - pad.r, Y(0));
+    ctx.stroke();
+
+    ctx.fillStyle = palette.label;
+    ctx.font = '10px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`+${span.toFixed(3)}`, pad.l - 6, pad.t + 8);
+    ctx.fillText('0', pad.l - 6, Y(0) + 3);
+    ctx.fillText(`-${span.toFixed(3)}`, pad.l - 6, pad.t + ph);
+
+    ctx.fillStyle = palette.dot;
+    points.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.arc(X(p.x), Y(fit.residuals[i]), 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }, [points, fit, width, height, palette]);
+
+  return <canvas ref={ref} className="curve-canvas residual-canvas" role="img" aria-label="residuals" />;
 }
 
 export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
@@ -212,6 +287,19 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
               <div><span>{t('spectro.intercept')}</span><strong>{fmt(shown.fit.intercept, 5)}</strong></div>
               <div><span>{t('spectro.r2')}</span><strong>{fmt(shown.fit.r2, 5)}</strong></div>
               <div><span>{t('spectro.range')}</span><strong>{fmt(shown.fit.xMin, 4)} – {fmt(shown.fit.xMax, 4)}</strong></div>
+              {/* The slope's uncertainty, which is the number that says whether
+                  the calibration is precise enough to be worth using. A slope
+                  of 15000 ± 4000 and one of 15000 ± 20 are different
+                  measurements that print the same R². */}
+              <div><span>{t('spectro.slopeError')}</span><strong>± {fmtSci(shown.fit.slopeStdError, 3)}</strong></div>
+              <div><span>{t('spectro.residError')}</span><strong>{fmtSci(shown.fit.standardError, 3)}</strong></div>
+            </div>
+
+            {/* The residual plot, which is what actually answers "is a line
+                appropriate here" — see the note on ResidualPlot. */}
+            <div className="residual-block">
+              <div className="hint">{t('spectro.residualNote')}</div>
+              <ResidualPlot points={shown.points} fit={shown.fit} theme={theme} />
             </div>
           </div>
           {shown.pred.outOfRange && (

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { detectLocale, loadLocale, saveLocale, makeTranslator, LOCALES } from './i18n.mjs';
 import { zh } from './locales/zh.mjs';
 import { en } from './locales/en.mjs';

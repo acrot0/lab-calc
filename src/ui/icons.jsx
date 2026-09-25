@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Activity, AlertTriangle, ArrowLeftRight, Atom, Beaker, Calculator, Check,
   Download, Droplet, Droplets, Dna, FileSpreadsheet, FileText, FlaskConical,
@@ -5,6 +6,20 @@ import {
   Microscope, Percent, Pipette, RotateCcw, Scale, Search, ShieldAlert, Sun,
   Syringe, TestTube, TestTubes, Thermometer, Trash2, TrendingUp, Waves, X, Zap,
 } from 'lucide-react';
+
+/*
+ * React is imported explicitly, not left to the JSX transform.
+ *
+ * The build uses the automatic runtime, which injects the binding and makes
+ * this import look redundant. The test run does not, and compiled these
+ * wrappers to `React.createElement(...)` with nothing named React in scope —
+ * so every component using an icon threw `React is not defined` when rendered
+ * outside the browser. The build was fine, which is exactly what made it hard
+ * to find: the failure only existed in the environment meant to catch failures.
+ *
+ * The explicit import is correct under both transforms, so it is the fix
+ * rather than a workaround.
+ */
 
 /**
  * The icon set, in one place.

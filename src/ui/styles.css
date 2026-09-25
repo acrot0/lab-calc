@@ -1539,3 +1539,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 [data-theme="light"] .legend-sw-band { background: rgba(31, 111, 235, 0.22); }
 [data-theme="light"] .legend-sw-eq { border-top-color: rgba(165, 106, 0, 0.9); }
+
+/* The residual plot sits under the statistics it justifies, and is deliberately
+   shorter than the main chart — its y range is the residual spread, which is
+   small by definition, and equal height would exaggerate noise into structure. */
+.residual-block {
+  margin-top: var(--s4);
+}
+
+.residual-canvas {
+  max-width: 520px;
+}
