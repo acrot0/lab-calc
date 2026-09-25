@@ -1671,24 +1671,81 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   animation: fade var(--dur) var(--ease);
 }
 
+/*
+ * The window itself.
+ *
+ * Positioned by `left`/`top` from React state rather than pinned to a corner,
+ * because it is draggable and its position is remembered. `right`/`bottom`
+ * would fight the drag: the two are over-constrained, and which one wins
+ * depends on the writing mode.
+ *
+ * No `transition` on the position. A transitioned `left`/`top` would lag the
+ * cursor by the duration of the transition, so the window would trail the
+ * pointer and feel heavy — the one place in this app where an animation makes
+ * an interaction worse rather than better.
+ */
 .calc-drawer {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
   z-index: 90;
   display: flex;
   flex-direction: column;
-  width: min(420px, 100vw);
+  width: min(420px, calc(100vw - var(--s5)));
+  max-height: min(660px, calc(100dvh - var(--s6)));
   background: var(--chrome, var(--surface));
-  border-left: 1px solid var(--border-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow-3);
-  animation: drawer-in var(--dur) var(--ease);
+  animation: window-in var(--dur) var(--ease);
+  overflow: hidden;
 }
 
-@keyframes drawer-in {
-  from { transform: translateX(16px); opacity: 0; }
+@keyframes window-in {
+  from { transform: scale(0.97) translateY(6px); opacity: 0; }
   to { transform: none; opacity: 1; }
+}
+
+/*
+ * The phone layout.
+ *
+ * Below 640px the window becomes a bottom sheet: anchored, full width, and not
+ * draggable — there is no pointer to drag with, and a floating window on a
+ * small screen covers the thing the user opened it to read. The position style
+ * from React is overridden here rather than being conditional in JS, so the
+ * breakpoint lives in one place and a resize needs no state change.
+ */
+@media (max-width: 639px) {
+  .calc-drawer {
+    left: 0 !important;
+    top: auto !important;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 82dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: none;
+    animation: sheet-in var(--dur) var(--ease);
+  }
+
+  /* The grab handle's affordance: a bar that says "this is a sheet", so the
+     user does not try to drag the title text. */
+  .calc-head::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-strong);
+  }
+
+  .calc-head { padding-top: var(--s5); }
+}
+
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
 }
 
 /* The same reasoning as the modal's blur: a panel that already sits over the
@@ -3180,7 +3237,35 @@ body,
     margin-left: 0;
     flex-shrink: 1;
     justify-content: flex-start;
+    /*
+     * The controls wrap *within* the row, not just as a row.
+     *
+     * Four controls — language, icon style, material, theme — are 507px
+     * together, which overflows a 390px phone. Without this the row itself
+     * wrapped to its own line and then overflowed that line, so the document
+     * was 524px wide in a 390px viewport: every screen scrolled sideways and
+     * the right-hand controls were unreachable. `min-width: 0` is what lets
+     * the flex items shrink below their content width instead of holding the
+     * row open.
+     */
+    flex-wrap: wrap;
+    row-gap: var(--s2);
   }
+
+  .topbar-actions > * { min-width: 0; }
+
+  /*
+   * The labels go before the controls do.
+   *
+   * Each control is an icon plus a word, and the icon is what carries the
+   * meaning once the row is tight — a language dropdown reading "中文" is
+   * recognisable from its glyph and its position. Dropping the text keeps all
+   * four reachable, where dropping whole controls would hide a setting the
+   * user came to change.
+   */
+  .topbar-actions .control-label { display: none; }
+
+  .topbar-actions .control { padding: 0 var(--s3); }
 }
 
 /* ==========================================================================

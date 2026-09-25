@@ -254,7 +254,7 @@ export default function App() {
         onClose={() => setNoticeOpen(false)}
       />
 
-      <CalculatorDrawer open={calcOpen} onClose={() => setCalcOpen(false)} />
+      <CalculatorDrawer open={calcOpen} onClose={() => setCalcOpen(false)} store={store} />
     </div>
   );
 }

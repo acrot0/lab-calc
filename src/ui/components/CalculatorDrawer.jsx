@@ -7,6 +7,32 @@ import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { Icons, ICON_SIZE } from '../icons.jsx';
+import {
+  clampPosition, defaultPosition, dragTo, isDragHandle,
+} from '../float-window.mjs';
+
+/** Where the window was last left, so it reopens where the user put it. */
+const POSITION_KEY = 'lab-calc.calcPos.v1';
+
+function loadPosition(store) {
+  try {
+    const raw = store?.getItem(POSITION_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    return Number.isFinite(p?.x) && Number.isFinite(p?.y) ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePosition(store, pos) {
+  try {
+    store?.setItem(POSITION_KEY, JSON.stringify(pos));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The keypad, as rows of [label, insertion].
@@ -89,14 +115,101 @@ const UNIT_KEYS = ['g', 'mL', 'L', 'mol', 'M', 'cm3'];
  * the same `5 g / 250 mL` works in both, and there is one implementation of
  * what a unit means rather than two that drift.
  */
-export default function CalculatorDrawer({ open, onClose }) {
+export default function CalculatorDrawer({ open, onClose, store }) {
   const { t } = useI18n();
   const [src, setSrc] = useState('');
   const [degrees, setDegrees] = useState(false);
   const inputRef = useRef(null);
 
-  // Focus the field when the drawer opens, so the keyboard is usable without a
-  // click. Restoring focus on close is left to the browser: the drawer is
+  /*
+   * The window's position, remembered between sessions.
+   *
+   * A user who moves the calculator out of the way of the form they are filling
+   * in should not have to move it again on the next calculation. The position
+   * is clamped on read as well as on write: the stored value may be from a
+   * wider window, and a position that was on screen then can be off it now.
+   */
+  const [pos, setPos] = useState(() => loadPosition(store) ?? { x: 0, y: 0 });
+  const [placed, setPlaced] = useState(false);
+  const winRef = useRef(null);
+  const headRef = useRef(null);
+  const drag = useRef(null);
+
+  const viewport = () => ({
+    width: globalThis.innerWidth ?? 1440,
+    height: globalThis.innerHeight ?? 900,
+  });
+
+  // Place the window the first time it opens, once its size is known. Before
+  // that the element has no measured height, so a default computed from it
+  // would be wrong.
+  useEffect(() => {
+    if (!open || placed) return;
+    const el = winRef.current;
+    if (!el) return;
+    const size = { width: el.offsetWidth, height: el.offsetHeight };
+    const stored = loadPosition(store);
+    const next = clampPosition(
+      stored ?? defaultPosition(size, viewport()),
+      size, viewport(),
+    );
+    setPos(next);
+    setPlaced(true);
+  }, [open, placed, store]);
+
+  // Keep the window reachable when the viewport shrinks — a rotate, or a
+  // window resize. Without this a window parked at the bottom right ends up
+  // off screen and cannot be recovered without clearing storage.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onResize = () => {
+      const el = winRef.current;
+      if (!el) return;
+      setPos((p) => clampPosition(
+        p, { width: el.offsetWidth, height: el.offsetHeight }, viewport(),
+      ));
+    };
+    globalThis.addEventListener?.('resize', onResize);
+    return () => globalThis.removeEventListener?.('resize', onResize);
+  }, [open]);
+
+  useEffect(() => { if (placed) savePosition(store, pos); }, [store, pos, placed]);
+
+  /*
+   * Dragging, via pointer events rather than mouse events.
+   *
+   * Pointer events cover mouse, touch and pen in one path, and
+   * `setPointerCapture` keeps the drag alive when the cursor outruns the title
+   * bar — with mouse events the window stops following the moment the pointer
+   * leaves the handle, which happens on any fast drag.
+   */
+  const onPointerDown = useCallback((e) => {
+    if (!isDragHandle(e.target, headRef.current)) return;
+    const el = winRef.current;
+    if (!el) return;
+    e.preventDefault();
+    el.setPointerCapture?.(e.pointerId);
+    drag.current = { from: { x: e.clientX, y: e.clientY }, start: pos };
+  }, [pos]);
+
+  const onPointerMove = useCallback((e) => {
+    const d = drag.current;
+    if (!d) return;
+    const el = winRef.current;
+    const size = { width: el?.offsetWidth ?? 420, height: el?.offsetHeight ?? 560 };
+    setPos(clampPosition(
+      dragTo(d.start, d.from, { x: e.clientX, y: e.clientY }), size, viewport(),
+    ));
+  }, []);
+
+  const onPointerUp = useCallback((e) => {
+    if (!drag.current) return;
+    drag.current = null;
+    winRef.current?.releasePointerCapture?.(e.pointerId);
+  }, []);
+
+  // Focus the field when the window opens, so the keyboard is usable without a
+  // click. Restoring focus on close is left to the browser: the window is
   // opened by a shortcut or a button, and both keep their own focus.
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -162,17 +275,32 @@ export default function CalculatorDrawer({ open, onClose }) {
 
   return (
     <>
-      {/* The scrim closes the drawer on click. It is a button rather than a div
+      {/* The scrim closes the window on click. It is a button rather than a div
           so that it is reachable and announced, and it carries no label of its
-          own because the drawer beside it already names itself. */}
+          own because the window beside it already names itself. */}
       <button
         type="button"
         className="calc-scrim"
         aria-label={t('convert.calcClose')}
         onClick={onClose}
       />
-      <aside className="calc-drawer" role="dialog" aria-modal="false" aria-label={t('convert.calcTitle')}>
-        <header className="calc-head">
+      <aside
+        ref={winRef}
+        className="calc-drawer"
+        role="dialog"
+        aria-modal="false"
+        aria-label={t('convert.calcTitle')}
+        style={{ left: pos.x, top: pos.y }}
+      >
+        <header
+          className="calc-head"
+          ref={headRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          style={{ cursor: 'grab' }}
+        >
           <h2>{t('convert.calcTitle')}</h2>
           <div className="calc-head-actions">
             <button
