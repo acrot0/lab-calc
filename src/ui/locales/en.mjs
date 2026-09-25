@@ -12,6 +12,19 @@ export const en = {
     // Injected at build time from package.json (see vite.config.js).
     footerVersion: `v${__APP_VERSION__} · open source · MIT`,
   },
+  install: {
+    action: 'Install app',
+    title: 'Install Lab Calc',
+    lead: 'Installed, it works offline — which is what a basement bench needs.',
+    prompt: 'Install now',
+    iosSteps: 'In Safari, tap Share, then "Add to Home Screen".',
+    iosStepsChrome: 'Open this in Safari — Chrome on iOS cannot add to the Home Screen.',
+    later: 'Not now',
+    installing: 'Installing…',
+    accepted: 'Install started — follow the browser prompt to finish.',
+    dismissed: 'Cancelled. You can install any time from here.',
+    failed: 'The browser did not offer an install. Try again in a moment.',
+  },
   density: {
     comfortable: 'Comfortable',
     compact: 'Compact',

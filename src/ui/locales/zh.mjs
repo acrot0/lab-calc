@@ -10,6 +10,23 @@ export const zh = {
     // nothing tied to the manifest.
     footerVersion: `v${__APP_VERSION__} · 开源 · MIT`,
   },
+  install: {
+    action: '安装到本机',
+    title: '安装 Lab Calc',
+    lead: '装到桌面或主屏幕后可以离线使用，实验室没网也不影响。',
+    // The Chromium path: we hold the browser's own install event, so this
+    // button opens the real dialog rather than explaining how to find it.
+    prompt: '立即安装',
+    // The iOS path. Safari fires no install event at all, so the only route is
+    // these steps — and "Share → Add to Home Screen" is not discoverable.
+    iosSteps: 'Safari 中点底部「分享」按钮，再选「添加到主屏幕」。',
+    iosStepsChrome: 'iOS 上请用 Safari 打开——Chrome 无法添加到主屏幕。',
+    later: '以后再说',
+    installing: '正在安装…',
+    accepted: '已开始安装，请按提示完成。',
+    dismissed: '已取消，随时可以从这里重新安装。',
+    failed: '浏览器没有响应安装请求，可以稍后再试。',
+  },
   density: {
     comfortable: '舒适',
     compact: '紧凑',

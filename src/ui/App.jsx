@@ -31,6 +31,7 @@ import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
 import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
+import InstallPrompt from './components/InstallPrompt.jsx';
 import { installBackNav } from './back-nav.mjs';
 
 /**
@@ -274,6 +275,10 @@ export default function App() {
             onImport={importEntries} />
         </main>
       </div>
+
+      {/* Above the footer, not inside it: the footer is a single line of small
+          print and an install offer inside it reads as more small print. */}
+      <InstallPrompt />
 
       <footer className="footer">
         <Icons.notice size={ICON_SIZE.inline} aria-hidden="true" />

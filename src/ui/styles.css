@@ -2175,6 +2175,74 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .footer .sep { opacity: 0.4; }
 .footer .grow { margin-left: auto; }
 
+/*
+ * The install offer.
+ *
+ * A card rather than a bar, because it is a one-time decision and not part of
+ * the page's furniture — a bar in the footer would read as small print and be
+ * skipped. It sits above the footer with its own spacing so it is visibly a
+ * separate thing.
+ *
+ * It enters from below with the same curve as everything else, which is the
+ * one animation that matters here: the element appears asynchronously, after
+ * `beforeinstallprompt` fires, and an element that pops into existence below
+ * the fold is one nobody notices.
+ */
+.install-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-top: var(--s8);
+  padding: var(--s4) var(--s5);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  animation: install-in var(--dur-enter) var(--ease-out) both;
+}
+
+@keyframes install-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.install-prompt > svg { flex-shrink: 0; color: var(--accent); }
+
+.install-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 240px;
+  font-size: var(--t-sm);
+}
+
+.install-text strong { font-weight: 600; }
+.install-text span { color: var(--text-dim); font-size: var(--t-xs); line-height: 1.5; }
+
+/* The outcome of pressing install. Distinguished from the explanation above it
+   by colour, since the two sit in the same stack. */
+.install-notice { color: var(--accent) !important; }
+
+.install-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  /* The actions drop to their own row rather than squeezing the text to a
+     column two words wide. */
+  .install-actions { width: 100%; justify-content: flex-end; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Arriving is the whole point of the animation, so it keeps a transition —
+     but a fade, not a slide. */
+  .install-prompt { animation: value-fade-soft 220ms ease both !important; }
+}
+
 /* ==========================================================================
    Periodic table
    ========================================================================== */
