@@ -1190,6 +1190,15 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .chip:active { transform: translateY(0.5px); }
 
+/* A wrapping row of chips — the calculator's worked examples. Wraps rather
+   than scrolls for the same reason the tab bar does: a horizontal scroll
+   hides the last of them behind a gesture nobody tries. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
 .ion-list { margin-bottom: var(--s3); }
 
 /*

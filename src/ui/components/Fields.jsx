@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
+import { evaluate, looksLikeExpression } from '../../calc/expression.mjs';
+import { fmt } from '../format.mjs';
+import { useI18n } from '../LocaleContext.jsx';
 
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
 
@@ -8,28 +11,91 @@ import { Icons, ICON_SIZE } from '../icons.jsx';
  * repeated label (a dynamic list of ions, say) then emits the same id twice.
  * Two inputs sharing an id means the label points at whichever the browser
  * found first — the second field loses its name and its click target.
+ *
+ * The field is a text input, not a number input, so an expression can be typed
+ * into it. That is a deliberate loss: `type="number"` gives a spinner and a
+ * numeric keypad on mobile, and it refuses to hold the string `0.1*250/58.44`
+ * at all — the browser discards the value and the field goes blank. Being able
+ * to do the arithmetic in the field is worth more than the spinner, and
+ * `inputMode="decimal"` keeps the mobile keypad.
+ *
+ * What the caller receives is still the number, not the expression. The
+ * expression is evaluated on every keystroke and the result handed up, so no
+ * tab has to know this exists — a field that has only ever been given a plain
+ * number behaves exactly as it did.
  */
 export function NumField({ label, value, onChange, hint, error, step = 'any', min, id: idProp }) {
   const id = idProp ?? `f-${label}`;
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(null);
+
+  /*
+   * `draft` holds what the user is typing; `value` is the evaluated number the
+   * tab holds. Without the draft, typing `0.1*2` would re-render the field with
+   * `0.2` after the first operator and the rest of the expression would be
+   * erased as it was typed.
+   *
+   * It is cleared on blur, so the field settles on the answer once the user
+   * moves on, and never on a keystroke — a field that rewrites itself mid-entry
+   * is a field you cannot finish typing in.
+   */
+  const shown = draft ?? value;
+
+  /** The expression's value if the draft is one, else null. */
+  const preview = draft !== null && looksLikeExpression(draft) ? safeEvaluate(draft) : null;
+
+  function handle(e) {
+    const next = e.target.value;
+    setDraft(next);
+    // A plain number goes straight through; an expression is evaluated and its
+    // value passed up, so the tab always sees a number.
+    const parsed = looksLikeExpression(next) ? safeEvaluate(next) : Number.parseFloat(next);
+    if (parsed !== null && Number.isFinite(parsed)) onChange(String(parsed));
+  }
+
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
-        type="number"
+        type="text"
         inputMode="decimal"
         step={step}
         min={min}
-        value={value}
+        value={shown ?? ''}
         aria-invalid={error ? 'true' : undefined}
-        aria-describedby={hint || error ? `${id}-hint` : undefined}
-        onChange={(e) => onChange(e.target.value)}
+        aria-describedby={hint || error || preview !== null ? `${id}-hint` : undefined}
+        onChange={handle}
+        onBlur={() => setDraft(null)}
       />
-      {(error || hint) && (
+      {preview !== null && (
+        <div className="hint" id={`${id}-hint`}>
+          = {fmt(preview, 6)}
+        </div>
+      )}
+      {(error || hint) && !preview && (
         <div className={`hint${error ? ' err' : ''}`} id={`${id}-hint`}>{error || hint}</div>
+      )}
+      {/* Announced, not just shown: a screen reader user typing an expression
+          gets no other signal that it was understood. */}
+      {preview !== null && (
+        <span className="sr-only" aria-live="polite">{t('common.expressionValue')} {fmt(preview, 6)}</span>
       )}
     </div>
   );
+}
+
+/** The value of an expression, or null if it does not evaluate. */
+function safeEvaluate(src) {
+  try {
+    const r = evaluate(src);
+    // A dimensioned result has no place in a scalar field: `5 g / 2 mL` is a
+    // concentration, and putting 2500 into a "volume in mL" box would be
+    // putting a number where a different kind of quantity belongs.
+    return r.dimensionless ? r.value : null;
+  } catch {
+    return null;
+  }
 }
 
 export function TextField({ label, value, onChange, hint, error, placeholder, id: idProp }) {

@@ -246,3 +246,50 @@ describe('locale dictionaries', () => {
     walk(zh, en);
   });
 });
+
+describe('converter dimensions', () => {
+  it('should label every dimension the converter offers', async () => {
+    // The picker builds its labels from the dimension key. A dimension with no
+    // label renders as the raw key `convert.dim_pressure` in the dropdown,
+    // which is the same failure the missing category label had.
+    const { SHOWN_DIMENSIONS } = await import('../src/ui/tabs/ConvertTab.jsx');
+    expect(SHOWN_DIMENSIONS.length).toBeGreaterThan(10);
+    for (const dim of SHOWN_DIMENSIONS) {
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        const label = dict.convert[`dim_${dim}`];
+        expect(label, `${name} convert.dim_${dim}`).toBeTruthy();
+        expect(label, `${name} convert.dim_${dim}`).not.toBe(`convert.dim_${dim}`);
+      }
+    }
+  });
+
+  it('should offer every dimension the units module defines', async () => {
+    // A dimension added to the module but not to the screen is unreachable —
+    // the units exist and no picker will ever show them.
+    const { SHOWN_DIMENSIONS } = await import('../src/ui/tabs/ConvertTab.jsx');
+    const { DIMENSIONS } = await import('../src/calc/units.mjs');
+    for (const dim of Object.keys(DIMENSIONS)) {
+      expect(SHOWN_DIMENSIONS, `${dim} is defined but not offered`).toContain(dim);
+    }
+  });
+
+  it('should label every calculator example it offers', () => {
+    // The chips are rendered from a key list, so a key with no string renders
+    // as the key itself.
+    for (let i = 1; i <= 6; i++) {
+      const key = `calcEx${i}`;
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        expect(dict.convert[key], `${name} convert.${key}`).toBeTruthy();
+        expect(dict.convert[key], `${name} convert.${key}`).not.toBe(`convert.${key}`);
+      }
+    }
+  });
+
+  it('should translate the calculator mode labels', () => {
+    for (const key of ['mode_convert', 'mode_calc', 'calcLabel', 'calcHint', 'calcPlaceholder']) {
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        expect(dict.convert[key], `${name} convert.${key}`).toBeTruthy();
+      }
+    }
+  });
+});

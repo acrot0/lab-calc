@@ -3,8 +3,6 @@ import {
   hendersonHasselbalch,
   bufferRecipe,
   dilutionSeries,
-  unitConvert,
-  MASS_UNITS,
 } from '../src/calc/buffer.mjs';
 
 /**
@@ -103,84 +101,5 @@ describe('dilutionSeries', () => {
   it('should reject a non-positive step count', () => {
     expect(() => dilutionSeries({ stockConc: 100, factor: 2, steps: 0 })).toThrow();
     expect(() => dilutionSeries({ stockConc: 100, factor: 2, steps: -1 })).toThrow();
-  });
-});
-
-describe('unitConvert', () => {
-  it('should convert grams to milligrams', () => {
-    expect(unitConvert(1, 'g', 'mg')).toBeCloseTo(1000, 6);
-  });
-
-  it('should convert milligrams to micrograms', () => {
-    expect(unitConvert(1, 'mg', 'ug')).toBeCloseTo(1000, 6);
-  });
-
-  it('should round-trip through any unit pair', () => {
-    for (const [a, b] of [['g', 'mg'], ['mg', 'ug'], ['g', 'ug'], ['kg', 'g']]) {
-      expect(unitConvert(unitConvert(5, a, b), b, a)).toBeCloseTo(5, 6);
-    }
-  });
-
-  it('should convert millilitres to microlitres', () => {
-    expect(unitConvert(1, 'mL', 'uL')).toBeCloseTo(1000, 6);
-  });
-
-  it('should handle molarity prefixes', () => {
-    expect(unitConvert(1, 'M', 'mM')).toBeCloseTo(1000, 6);
-    expect(unitConvert(1, 'M', 'uM')).toBeCloseTo(1e6, 3);
-  });
-
-  it('should reject a unit it does not know, rather than assuming a factor', () => {
-    expect(() => unitConvert(1, 'g', 'furlong')).toThrow(
-      expect.objectContaining({ code: 'unknownUnit' }),
-    );
-  });
-
-  it('should refuse to convert mass to volume', () => {
-    // Both g and mL have a factor of 1 against their own base, so dividing one
-    // by the other returned the input unchanged — a confident, meaningless
-    // answer that nothing downstream could flag. Grams and millilitres are not
-    // the same kind of quantity; relating them needs a density this function
-    // has no way to know.
-    expect(() => unitConvert(1, 'g', 'mL')).toThrow(
-      expect.objectContaining({ code: 'incompatibleUnits' }),
-    );
-  });
-
-  it('should reject every cross-dimension pair', () => {
-    const cross = [
-      ['g', 'mL'], ['g', 'L'], ['kg', 'uL'], ['mg', 'M'],
-      ['mL', 'g'], ['L', 'mg'], ['uL', 'kg'], ['M', 'mL'],
-      ['mM', 'g'], ['uM', 'L'],
-    ];
-    for (const [a, b] of cross) {
-      expect(() => unitConvert(1, a, b), `${a} -> ${b}`).toThrow(
-        expect.objectContaining({ code: 'incompatibleUnits' }),
-      );
-    }
-  });
-
-  it('should still convert within each dimension after the guard', () => {
-    expect(unitConvert(2, 'kg', 'g')).toBeCloseTo(2000, 6);
-    expect(unitConvert(2, 'L', 'mL')).toBeCloseTo(2000, 6);
-    expect(unitConvert(2, 'mM', 'uM')).toBeCloseTo(2000, 6);
-  });
-
-  it('should report which dimensions collided, so the message can explain', () => {
-    try {
-      unitConvert(1, 'g', 'mL');
-      throw new Error('should have thrown');
-    } catch (e) {
-      expect(e.params.fromDim).toBe('mass');
-      expect(e.params.toDim).toBe('volume');
-    }
-  });
-
-  it('should return the same value for identical units', () => {
-    expect(unitConvert(3.5, 'mg', 'mg')).toBeCloseTo(3.5, 9);
-  });
-
-  it('should expose its unit tables for the UI to build a picker', () => {
-    expect(Object.keys(MASS_UNITS).length).toBeGreaterThan(3);
   });
 });

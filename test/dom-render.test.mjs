@@ -155,12 +155,28 @@ describe('tab mounting with effects', () => {
             React.createElement(Component, { onRecord: () => {}, restored: null, theme: 'dark' })),
         );
 
+        /*
+         * Two kinds of mode control are in use: a `seg` group of buttons
+         * (ConvertTab) and a `<select>` (the rest). Both are driven, because a
+         * tab that switched from one to the other would otherwise silently stop
+         * being covered — which is exactly what happened when ConvertTab grew a
+         * mode segment and this test went on driving its dimension picker.
+         */
+        const segs = [...container.querySelectorAll('.seg-btn')];
         const selects = [...container.querySelectorAll('select')];
-        const modes = selects.length > 0 ? [...selects[0].options].map((o) => o.value) : [null];
+        const modes = segs.length > 0
+          ? segs.map((b) => b.textContent)
+          : (selects.length > 0 ? [...selects[0].options].map((o) => o.value) : [null]);
 
         for (const mode of modes) {
           try {
-            if (mode !== null) {
+            if (mode !== null && segs.length > 0) {
+              const btn = [...container.querySelectorAll('.seg-btn')]
+                .find((b) => b.textContent === mode);
+              await act(async () => {
+                btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+              });
+            } else if (mode !== null) {
               const select = container.querySelector('select');
               // React tracks the value internally, so the native setter is
               // called and a change event dispatched — setting `.value`
