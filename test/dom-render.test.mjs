@@ -321,3 +321,103 @@ describe('tab mounting with effects', () => {
     }
   }, 30000);
 });
+
+describe('element detail panel', () => {
+  /*
+   * The panel moved out of ElementsTab into its own component. Nothing else in
+   * the suite would notice if it stopped rendering — every property it shows is
+   * optional, so a missing one is a blank cell rather than a throw, and the
+   * grid, the search and the comparison all keep working without it. These
+   * tests drive it through the user's own path: click a cell, read the panel.
+   */
+
+  async function mountElements() {
+    const { default: ElementsTab } = await import('../src/ui/tabs/ElementsTab.jsx');
+    return mount(
+      React.createElement(LocaleProvider, { store: null },
+        React.createElement(ElementsTab, { onRecord: () => {}, restored: null, theme: 'dark' })),
+    );
+  }
+
+  const cellFor = (container, label) => [...container.querySelectorAll('button')]
+    .find((b) => b.getAttribute('aria-label') === label);
+
+  it('should show the selected element and switch when another cell is clicked', async () => {
+    const { container, unmount } = await mountElements();
+
+    const panel = container.querySelector('.result');
+    expect(panel, 'the detail panel should render for the default selection').toBeTruthy();
+    // Sodium is the default selection.
+    expect(panel.querySelector('.result-main').textContent).toContain('Na');
+
+    // Iron: the first element in the table with a full row of measured
+    // properties, so a formatting bug in any of them shows up here.
+    const iron = cellFor(container, '26 Fe 铁');
+    expect(iron, 'the table should have an iron cell').toBeTruthy();
+    await act(async () => { iron.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+
+    const after = container.querySelector('.result');
+    expect(after.querySelector('.result-main').textContent).toContain('Fe');
+    expect(after.textContent).toContain('Fe');
+    await unmount();
+  }, 30000);
+
+  it('should never render an empty or undefined value for any element', async () => {
+    /*
+     * The failure mode this catches: `props.melt` is null for the superheavies
+     * and for several others, and `fmt(null, 4)` renders a blank rather than
+     * the em dash. A blank cell reads as a rendering bug to the reader, and
+     * only elements deep in the table have the gap — so clicking one random
+     * element would miss it.
+     */
+    const { default: ElementDetail } = await import('../src/ui/components/ElementDetail.jsx');
+    const { ELEMENTS, periodOf, isFBlock } = await import('../src/calc/elements.mjs');
+    const { propertiesOf } = await import('../src/calc/element-properties.mjs');
+    const { electronConfig } = await import('../src/calc/config.mjs');
+
+    const failures = [];
+    for (const el of ELEMENTS) {
+      const { container, unmount } = await mount(
+        React.createElement(LocaleProvider, { store: null },
+          React.createElement(ElementDetail, {
+            element: el,
+            chemPeriod: periodOf(el),
+            onDetachedRow: isFBlock(el),
+            config: electronConfig(el.number),
+            properties: propertiesOf(el.number),
+          })),
+      );
+      const text = container.querySelector('.result').textContent;
+      if (/undefined|NaN|\[object/.test(text)) failures.push(`${el.symbol}: ${text.slice(0, 80)}`);
+      /*
+       * An absent value must read as the bare em dash, never as the em dash
+       * with its unit trailing after it. `fmt` already returns "—" for a
+       * non-finite input, so dropping the null guard still renders something —
+       * it renders "— K", which claims a unit for a quantity that has none and
+       * reads to the eye as a truncated number rather than as a missing one.
+       * A quarter of the table is in this state: 23 elements have no
+       * electronegativity, 25 no boiling point, 22 no density.
+       */
+      const values = [...container.querySelectorAll('.result-grid strong')].map((s) => s.textContent);
+      if (values.length !== 12) failures.push(`${el.symbol}: ${values.length} values, expected 12`);
+      for (const v of values) {
+        if (v.trim() === '') failures.push(`${el.symbol}: a value rendered blank`);
+        else if (v.includes('—') && v.trim() !== '—') {
+          failures.push(`${el.symbol}: "${v}" — absent value carries a unit`);
+        }
+      }
+      await unmount();
+    }
+    expect(failures).toEqual([]);
+  }, 60000);
+
+  it('should render nothing when no element is selected', async () => {
+    const { default: ElementDetail } = await import('../src/ui/components/ElementDetail.jsx');
+    const { container, unmount } = await mount(
+      React.createElement(LocaleProvider, { store: null },
+        React.createElement(ElementDetail, { element: null })),
+    );
+    expect(container.querySelector('.result')).toBeNull();
+    await unmount();
+  }, 30000);
+});
