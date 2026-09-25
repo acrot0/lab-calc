@@ -6,9 +6,12 @@ sequencing has dependencies that are not obvious from the feature list.
 ## Where it stands (v0.5.0)
 
 15 calculation tabs, a 118-element periodic table with exam properties, an
-interactive titration curve, bilingual UI, PWA-installable, offline-capable,
-and a portable Windows build. 698 tests. 471 KB of JS (140 KB gzipped), no
-charting dependency — the titration curve is hand-drawn SVG.
+interactive titration curve, bilingual UI, six themes plus follow-the-system,
+PWA-installable, offline-capable, and a portable Windows build. 750 tests.
+637 KB of JS (188 KB gzipped), no charting dependency — the titration curve is
+hand-drawn SVG, and the .xlsx writer is hand-written too.
+
+**Live: <https://acrot0.github.io/lab-calc/>**
 
 ## Principles that constrain everything below
 
@@ -55,6 +58,39 @@ visualisations read better once they exist.
 Every calculation tab plots its own result: buffer capacity against pH, serial
 dilution decay, standard-curve fit with residuals, Nernst potential against
 concentration. Extends what the titration curve already does.
+
+### Phase 0 — Visual overhaul — done (2026-09-25)
+
+Driven by feedback that the interface was plain, the icons coarse, the motion
+poor and the export thin. What it settled:
+
+- **Six palettes, read from the upstream packages.** Catppuccin (Latte, Mocha)
+  and Rosé Pine (main, Dawn) are imported from `@catppuccin/palette` and
+  `@rose-pine/palette` rather than transcribed, so an upstream revision flows
+  through. **Nord was rejected** — its npm package is
+  `(Apache-2.0 AND CC-BY-SA-4.0)` and share-alike is incompatible with MIT.
+  **Tokyo Night was rejected** — no authoritative package exists, only
+  third-party ports, and inventing hex values to label "Tokyo Night" is the
+  thing the approach exists to avoid.
+- **These are editor themes and this is not an editor.** 15 of the measured
+  text/background pairings failed 4.5:1 on first run, including one in the
+  *shipped dark theme* (`--text-dim` at 4.34:1 on `--surface-3`). Each was
+  fixed by moving one token while holding its hue.
+- **Phosphor icons**, imported by subpath — the package barrel pulls all 3,024
+  icons and costs 115 KB that tree-shaking cannot remove.
+- **A motion layer with one rule**: animate a change of state, never an
+  arrival.
+- **A hand-written .xlsx writer** instead of `exceljs` (925 KB, nine
+  transitive dependencies) and **print-to-PDF** instead of jsPDF (which would
+  need an embedded CJK font several hundred KB more).
+
+Two defects found by measuring rather than looking:
+
+- The app icon's plate was `#0f1115` while the app's own background is
+  `#0b0d12` — the icon sat one shade off from the app it opens.
+- **At 390px the header was unusable.** The brand was squeezed to 17px and its
+  subtitle rendered one character per line in a 417px-tall strip. No media
+  query touched `.topbar`. This was live in production.
 
 ### Phase 4 — Periodic trends — done
 

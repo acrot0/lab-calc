@@ -4,14 +4,14 @@
 
 **在线使用：<https://acrot0.github.io/lab-calc/>** —— 无需安装，可离线使用（PWA），数据只存在你自己的浏览器里。
 
-中文 / English 双语，深色 / 浅色 / 跟随系统三种主题，右上角切换。
+中文 / English 双语，**6 套主题**（含 Catppuccin、Rosé Pine 两套社区配色）+ 跟随系统，右上角切换。
 
 ```bash
 npm install
 npm run dev      # 开发
 npm run build    # 构建到 dist/，纯静态，可直接托管
-npm test         # 552 个测试
-npm run verify   # 导入完整性 + 15 项计算对已知答案的冒烟检查
+npm test         # 750 个测试
+npm run verify   # 导入完整性 + 许可证检查 + 15 项计算对已知答案的冒烟检查
 ```
 
 ---
@@ -60,7 +60,9 @@ npm run verify   # 导入完整性 + 15 项计算对已知答案的冒烟检查
 | **元素周期表** | 118 种元素，含电子排布与价电子数；按类别/电子层区块/原子量/半径着色，键盘方向键导航，可按族（"卤素"）搜索 |
 | **单位换算** | 质量 / 体积 / 浓度单位互换（跨维度会被拒绝，不会静默给错值）|
 
-历史记录可**导出为 CSV**（Excel 可开，含 BOM 防中文乱码）或 **Markdown**（直接贴进实验记录本）。
+历史记录可导出为 **Excel 表格（.xlsx）**、**CSV**（含 BOM 防中文乱码）、**Markdown**（直接贴进实验记录本）、**PDF 报告**（浏览器打印，矢量文字可搜索）或 **JSON 备份**（可再导入，换电脑不丢）。
+
+Excel 导出把每个输入输出放成独立一列，可直接排序筛选作图；PDF 报告带字段中文名，是能贴进实验记录本的形式。
 
 ### 滴定曲线求解方式
 
@@ -130,7 +132,9 @@ src/
     ├── locales/          zh.mjs / en.mjs
     ├── summaries.mjs     历史摘要（渲染时派生，非持久化）
     ├── history.mjs       历史记录（存储接口注入）
-    ├── export.mjs        CSV / Markdown 导出
+    ├── export.mjs        Excel / CSV / Markdown / PDF 导出
+    ├── xlsx.mjs          手写的 .xlsx 生成器（零依赖）
+    ├── palettes.mjs      6 套主题配色（含 Catppuccin / Rosé Pine）
     ├── styles.css        设计 token + 组件样式
     ├── tabs/             15 个计算标签页
     └── components/       表单原语、历史面板、须知弹窗、SVG 插画
