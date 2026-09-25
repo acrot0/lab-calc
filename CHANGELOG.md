@@ -8,6 +8,34 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Six malformed formulas were accepted as valid** — `Na0Cl` (a zero subscript
+  contributed no sodium, so the molar mass came back as the mass of chlorine
+  alone), `H0` (returned zero), `Ca()2` and `()` (empty groups silently
+  dropped), `NaCl.` (the empty segment was filtered out, so the formula read as
+  NaCl) and `H2O·5` (the coefficient after the hydrate dot was ignored). Each
+  produced a plausible number for an input that has no answer, which is the
+  failure this module exists to prevent; each now throws with its own code.
+- **The arithmetic knew 83 elements while the periodic table showed 118** — the
+  atomic-weight table was written out by hand and had drifted from the element
+  table, so `UF6`, `PuO2` and `Ac2O3` were rejected as unknown elements. The
+  weight table is now derived from the element table.
+- **The formula field showed a fixed "unparseable" message** for every failure,
+  so "subscript cannot be zero" and "empty parentheses" arrived as the same
+  shrug. The specific reason is now translated and shown.
+
+### Added
+
+- **Isotope notation** — `D` and `T` are read as deuterium and tritium (D₂O is
+  20.027 g/mol, not 18.015), and the `-dN` label expands against the hydrogen
+  count (`DMSO-d6` is C₂D₆OS). A label larger than the available hydrogens is
+  rejected rather than clamped.
+- **Organic group abbreviations** — Me, Et, iPr, tBu, Ph, Bn, Bz, Boc, Cbz,
+  Fmoc, TBS, TMS, Ms, Tf and common solvents (DMSO, THF, DMF, EtOAc…).
+  Abbreviations that are also element symbols (Pr, Ac, Ar, Ts, Am) are
+  deliberately **not** expanded: `Pr2O3` is praseodymium oxide, and reading Pr
+  as propyl would silently change the meaning of a correct formula.
+
+
 - **Element categories were wrong for 13 of 118 elements** — the category was
   derived from the grid position, but the staircase dividing metals from
   non-metals cuts diagonally across the columns. Carbon, nitrogen, oxygen,
