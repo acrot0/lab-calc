@@ -99,7 +99,11 @@
 
   --text: #131722;
   --text-mid: #414a5c;
-  --text-dim: #6b7688;
+  /* Darkened from #6b7688: that value measured 3.91:1 against --surface-3 and
+     4.21:1 against --surface-2, both under the 4.5:1 floor for body text. It
+     looked fine on --surface (#ffffff, 4.59:1), which is why it survived — the
+     failure only shows on the two darker surfaces, and only at small sizes. */
+  --text-dim: #5a6577;
 
   --accent: #1f6feb;
   --accent-hover: #175bc4;
