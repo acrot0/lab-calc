@@ -1550,3 +1550,76 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .residual-canvas {
   max-width: 520px;
 }
+
+/* ==========================================================================
+   Worked calculations
+   --------------------------------------------------------------------------
+   The derivation behind a result, folded away until asked for.
+   ========================================================================== */
+
+.worked {
+  margin-top: var(--s3);
+  border-top: 1px dashed var(--border);
+  padding-top: var(--s3);
+}
+
+.worked-toggle {
+  font-size: var(--t-xs);
+}
+
+.worked-steps {
+  margin: var(--s3) 0 0;
+  display: grid;
+  gap: var(--s2);
+}
+
+/*
+ * Each step is a term and its value on one line.
+ *
+ * A grid rather than a flex row so the terms line up as a column — a
+ * derivation is read by scanning the left edge, and a ragged one is harder to
+ * follow than the arithmetic it describes.
+ */
+.worked-step {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: baseline;
+}
+
+.worked-step dt {
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.worked-step dd {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--text-mid);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.worked-step dd strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.worked-detail {
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  /* Stacked on a phone: two columns at 360px leaves the value column too
+     narrow for an equation. */
+  .worked-step {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .worked-step dt { text-align: left; }
+}

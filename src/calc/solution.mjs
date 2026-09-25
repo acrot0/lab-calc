@@ -198,6 +198,37 @@ export function molarMass(formula) {
 }
 
 /**
+ * The molar mass calculation, term by term.
+ *
+ * A molar mass is the one number in this app a student is most often asked to
+ * show the working for, and it is the easiest to get wrong by dropping a
+ * subscript — CO₂ read as CO gives 28 instead of 44. Listing each element's
+ * contribution makes that visible: the terms are right there, and one of them
+ * will be missing.
+ *
+ * Returns the terms rather than a formatted string, so the caller decides how
+ * to present them and the translation layer stays in the UI where it belongs.
+ * `contribution` is the element's total, not its atomic mass — the two differ
+ * whenever the subscript is not 1, which is exactly the case worth showing.
+ */
+export function molarMassBreakdown(formula) {
+  const parts = parseFormula(formula);
+  const terms = parts.map(({ element, count }) => {
+    const atomic = atomicMassOf(element);
+    return {
+      element,
+      count,
+      atomic,
+      // For a subscript of 1 the multiplication is noise; the UI can drop it
+      // and show the atomic mass alone.
+      contribution: atomic * count,
+    };
+  });
+  const total = terms.reduce((sum, t) => sum + t.contribution, 0);
+  return { terms, total };
+}
+
+/**
  * Mass to weigh out to reach a target molarity in a given volume.
  *
  *   m = C × V(L) × M

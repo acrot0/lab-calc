@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { stockFromSolid, molarMass } from '../../calc/solution.mjs';
+import { stockFromSolid, molarMass, molarMassBreakdown } from '../../calc/solution.mjs';
 import { TextField, NumField, Result, Err } from '../components/Fields.jsx';
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
@@ -23,6 +23,56 @@ export default function WeighTab({ onRecord, restored }) {
     }
   }, [formula, t]);
   const M = parsed.mass;
+
+  // The derivation, rebuilt whenever the formula or the inputs change. Kept
+  // next to the result rather than in the calc layer, because what counts as
+  // a step worth showing is a presentation decision.
+  const worked = useMemo(() => {
+    if (!M || !out) return null;
+    const { terms, total } = molarMassBreakdown(formula);
+    const volumeL = out.finalVolumeMl / 1000;
+    return [
+      {
+        term: t('common.formula'),
+        value: formula,
+        detail: t('common.molarMass'),
+      },
+      {
+        term: t('common.worked_MolarMass'),
+        detail: t('common.worked_FormulaMass', { formula }),
+      },
+      ...terms.map((tm) => ({
+        term: '',
+        value: tm.count === 1
+          ? t('common.worked_TermSingle', {
+            element: tm.element, atomic: fmt(tm.atomic, 4),
+          })
+          : t('common.worked_Term', {
+            element: tm.element,
+            atomic: fmt(tm.atomic, 4),
+            count: tm.count,
+            contribution: fmt(tm.contribution, 4),
+          }),
+      })),
+      { term: '', value: t('common.worked_Total', { total: fmt(total, 4) }) },
+      {
+        term: t('weigh.amount'),
+        value: t('common.worked_Moles', {
+          conc: fmtSci(n(molarity), 4),
+          volume: fmt(volumeL, 4),
+          moles: fmtSci(out.moles, 4),
+        }),
+      },
+      {
+        term: t('weigh.unit'),
+        value: t('common.worked_Mass', {
+          moles: fmtSci(out.moles, 4),
+          molarMass: fmt(out.molarMass, 4),
+          mass: fmtSci(out.massG, 4),
+        }),
+      },
+    ];
+  }, [formula, M, out, molarity, t]);
 
   useEffect(() => { setOut(null); setErr(null); }, [formula, molarity, volume]);
 
@@ -69,6 +119,8 @@ export default function WeighTab({ onRecord, restored }) {
           [t('weigh.amount'), `${fmtSci(out.moles, 4)} mol`],
           [t('weigh.finalVolume'), `${out.finalVolumeMl} mL`],
         ] : null}
+        worked={worked}
+        workedLabel={t('common.worked')}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
@@ -53,7 +53,58 @@ export function TextField({ label, value, onChange, hint, error, placeholder, id
   );
 }
 
-export function Result({ value, unit, note, rows }) {
+/**
+ * The worked calculation, folded away until asked for.
+ *
+ * The app answers "how much do I weigh out"; it did not answer "why", which is
+ * the question a student actually has and the one an exam asks. Every tab can
+ * now hand its derivation here: the formula, the substitution, and the result,
+ * each step a line.
+ *
+ * Collapsed by default, and that is deliberate. Someone who has made this
+ * solution a hundred times wants the number, not the arithmetic; someone
+ * meeting it for the first time wants the opposite. A disclosure serves both
+ * without making the second group's need the first group's cost.
+ *
+ * The steps are a description list because that is what they are — a term and
+ * its value — and a screen reader announces a definition list as such rather
+ * than reading a wall of text.
+ */
+export function Worked({ steps, label }) {
+  const [open, setOpen] = useState(false);
+  if (!steps || steps.length === 0) return null;
+  return (
+    <div className="worked">
+      <button
+        type="button"
+        className="link-btn worked-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? '▾' : '▸'} {label}
+      </button>
+      {open && (
+        <dl className="worked-steps">
+          {steps.map((step, i) => (
+            // Steps have no stable identity — two can carry the same term — so
+            // the index is the key, which is correct here because the list is
+            // regenerated whole on every calculation.
+            // eslint-disable-next-line react/no-array-index-key
+            <div className="worked-step" key={i}>
+              <dt>{step.term}</dt>
+              <dd>
+                {step.value !== undefined && <strong>{step.value}</strong>}
+                {step.detail && <span className="worked-detail">{step.detail}</span>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+export function Result({ value, unit, note, rows, worked, workedLabel }) {
   if (value === null || value === undefined) return null;
   return (
     <div className="result" role="status" aria-live="polite">
@@ -69,6 +120,7 @@ export function Result({ value, unit, note, rows }) {
           ))}
         </div>
       )}
+      {worked && <Worked steps={worked} label={workedLabel} />}
     </div>
   );
 }
