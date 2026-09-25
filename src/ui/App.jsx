@@ -188,7 +188,11 @@ export default function App() {
             chrome around it. Without this landmark a screen reader can only jump
             by heading, and every tab change re-announces the whole page. */}
         <main className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
-          <div>
+          {/* `.work` is the query container the tab cards measure themselves
+              against, which is why it is a wrapper rather than the <main>
+              itself: the history panel is a `.card` too, and a container on
+              <main> would have the panel matching the card rules. */}
+          <div className="work">
             <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
           </div>
           <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear}

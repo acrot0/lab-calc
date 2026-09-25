@@ -26,3 +26,6 @@ src/calc/docs/
 # the audit that produced element-discovery.mjs lived here. Never part of the
 # app, and 3 MB of HTML and JSON is not something to commit by accident.
 .tmp/
+
+# Scratch space for work in progress; removed before the branch is finished.
+.scratch/

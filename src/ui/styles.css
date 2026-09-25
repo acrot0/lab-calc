@@ -42,9 +42,28 @@
   --dur-fast: 120ms;
   --dur: 180ms;
 
-  /* Fonts */
-  --font: Inter, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
-  --font-num: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /*
+   * Fonts — three faces, three jobs.
+   *
+   * `--font-display` is for the brand and headings only. Space Grotesk loses
+   * the letterforms that make it distinctive below roughly 32px, so stretching
+   * it down to body text costs legibility and buys nothing; it is a headline
+   * face and is used as one.
+   *
+   * `--font` is the interface face. Geist is engineered for UI constraints —
+   * tight grids, dark themes, small sizes — which is exactly this app.
+   *
+   * `--font-num` is for anything a reader compares down a column: results,
+   * table cells, history values. Tabular figures make 1.234 and 12.340 line up,
+   * which proportional digits do not.
+   *
+   * The CJK fallbacks are per-face rather than shared: a Chinese glyph missing
+   * from the display face must fall through to the system font, and each stack
+   * has to say so itself.
+   */
+  --font-display: "Space Grotesk Variable", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font: "Geist Variable", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-num: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
 
   --focus-ring: 0 0 0 3px;
 }
@@ -213,10 +232,22 @@ body {
    Shell
    ========================================================================== */
 
+/*
+ * The page container.
+ *
+ * 1180px was chosen when the app was a single narrow column. It is now a rail
+ * plus a working area plus a history panel, and at 1180 the rail and the panel
+ * left the middle column under 660px — narrower than a form wants. On a
+ * 1700px display that also threw away 500px of width for nothing.
+ *
+ * 1480px is the compromise: wide enough that the three columns are each usable
+ * on a laptop at 1440, and capped rather than fluid because a form stretched
+ * across 2400px is a worse form, not a better one.
+ */
 .app {
-  max-width: 1180px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: var(--s10) var(--s5) var(--s12);
+  padding: var(--s8) var(--s5) var(--s12);
 }
 
 /*
@@ -266,12 +297,36 @@ body {
 
 .brand-text { min-width: 0; }
 
+/*
+ * The wordmark.
+ *
+ * Set in the display face at a size where its letterforms actually read — the
+ * earlier 20px in the body face was a label, not a mark. The gradient is
+ * painted through `background-clip: text`, which keeps the text as text: it
+ * stays selectable, searchable and crisp at any zoom, where an image wordmark
+ * would be none of those and would need a second asset per theme.
+ *
+ * `-webkit-text-fill-color` is what actually makes the fill transparent in
+ * WebKit; `color: transparent` alone is not enough there, and the fallback
+ * order matters — a browser that ignores both paints solid `--text`.
+ */
 .brand h1 {
   margin: 0;
-  font-size: var(--t-lg);
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-family: var(--font-display);
+  font-size: var(--t-xl);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  background: linear-gradient(
+    100deg,
+    var(--text) 0%,
+    var(--text) 35%,
+    var(--accent) 78%,
+    var(--accent-hover) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .brand-sub {
@@ -511,11 +566,58 @@ select.control {
    Layout
    ========================================================================== */
 
+/*
+ * The working area and the history panel.
+ *
+ * The panel is `1fr` rather than a fixed 400px so the two share the extra
+ * width proportionally on a large display, with a floor that keeps the panel
+ * readable and a ceiling that stops it from becoming the widest thing on the
+ * page — it holds short summary lines, and a 700px column of them would be
+ * mostly whitespace.
+ *
+ * The container for the card queries lives on `.work`, the wrapper inside this
+ * grid — see the note there.
+ */
 .split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
-  gap: var(--s8);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: var(--s6);
   align-items: start;
+}
+
+/*
+ * The working column is the container the card queries measure.
+ *
+ * It has to be this wrapper and not `.split`, because the history panel is also
+ * a `.card` and lives as a direct child of `.split` — naming `.split` as the
+ * container would make the panel match the card rules too and render itself as
+ * a two-column grid with an empty right half.
+ */
+.work {
+  container-type: inline-size;
+  container-name: card;
+  min-width: 0;
+}
+
+/*
+ * The history panel gets its own scroll on a tall screen.
+ *
+ * It is the one thing on the page that grows without bound — a bench session
+ * accumulates entries all day — and letting it grow the document pushes the
+ * footer and the form out of reach. `position: sticky` keeps it in view while
+ * the working column scrolls, which is the behaviour a side panel is for.
+ *
+ * The max-height is in `dvh` so a mobile browser's collapsing toolbar does not
+ * leave the last entry behind the address bar.
+ */
+@media (min-width: 1100px) {
+  .split > .card {
+    position: sticky;
+    top: var(--s6);
+    max-height: calc(100dvh - var(--s10));
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 /*
@@ -568,6 +670,63 @@ select.control {
   border-radius: var(--r-lg);
   padding: var(--s6);
   box-shadow: var(--shadow-1);
+}
+
+/*
+ * Inputs left, results right.
+ *
+ * Every tab is one flat card with its inputs and its `<Result>` as siblings, so
+ * the two columns are made by assignment rather than by restructuring fifteen
+ * files: everything that is not a result is pinned to column 1, everything that
+ * is goes to column 2, and auto-placement stacks each column independently.
+ * Several results (Reagent has five, Reaction four) queue down the right-hand
+ * column in source order, which is the order they are meant to be read in.
+ *
+ * The breakpoint is on the card's own width, not the viewport's: a card is only
+ * wide enough to split when the rail and the history panel have both taken
+ * their share, and a viewport query cannot see that.
+ */
+@container card (min-width: 620px) {
+  .card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s5) var(--s6);
+    align-items: start;
+  }
+
+  /* Column 1: everything the user fills in, plus the button and any message. */
+  .card > :not(.result) { grid-column: 1; }
+
+  /* Column 2: results only, and they start at the top so the answer sits level
+     with the first input rather than below the form. */
+  .card > .result { grid-column: 2; }
+
+  /*
+   * The button keeps its own width.
+   *
+   * `inline-flex` is a request, not a guarantee: a grid item stretches to its
+   * column by default, which is how a 120px "Calculate" became a 421px bar.
+   * `justify-self` is what actually overrides the stretch.
+   */
+  .card > button { justify-self: start; }
+
+  /*
+   * Column 2 gets a full-height rule between it and the form.
+   *
+   * Without it the two halves read as one wide column with a gap, and the eye
+   * runs from an input on the left straight into a result on the right as if
+   * they were in the same list. The border says where the input stops and the
+   * answer starts.
+   *
+   * `grid-row: 1 / span 99` makes it span whatever the form's height turns out
+   * to be, so the rule runs the full column rather than stopping level with the
+   * first result. A fixed span would break the moment a tab grew a field.
+   */
+  .card > .result:first-of-type {
+    grid-row: 1 / span 99;
+    padding-left: var(--s5);
+    border-left: 1px solid var(--border);
+  }
 }
 
 .card + .card { margin-top: var(--s5); }
@@ -659,8 +818,19 @@ select.control {
 
 .field input::placeholder { color: var(--text-dim); opacity: 0.75; }
 
-/* Numeric fields read better with aligned digits. */
-.field input[type="number"] { font-variant-numeric: tabular-nums; }
+/*
+ * Numeric fields read better with aligned digits.
+ *
+ * Matched on `inputmode` rather than `type`: the fields became text inputs so
+ * they could hold an expression, and the old `[type="number"]` selector had
+ * silently stopped matching anything. `inputmode` is the attribute that still
+ * says "this is a number", so it is the honest thing to match on.
+ */
+.field input[inputmode="decimal"],
+.field input[inputmode="numeric"] {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
 
 .field select {
   appearance: none;

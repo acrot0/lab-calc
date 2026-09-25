@@ -1,8 +1,27 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-import '@fontsource/inter/600.css';
+
+/*
+ * Three typefaces, each with a job.
+ *
+ * `wght.css` rather than `index.css`: the variable build ships one file per
+ * axis and `index.css` pulls in every axis the family has. Only weight is used
+ * here, so the axes nobody asked for would be bytes on every load.
+ *
+ * Space Grotesk for the brand and headings, Geist for the interface, JetBrains
+ * Mono for anything numeric. The split is not decoration — it is the same
+ * division a technical document makes: a display face for the few words that
+ * carry identity, a neutral face for the many that carry information, and a
+ * monospaced face wherever digits must line up in a column.
+ *
+ * All three are OFL-1.1, the same licence as the Inter they replace, so the
+ * licence check passes unchanged. Chinese is deliberately NOT loaded: a CJK
+ * webfont is several megabytes, and the system fallbacks (PingFang SC,
+ * Microsoft YaHei) are already on every machine that would read it.
+ */
+import '@fontsource-variable/space-grotesk/wght.css';
+import '@fontsource-variable/geist/wght.css';
+import '@fontsource-variable/jetbrains-mono/wght.css';
 import './styles.css';
 import App from './App.jsx';
 import { LocaleProvider } from './LocaleContext.jsx';
