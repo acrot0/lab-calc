@@ -153,3 +153,56 @@ describe('preparePercentSolution', () => {
     expect(preparePercentSolution({ percent: 60, volumeMl: 100 }).solubilityWarning).toBeFalsy();
   });
 });
+
+describe('weak-acid approximation error', () => {
+  /*
+   * The sqrt(Ka·C) approximation assumes the acid is barely dissociated. That
+   * premise weakens as the solution is DILUTED, not as it is concentrated —
+   * the opposite of what most people assume, including whoever wrote the
+   * project's own documentation before this test measured it.
+   *
+   * The error is signed, and the sign matters: the approximation reads low, so
+   * a dilute weak acid comes out more acidic than it is.
+   *
+   * These bounds are measured, not derived. They exist so a change to the
+   * approximation is caught rather than discovered in a lab notebook.
+   */
+  const exact = (pKa, C) => {
+    // Charge balance solved by bisection — the same treatment curve.mjs uses.
+    const Ka = 10 ** -pKa;
+    const f = (h) => h - 1e-14 / h - C * (Ka / (Ka + h));
+    let lo = 1e-15;
+    let hi = 1;
+    while (f(hi) < 0) hi *= 2;
+    for (let i = 0; i < 200; i++) {
+      const m = Math.sqrt(lo * hi);
+      if (f(m) < 0) lo = m; else hi = m;
+    }
+    return -Math.log10(Math.sqrt(lo * hi));
+  };
+
+  it('should be accurate to 0.005 pH at bench concentrations', () => {
+    // 0.1 M is the concentration these recipes are actually written at.
+    for (const C of [0.1, 0.5, 1, 5]) {
+      const got = weakAcidPh({ pKa: 4.76, conc: C });
+      expect(Math.abs(got - exact(4.76, C)), `${C} M`).toBeLessThan(0.005);
+    }
+  });
+
+  it('should drift low by about 0.09 pH at 1e-4 M', () => {
+    // The documented failure case. Pinned to a range rather than a value so a
+    // change in the approximation shows up, but float noise does not.
+    const got = weakAcidPh({ pKa: 4.76, conc: 1e-4 });
+    const diff = got - exact(4.76, 1e-4);
+    expect(diff).toBeLessThan(0);          // reads low
+    expect(diff).toBeGreaterThan(-0.15);
+  });
+
+  it('should get MORE accurate as concentration rises, not less', () => {
+    // The property the documentation originally stated backwards.
+    const errAt = (C) => Math.abs(weakAcidPh({ pKa: 4.76, conc: C }) - exact(4.76, C));
+    expect(errAt(0.001)).toBeGreaterThan(errAt(0.01));
+    expect(errAt(0.01)).toBeGreaterThan(errAt(0.1));
+    expect(errAt(0.1)).toBeGreaterThanOrEqual(errAt(1));
+  });
+});
