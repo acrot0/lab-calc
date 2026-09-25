@@ -35,6 +35,7 @@ import App from './App.jsx';
 import { LocaleProvider } from './LocaleContext.jsx';
 import { ThemeProvider } from './ThemeContext.jsx';
 import { MaterialProvider } from './MaterialContext.jsx';
+import { IconStyleProvider } from './IconStyleContext.jsx';
 import { resolveStore } from './history.mjs';
 
 // The locale store and the history store are the same localStorage; resolving
@@ -46,7 +47,9 @@ createRoot(document.getElementById('root')).render(
     <LocaleProvider store={store}>
       <ThemeProvider store={store}>
         <MaterialProvider store={store}>
-          <App />
+          <IconStyleProvider store={store}>
+            <App />
+          </IconStyleProvider>
         </MaterialProvider>
       </ThemeProvider>
     </LocaleProvider>

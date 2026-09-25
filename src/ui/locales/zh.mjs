@@ -10,6 +10,12 @@ export const zh = {
     // nothing tied to the manifest.
     footerVersion: `v${__APP_VERSION__} · 开源 · MIT`,
   },
+  iconStyle: {
+    linear: '线性',
+    filled: '填充',
+    duotone: '双色',
+    switch: '切换图标风格',
+  },
   material: {
     frosted: '磨砂',
     solid: '纯色',

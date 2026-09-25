@@ -109,13 +109,31 @@ describe('icon set', () => {
      * applies: one declaration, applied by the wrapper. A per-icon weight at a
      * call site is the same drift as a per-icon size, one level down.
      *
-     * Every `weight=` in this file must be the wrapper's parameter or a value
-     * from the WEIGHT map — never a bare string literal at a call site.
+     * Every `weight=` in this file must be the wrapper's parameter — never a
+     * bare string literal at a call site.
      */
     const icons = readFileSync('src/ui/icons.jsx', 'utf8');
     const literals = [...icons.matchAll(/weight=\{?'(\w+)'/g)].map((m) => m[1]);
     expect(literals).toEqual([]);
-    // The wrapper forwards `weight` and defaults it; that is the one place.
-    expect(icons).toContain('weight = defaultWeight');
+    // The wrapper reads the user's preference and forwards it; that is the one
+    // place the weight is decided.
+    expect(icons).toContain('useIconWeight()');
+    expect(icons).toContain('weightProp ?? preferred');
+  });
+
+  it('should give no glyph a per-glyph weight default', () => {
+    /*
+     * The registry used to pass a default weight per glyph — tabs drew
+     * `duotone`, status icons `regular`. That was reasonable while the weight
+     * was fixed and became a lie once the user could choose one: someone who
+     * picks "linear" and still sees duotone tabs has been told the setting does
+     * something it does not.
+     *
+     * The style is global now, so a second argument to `styled` would be dead
+     * code that reads as if it were doing something.
+     */
+    const icons = readFileSync('src/ui/icons.jsx', 'utf8');
+    const withArg = [...icons.matchAll(/styled\(\w+,\s*\w+\)/g)].map((m) => m[0]);
+    expect(withArg, `styled() called with a second argument: ${withArg.join(', ')}`).toEqual([]);
   });
 });

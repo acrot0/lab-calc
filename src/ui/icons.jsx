@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIconWeight } from './icon-style-context.mjs';
 /*
  * Imported per icon, not from the package barrel.
  *
@@ -51,6 +52,7 @@ import { Microscope } from '@phosphor-icons/react/dist/csr/Microscope';
 import { Dna } from '@phosphor-icons/react/dist/csr/Dna';
 import { Syringe } from '@phosphor-icons/react/dist/csr/Syringe';
 import { Eyedropper } from '@phosphor-icons/react/dist/csr/Eyedropper';
+import { Shapes } from '@phosphor-icons/react/dist/csr/Shapes';
 
 /*
  * React is imported explicitly, not left to the JSX transform.
@@ -108,32 +110,36 @@ export const ICON_SIZE = {
 };
 
 /**
- * Phosphor's own weights, named so a call site reads as a choice.
- *
- * `regular` is the default and matches the weight of Inter's stems at these
- * sizes. `duotone` is for a glyph that carries a label rather than decorating
- * one. `bold` is for the smallest sizes, where a regular stroke disappears.
- */
-export const WEIGHT = {
-  thin: 'thin',
-  light: 'light',
-  regular: 'regular',
-  bold: 'bold',
-  fill: 'fill',
-  duotone: 'duotone',
-};
-
-/**
  * Wrap a Phosphor icon with the project's size and weight.
  *
  * Returning a component rather than exporting the raw icon keeps the call sites
  * free of the decision: `import { Icons } from '../icons.jsx'` then
  * `<Icons.dilute size={ICON_SIZE.control} />`. A caller that passes a size is
  * choosing a role, not a number.
+ *
+ * ## The weight now follows the user's icon-style preference
+ *
+ * `defaultWeight` is the weight a glyph uses when the user has not chosen a
+ * style, and it is still per-glyph: a tab icon is decorative and a status icon
+ * is not, so they want different defaults. What changed is that a *chosen*
+ * style overrides all of them — that is the whole point of the setting.
+ *
+ * There is no longer a per-glyph `defaultWeight`, and that is deliberate. The
+ * previous version let each glyph carry a default — tab icons drew `duotone`,
+ * status icons `regular` — which was a reasonable design when the weight was
+ * fixed. Once the user can choose, a per-glyph default becomes a lie: someone
+ * who picks "linear" and still sees duotone tabs has been told the setting does
+ * something it does not.
+ *
+ * So the style is global, and an explicit `weight` prop remains for the few
+ * call sites that need a specific weight regardless of the preference.
  */
-function styled(Icon, defaultWeight = WEIGHT.regular) {
-  return function StyledIcon({ size = ICON_SIZE.control, weight = defaultWeight, ...rest }) {
-    return <Icon size={size} weight={weight} {...rest} />;
+function styled(Icon) {
+  return function StyledIcon({
+    size = ICON_SIZE.control, weight: weightProp, ...rest
+  }) {
+    const preferred = useIconWeight();
+    return <Icon size={size} weight={weightProp ?? preferred} {...rest} />;
   };
 }
 
@@ -149,27 +155,30 @@ export const Icons = {
   // --- Tabs ---
   // Duotone: on a tab the glyph is part of the label, so it carries more weight
   // than an inline hint does.
-  weigh: styled(Flask, WEIGHT.duotone),
-  dilute: styled(Eyedropper, WEIGHT.duotone),
-  buffer: styled(TestTube, WEIGHT.duotone),
+  weigh: styled(Flask),
+  dilute: styled(Eyedropper),
+  buffer: styled(TestTube),
   // Phosphor has no plural TestTubes, and `Stack` is already the layers glyph.
   // `Rows` reads as a sequence of steps, which is what a serial dilution is —
   // the same tube, each one diluted from the last.
-  series: styled(Rows, WEIGHT.duotone),
-  ph: styled(Pulse, WEIGHT.duotone),
-  percent: styled(Percent, WEIGHT.duotone),
-  curve: styled(ChartLine, WEIGHT.duotone),
-  reagent: styled(DropHalf, WEIGHT.duotone),
-  spectro: styled(Sun, WEIGHT.duotone),
-  lab: styled(Calculator, WEIGHT.duotone),
-  colligative: styled(Thermometer, WEIGHT.duotone),
-  reaction: styled(Scales, WEIGHT.duotone),
-  electro: styled(Lightning, WEIGHT.duotone),
-  elements: styled(Atom, WEIGHT.duotone),
-  convert: styled(ArrowsLeftRight, WEIGHT.duotone),
+  series: styled(Rows),
+  ph: styled(Pulse),
+  percent: styled(Percent),
+  curve: styled(ChartLine),
+  reagent: styled(DropHalf),
+  spectro: styled(Sun),
+  lab: styled(Calculator),
+  colligative: styled(Thermometer),
+  reaction: styled(Scales),
+  electro: styled(Lightning),
+  elements: styled(Atom),
+  convert: styled(ArrowsLeftRight),
   // The drawer, not the "Lab bench" tab — that one already owns Calculator, and
   // two controls wearing the same glyph in one topbar is not a distinction.
   calc: styled(MathOperations),
+  // The icon-style toggle. `Shapes` rather than a palette, because what is
+  // being chosen is how the glyphs are drawn, not what colour they are.
+  icons: styled(Shapes),
 
   // --- Chrome ---
   history: styled(ClockCounterClockwise),
@@ -181,9 +190,9 @@ export const Icons = {
   markdown: styled(FileText),
   json: styled(FileCode),
   upload: styled(UploadSimple),
-  warning: styled(Warning, WEIGHT.fill),
+  warning: styled(Warning),
   notice: styled(ShieldWarning),
-  check: styled(Check, WEIGHT.bold),
+  check: styled(Check),
   close: styled(X),
   language: styled(Translate),
   // Frosted glass reads as a droplet; solid as a cube. Both are the shape of

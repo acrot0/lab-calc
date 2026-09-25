@@ -8,6 +8,7 @@ import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
 import { useTheme, ThemeToggle } from './ThemeContext.jsx';
 import { MaterialToggle } from './MaterialContext.jsx';
+import { IconStyleToggle } from './IconStyleContext.jsx';
 import { LOCALES } from './i18n.mjs';
 import WeighTab from './tabs/WeighTab.jsx';
 import DiluteTab from './tabs/DiluteTab.jsx';
@@ -184,6 +185,7 @@ export default function App() {
             <span className="control-label">{t('convert.calcOpen')}</span>
           </button>
           <LocaleSelect />
+          <IconStyleToggle />
           <MaterialToggle />
           <ThemeToggle />
         </div>
