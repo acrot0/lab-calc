@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Icons, ICON_SIZE } from './icons.jsx';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay, MAX_ENTRIES,
@@ -31,6 +31,7 @@ import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
 import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
+import { installBackNav } from './back-nav.mjs';
 
 /**
  * Every tab has its own icon. "Dilute" and "Serial dilution" shared one
@@ -122,6 +123,42 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  /*
+   * The system back gesture closes the topmost layer instead of the app.
+   *
+   * Installed as a PWA there is no browser back button, so the gesture is the
+   * only way back — and with no history of our own it exits the app, taking
+   * whatever was typed into the form with it.
+   *
+   * The installer is mounted once and reads the open flags through a ref. It
+   * must not be re-created per render: it owns the count of history entries it
+   * pushed, and a fresh instance would forget them and push duplicates. The
+   * flags are then re-synced from their own effect, which is the only thing
+   * that needs to react to them changing.
+   *
+   * The notice only counts as dismissible once it has been acknowledged. On a
+   * first visit it is the mandatory disclaimer, and a back gesture that
+   * dismissed it would be a way to skip the one thing it exists to make sure
+   * was read.
+   */
+  const openRef = useRef({});
+  openRef.current = { notice: noticeOpen && ackd, calc: calcOpen };
+  const backNavRef = useRef(null);
+  useEffect(() => {
+    const nav = installBackNav({
+      win: globalThis,
+      getOpen: () => openRef.current,
+      close: (layer) => {
+        if (layer === 'notice') setNoticeOpen(false);
+        else if (layer === 'calc') setCalcOpen(false);
+      },
+    });
+    backNavRef.current = nav;
+    return () => { nav.stop(); backNavRef.current = null; };
+  }, []);
+
+  useEffect(() => { backNavRef.current?.resync(); }, [noticeOpen, calcOpen, ackd]);
 
   useEffect(() => { setEntries(loadHistory(store)); }, [store]);
   useEffect(() => { saveHistory(store, entries); }, [store, entries]);

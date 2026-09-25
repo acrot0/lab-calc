@@ -70,7 +70,12 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
       />
       {preview !== null && (
         <div className="hint" id={`${id}-hint`}>
-          = {fmt(preview, 6)}
+          =
+          {/* Keyed on the value so React replaces the node when the answer
+              changes, which is what re-runs the entrance animation. Keying on
+              the field would animate once and then sit still while the number
+              behind it changed. */}
+          <span className="expr-value" key={fmt(preview, 6)}>{fmt(preview, 6)}</span>
         </div>
       )}
       {(error || hint) && !preview && (
@@ -170,22 +175,39 @@ export function Worked({ steps, label }) {
   );
 }
 
+/**
+ * The result panel.
+ *
+ * The `key` on the inner block is what makes the reveal replay. The CSS
+ * animation runs when an element mounts, and without the key React reuses the
+ * same node across renders — so the panel animated once, on the first result of
+ * the session, and every result after it appeared with no transition at all.
+ * That is the difference between an app that feels alive and one that feels
+ * like a static page, and it was invisible in a screenshot because the end
+ * state is identical.
+ *
+ * The key is the value *and* the row contents, because two different inputs can
+ * produce the same headline number with different secondary rows.
+ */
 export function Result({ value, unit, note, rows, worked, workedLabel }) {
   if (value === null || value === undefined) return null;
+  const stamp = `${value}|${rows?.map(([k, v]) => `${k}${v}`).join(',') ?? ''}`;
   return (
     <div className="result" role="status" aria-live="polite">
-      <div className="result-main">
-        {value}
-        {unit && <span className="unit">{unit}</span>}
-      </div>
-      {note && <div className="result-note">{note}</div>}
-      {rows && rows.length > 0 && (
-        <div className="result-grid">
-          {rows.map(([k, v]) => (
-            <div key={k}><span>{k}</span><strong>{v}</strong></div>
-          ))}
+      <div className="result-body" key={stamp}>
+        <div className="result-main">
+          {value}
+          {unit && <span className="unit">{unit}</span>}
         </div>
-      )}
+        {note && <div className="result-note">{note}</div>}
+        {rows && rows.length > 0 && (
+          <div className="result-grid">
+            {rows.map(([k, v]) => (
+              <div key={k}><span>{k}</span><strong>{v}</strong></div>
+            ))}
+          </div>
+        )}
+      </div>
       {worked && <Worked steps={worked} label={workedLabel} />}
     </div>
   );

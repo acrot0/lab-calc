@@ -26,6 +26,25 @@
   --density-space: 1;
   --density-type: 1;
 
+  /*
+   * Safe-area insets, with a fallback of zero.
+   *
+   * On a phone the app is installed and runs full-screen, so the status bar and
+   * the home indicator overlap the page — a sticky topbar sits under the clock
+   * and a bottom sheet under the gesture bar. `env()` reports the inset, but it
+   * is only non-zero when the viewport is opted in via `viewport-fit=cover`,
+   * and only in browsers that know the variable. The `0px` in each `max()` is
+   * what a desktop gets, so the same rules serve both without a media query.
+   *
+   * Reading these once into custom properties keeps the `env()` calls out of
+   * the rules: a browser that does not support them parses the fallback and
+   * everything downstream still resolves.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
   /* Spacing — 4px grid at comfortable density */
   --s1: calc(4px * var(--density-space));
   --s2: calc(8px * var(--density-space));
@@ -61,10 +80,32 @@
   --t-xl: calc(26px * var(--density-type));
   --t-display: calc(34px * var(--density-type));
 
-  /* Motion — short and eased; anything longer feels sluggish on a calculator */
+  /*
+   * Motion.
+   *
+   * Three durations and three curves, named for what they do rather than how
+   * long they are — a rule that wants "something arrives" reaches for
+   * `--dur-enter`, and the value can be retuned in one place.
+   *
+   *   --ease       the default: fast out of the gate, gentle into the finish.
+   *                Right for anything the user is waiting on, because most of
+   *                the movement happens immediately.
+   *   --ease-out   for something arriving — decelerate into place. Starting
+   *                slow makes an entrance feel like it is being dragged.
+   *   --ease-spring an overshoot, for the one place a little bounce reads as
+   *                physical rather than as decoration: a control being pressed.
+   *
+   * `--dur-exit` is deliberately shorter than `--dur-enter`. Something leaving
+   * is no longer interesting, and a slow exit is the most common way an
+   * interface feels sluggish.
+   */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur-fast: 120ms;
   --dur: 180ms;
+  --dur-enter: 260ms;
+  --dur-exit: 140ms;
 
   /*
    * Fonts — four faces, four jobs.
@@ -240,6 +281,10 @@ body {
   font-family: var(--font);
   font-size: var(--t-base);
   line-height: 1.6;
+  /* The page background must reach under the insets, or an installed app shows
+     a white band above the topbar and below the footer. */
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -297,13 +342,19 @@ body {
  */
 .topbar {
   position: sticky;
-  top: 0;
+  /* Sticks below the status bar rather than under it — `top: 0` in a
+     full-screen installed app puts the brand behind the clock. */
+  top: var(--safe-top);
   z-index: 30;
   display: flex;
   align-items: center;
   gap: var(--s4);
   margin: calc(var(--s2) * -1) calc(var(--s3) * -1) var(--s2);
   padding: var(--s2) var(--s3);
+  /* The topbar is full-bleed horizontally, so it has to carry the side insets
+     the body no longer applies at its edges. */
+  padding-left: max(var(--s3), var(--safe-left));
+  padding-right: max(var(--s3), var(--safe-right));
   background: var(--chrome);
   border: 1px solid transparent;
   border-radius: var(--r-md);
@@ -606,14 +657,31 @@ select.control {
 
 .tab[aria-selected="true"] { color: var(--accent); }
 
-.tab[aria-selected="true"]::after {
+/*
+ * The selection underline grows from the centre rather than appearing.
+ *
+ * It is a pseudo-element scaled from zero, not a width transition, so it costs
+ * no layout on the frames it animates — a transitioned `width` re-lays-out the
+ * whole tab row on every frame, which on a wrapped row of fifteen tabs is
+ * visible as a stutter.
+ *
+ * `transform-origin: center` is what makes it read as growing out of the tab
+ * rather than sliding in from one edge; a scale from the left would look like
+ * it belonged to the tab before.
+ */
+.tab::after {
   content: "";
   position: absolute;
   inset: auto 0 -1px 0;
   height: 2px;
   background: var(--accent);
   border-radius: var(--r-full);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--dur) var(--ease-out);
 }
+
+.tab[aria-selected="true"]::after { transform: scaleX(1); }
 
 /* ==========================================================================
    Layout
@@ -1053,6 +1121,34 @@ select.control {
 
 .hint.err { color: var(--err-ink); }
 
+/*
+ * The live expression value.
+ *
+ * It appears the moment the field holds an expression, which is the app's one
+ * genuinely surprising feature — a box labelled "volume" that accepts
+ * `250*0.1/2`. Animating it in is not decoration: it is how the user finds out
+ * the feature exists at all. Without the movement the text simply appears below
+ * a field they are looking at, and the eye, which is on the input, misses it.
+ *
+ * The value itself is in tabular figures so it does not jitter as digits are
+ * typed, and `--accent` rather than the dim hint colour, because this is a
+ * computed answer and not a restatement of the label.
+ */
+.hint:has(> .expr-value) { display: flex; align-items: center; gap: 6px; }
+
+.expr-value {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 550;
+  animation: expr-in var(--dur) var(--ease-out) both;
+}
+
+@keyframes expr-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* ==========================================================================
    Buttons
    ========================================================================== */
@@ -1195,8 +1291,14 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   background: var(--surface-2);
   border: 1px solid var(--accent-line);
   border-radius: var(--r-md);
-  animation: rise var(--dur) var(--ease);
 }
+
+/*
+ * The panel itself fades on mount; the contents are animated separately below,
+ * keyed so they replay when the value changes. The outer fade is what keeps a
+ * card from appearing empty before its numbers arrive.
+ */
+.result { animation: rise var(--dur) var(--ease); }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(4px); }
@@ -1248,9 +1350,23 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   .result-grid strong,
   .worked,
   .msg,
-  .history-item {
+  .history-item,
+  .expr-value {
     animation: value-fade-soft 220ms ease both !important;
   }
+
+  /*
+   * The tab underline keeps its transition but loses the movement: a scale is
+   * still a size change, and the point of the preference is that nothing
+   * changes size. It fades instead, so the selection is still marked.
+   */
+  .tab::after {
+    transition: opacity var(--dur-fast) linear !important;
+    transform: scaleX(1);
+    opacity: 0;
+  }
+
+  .tab[aria-selected="true"]::after { opacity: 1; }
 
   /* Transforms are removed rather than shortened: a 0.01ms translate is still
      a position change, and for a user who asked for no motion the point is
@@ -1739,6 +1855,8 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
  */
 @media (max-width: 639px) {
   .calc-drawer {
+    /* `!important` because a saved drag position is written as an inline style;
+       on a phone the sheet is anchored and that position has no meaning. */
     left: 0 !important;
     top: auto !important;
     right: 0;
@@ -1747,6 +1865,9 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
     max-height: 82dvh;
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     border-bottom: none;
+    /* Pad past the home indicator / gesture bar, or the keypad's last row sits
+       under it and the bottom keys are hard to hit. */
+    padding-bottom: var(--safe-bottom);
     animation: sheet-in var(--dur) var(--ease);
   }
 
@@ -2885,7 +3006,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   100% { opacity: 1; transform: none; }
 }
 
-.result-main { animation: value-pop 220ms var(--ease) both; }
+/*
+ * Scoped to `.result-body`, which is keyed on the value in `Fields.jsx`. The
+ * animation runs on mount, and React remounts that node whenever the result
+ * changes — so every recomputation reveals, not just the first one of the
+ * session. Selecting `.result-main` directly animated only the initial render.
+ */
+.result-body > .result-main { animation: value-pop 220ms var(--ease-out) both; }
+.result-body > .result-note { animation: value-fade 200ms var(--ease-out) both; animation-delay: 40ms; }
 
 /*
  * A number inside a result grid — the secondary values.
@@ -2899,7 +3027,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   to   { opacity: 1; transform: none; }
 }
 
-.result-grid strong { animation: value-fade 180ms var(--ease) both; }
+.result-body > .result-grid strong { animation: value-fade 180ms var(--ease-out) both; }
 
 /*
  * Stagger within a grid.
@@ -2907,14 +3035,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
  * The delay is capped at 8 steps: beyond that the last cell arrives visibly
  * late behind the first, which reads as lag rather than as sequence.
  */
-.result-grid > div:nth-child(1) strong { animation-delay: 0ms; }
-.result-grid > div:nth-child(2) strong { animation-delay: 22ms; }
-.result-grid > div:nth-child(3) strong { animation-delay: 44ms; }
-.result-grid > div:nth-child(4) strong { animation-delay: 66ms; }
-.result-grid > div:nth-child(5) strong { animation-delay: 88ms; }
-.result-grid > div:nth-child(6) strong { animation-delay: 110ms; }
-.result-grid > div:nth-child(7) strong { animation-delay: 132ms; }
-.result-grid > div:nth-child(n+8) strong { animation-delay: 154ms; }
+.result-body > .result-grid > div:nth-child(1) strong { animation-delay: 60ms; }
+.result-body > .result-grid > div:nth-child(2) strong { animation-delay: 82ms; }
+.result-body > .result-grid > div:nth-child(3) strong { animation-delay: 104ms; }
+.result-body > .result-grid > div:nth-child(4) strong { animation-delay: 126ms; }
+.result-body > .result-grid > div:nth-child(5) strong { animation-delay: 148ms; }
+.result-body > .result-grid > div:nth-child(6) strong { animation-delay: 170ms; }
+.result-body > .result-grid > div:nth-child(7) strong { animation-delay: 192ms; }
+.result-body > .result-grid > div:nth-child(n+8) strong { animation-delay: 214ms; }
 
 /*
  * The worked-calculation panel opening.
