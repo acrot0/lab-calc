@@ -1623,3 +1623,49 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   }
   .worked-step dt { text-align: left; }
 }
+
+/* ==========================================================================
+   Touch targets
+   --------------------------------------------------------------------------
+   Measured on a 390px viewport, several controls were too small to hit with a
+   thumb: the text-link buttons (43×18), the icon buttons (28×28), and the
+   selects (67×32). WCAG 2.5.8 asks for 24px minimum and Apple's guidance is
+   44; a control below that is not merely awkward, it is one a user will
+   mis-tap and blame themselves for.
+
+   Fixed on narrow viewports only. A mouse pointer is precise and a 44px-tall
+   text link in a desktop panel would look wrong — the constraint is the input
+   device, not the screen size, but screen size is what can be detected.
+   ========================================================================== */
+
+@media (max-width: 700px) {
+  /* Text links get padding rather than a larger font: the text stays the same
+     size and the hit area grows around it. Negative margin keeps the visual
+     alignment of the text, so the extra padding does not shift the layout. */
+  .link-btn {
+    min-height: 44px;
+    padding: var(--s2) var(--s2);
+    margin: calc(var(--s2) * -1) calc(var(--s2) * -1);
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .control,
+  select.control,
+  .primary,
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  /* The row of action buttons stacks rather than sitting side by side — two
+     44px-tall targets on one line at 360px leaves neither wide enough for its
+     label. */
+  .row-actions {
+    grid-template-columns: 1fr;
+    gap: var(--s2);
+  }
+}
