@@ -21,14 +21,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-// Matches --bg / --accent in src/ui/styles.css.
-const BG = [0x0f, 0x11, 0x15];
-const ACCENT = [0x4e, 0xa1, 0xff];
+/*
+ * Colours, matched to the dark palette in src/ui/palettes.mjs.
+ *
+ * BG was #0f1115 while the app's own background is #0b0d12, so the icon sat on
+ * a plate one shade off from the app it opens — visible side by side on a
+ * launcher and wrong in a way nobody would think to check.
+ */
+const BG = [0x0b, 0x0d, 0x12];
+const BG_TOP = [0x16, 0x20, 0x3a];
+const ACCENT = [0x5a, 0xa9, 0xff];
 // The glass walls sit *behind* the liquid visually, so they are the dimmer of
 // the two. An earlier version had this the other way round and the filled
 // flask read as a dark triangle with a bright outline.
 const GLASS_DIM = [0x2b, 0x5c, 0x94];
+const GLASS_LIT = [0x5a, 0x8f, 0xc8];
 const LIQUID = [0x4e, 0xa1, 0xff];
+const LIQUID_DEEP = [0x1f, 0x5c, 0xa8];
+const LIQUID_LIT = [0x9c, 0xcd, 0xff];
+const HILIGHT = [0xea, 0xf3, 0xff];
 
 /** CRC-32, required by the PNG chunk format. */
 const CRC_TABLE = (() => {
@@ -183,17 +194,74 @@ function drawIcon(size, { maskable = false } = {}) {
         ? 1
         : (inRoundRect(x / size, y / size, 0.5, 0.5, 0.5, 0.5, 0.22) ? 1 : 0);
 
-      // A subtle vertical gradient on the plate so it does not read as flat.
-      const bg = mix(BG, [0x16, 0x1b, 0x26], y / size);
+      /*
+       * The plate is lit from the upper left, the same direction as the glass
+       * highlight. A flat fill reads as a sticker; two stops along the
+       * diagonal are enough to read as a surface without looking like a
+       * gradient swatch.
+       */
+      const diag = (x / size + y / size) / 2;
+      const bg = mix(BG_TOP, BG, Math.min(1, diag * 1.35));
 
-      // Layer: plate → liquid → glass → bubble.
+      // Layer: plate → liquid → glass → bubble → highlight.
       let col = bg;
       let alpha = plate;
 
       if (plate > 0) {
-        if (aGlass > 0) col = mix(col, GLASS_DIM, aGlass);
-        if (aLiquid > 0) col = mix(col, LIQUID, aLiquid);
-        if (aBubble > 0) col = mix(col, [0x9c, 0xcd, 0xff], aBubble);
+        /*
+         * Liquid, shaded by depth.
+         *
+         * The surface catches light and the bottom goes dark, which is what
+         * makes it read as a volume rather than a blue shape. `liquidT` is 0 at
+         * the meniscus and 1 at the base.
+         */
+        if (aLiquid > 0) {
+          const [ux, uy] = unit((x + 0.5) / size, (y + 0.5) / size);
+          const liquidT = Math.min(1, Math.max(0,
+            (uy - liquidTop) / (geo.bodyBottom - liquidTop)));
+          // A band just under the surface is brightest, then it falls off.
+          const surfaceGlow = Math.exp(-liquidT * 7) * 0.75;
+          const body = mix(LIQUID, LIQUID_DEEP, liquidT * 0.85);
+          const lit = mix(body, LIQUID_LIT, surfaceGlow);
+          col = mix(col, lit, aLiquid);
+        }
+
+        /*
+         * Glass, shaded across its width.
+         *
+         * A vertical gradient alone left the walls flat. Shading on x instead
+         * makes the left wall catch light and the right wall fall away, which
+         * is how a cylinder actually reads.
+         */
+        if (aGlass > 0) {
+          const [ux] = unit((x + 0.5) / size, (y + 0.5) / size);
+          const across = Math.min(1, Math.max(0, (ux - 0.28) / 0.44));
+          const wall = mix(GLASS_LIT, GLASS_DIM, across);
+          col = mix(col, wall, aGlass);
+        }
+
+        if (aBubble > 0) col = mix(col, LIQUID_LIT, aBubble);
+
+        /*
+         * Two specular highlights: a long one down the neck's left edge and a
+         * short one on the shoulder. This is the detail that separates a
+         * rendered object from a filled shape, and it is the whole reason the
+         * mark reads as glass at 192px.
+         */
+        const [hx, hy] = unit((x + 0.5) / size, (y + 0.5) / size);
+        const neckGlint = (hx > 0.432 && hx < 0.456 && hy > 0.235 && hy < 0.395)
+          ? (1 - Math.abs(hx - 0.444) / 0.012) * 0.85 : 0;
+        const shoulderGlint = (hx > 0.30 && hx < 0.335 && hy > 0.52 && hy < 0.74)
+          ? (1 - Math.abs(hx - 0.3175) / 0.0175) * 0.5 : 0;
+        /*
+         * Clipped to the flask. Without this the shoulder highlight drew a
+         * grey bar floating outside the left wall — the coordinates put it on
+         * the wall's outer edge, and nothing stopped it painting over the
+         * background. A highlight on a transparent surface is only meaningful
+         * where there is a surface.
+         */
+        const glint = inFlask(hx, hy) ? Math.max(neckGlint, shoulderGlint) : 0;
+        if (glint > 0) col = mix(col, HILIGHT, Math.min(1, glint));
       }
 
       const i = (y * size + x) * 4;

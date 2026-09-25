@@ -54,11 +54,27 @@ describe('icon set', () => {
     }
   });
 
-  it('should import lucide icons in exactly one file', () => {
+  it('should import icon glyphs in exactly one file', () => {
     // The point of the wrapper is that the choice of glyph and its size live in
     // one place. A second import site is how the eight-size drift started.
-    const importers = SRC.filter((f) => readFileSync(f, 'utf8').includes("from 'lucide-react'"));
+    const importers = SRC.filter((f) => readFileSync(f, 'utf8').includes('@phosphor-icons/react'));
     expect(importers).toEqual(['src/ui/icons.jsx']);
+  });
+
+  it('should import each glyph by subpath, not from the package barrel', () => {
+    /*
+     * `import { Flask } from '@phosphor-icons/react'` pulls in the whole index
+     * — 3,024 icons — and the bundler cannot shake it back down, because the
+     * barrel re-exports every one of them. Measured: 624 KB against 509 KB with
+     * subpath imports. This is a build-size invariant, not a style preference.
+     */
+    const icons = readFileSync('src/ui/icons.jsx', 'utf8');
+    const fromBarrel = [...icons.matchAll(/from '@phosphor-icons\/react';/g)];
+    expect(fromBarrel).toEqual([]);
+    // And every glyph named in the import block comes from a subpath.
+    const subpaths = [...icons.matchAll(/from '@phosphor-icons\/react\/dist\/csr\/(\w+)'/g)]
+      .map((m) => m[1]);
+    expect(subpaths.length).toBeGreaterThan(20);
   });
 
   it('should not let a component pick its own icon size', () => {
@@ -87,11 +103,19 @@ describe('icon set', () => {
     expect([...values].sort((a, b) => a - b)).toEqual(values);
   });
 
-  it('should set one stroke width for the whole set', () => {
+  it('should take the weight from the wrapper, not from a call site', () => {
+    /*
+     * Phosphor's equivalent of a stroke width is its weight. The same rule
+     * applies: one declaration, applied by the wrapper. A per-icon weight at a
+     * call site is the same drift as a per-icon size, one level down.
+     *
+     * Every `weight=` in this file must be the wrapper's parameter or a value
+     * from the WEIGHT map — never a bare string literal at a call site.
+     */
     const icons = readFileSync('src/ui/icons.jsx', 'utf8');
-    // Exactly one declaration, applied by the wrapper — a per-icon stroke is
-    // the same drift as a per-icon size, one level down.
-    const strokes = [...icons.matchAll(/strokeWidth=\{([^}]+)\}/g)].map((m) => m[1]);
-    expect(strokes).toEqual(['STROKE']);
+    const literals = [...icons.matchAll(/weight=\{?'(\w+)'/g)].map((m) => m[1]);
+    expect(literals).toEqual([]);
+    // The wrapper forwards `weight` and defaults it; that is the one place.
+    expect(icons).toContain('weight = defaultWeight');
   });
 });
