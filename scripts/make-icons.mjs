@@ -67,7 +67,15 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-function encodePng(width, height, rgba) {
+export function encodePng(width, height, rgba) {
+  /*
+   * Callers hand in either a Buffer (what `drawIcon` builds) or a plain
+   * Uint8Array (what a composing script naturally produces). `Buffer.copy` is
+   * the only method used below that a Uint8Array lacks, so normalising here is
+   * cheaper than making every caller remember which one is required.
+   */
+  if (!Buffer.isBuffer(rgba)) rgba = Buffer.from(rgba.buffer, rgba.byteOffset, rgba.byteLength);
+
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
@@ -112,7 +120,7 @@ function inRoundRect(x, y, cx, cy, halfW, halfH, r) {
  * The fill is what makes it read at 16px. An outline-only flask turns into a
  * grey smudge at favicon size, which is the size most people actually see.
  */
-function drawIcon(size, { maskable = false } = {}) {
+export function drawIcon(size, { maskable = false } = {}) {
   const SS = 4;                 // supersampling factor
   const S = size * SS;
   const px = Buffer.alloc(size * size * 4);
@@ -274,72 +282,82 @@ function drawIcon(size, { maskable = false } = {}) {
   return px;
 }
 
-const outDir = path.join(process.cwd(), 'public');
-fs.mkdirSync(outDir, { recursive: true });
-
-for (const size of [192, 512]) {
-  for (const maskable of [false, true]) {
-    const png = encodePng(size, size, drawIcon(size, { maskable }));
-    const name = maskable ? `icon-${size}-maskable.png` : `icon-${size}.png`;
-    const file = path.join(outDir, name);
-    fs.writeFileSync(file, png);
-    console.log(`  ${name}  ${size}×${size}  ${png.length} bytes`);
-  }
-}
-
-// The browser tab icon. A 32px PNG keeps the mark crisp where an SVG would
-// need the font and shapes inlined; it is small enough to be free.
-{
-  const png = encodePng(32, 32, drawIcon(32));
-  const file = path.join(outDir, 'favicon-32.png');
-  fs.writeFileSync(file, png);
-  console.log(`  favicon-32.png  32×32  ${png.length} bytes`);
-}
-
 /**
- * The Windows executable icon.
+ * The file-writing half, behind a guard.
  *
- * ICO is a container, not an image format: a six-byte header, then one 16-byte
- * directory entry per image, then the images themselves. Since Vista the
- * entries may hold a PNG verbatim, so this needs no second encoder — the same
- * `encodePng` output goes straight in.
- *
- * Several sizes are embedded because Windows picks per context: 16px for the
- * title bar and task list, 32px for the desktop, 48px and 256px for Explorer's
- * larger views. Shipping only 256 would have Windows downscale a detailed mark
- * to 16px, which is where the flask turns to mush.
+ * `make-screenshots.mjs` imports `drawIcon` and `encodePng` from this module to
+ * compose store screenshots. Without the guard, importing it would rewrite
+ * every icon as a side effect of the import, which is surprising and makes the
+ * two scripts impossible to run independently.
  */
-{
-  const sizes = [16, 32, 48, 64, 128, 256];
-  const images = sizes.map((s) => ({ size: s, png: encodePng(s, s, drawIcon(s)) }));
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
+  const outDir = path.join(process.cwd(), 'public');
+  fs.mkdirSync(outDir, { recursive: true });
 
-  const header = Buffer.alloc(6);
-  header.writeUInt16LE(0, 0);              // reserved
-  header.writeUInt16LE(1, 2);              // type: 1 = icon
-  header.writeUInt16LE(images.length, 4);
-
-  const dirSize = 16 * images.length;
-  let offset = 6 + dirSize;
-  const entries = [];
-  for (const { size, png } of images) {
-    const e = Buffer.alloc(16);
-    // 256 is stored as 0 — the field is one byte and 256 does not fit.
-    e[0] = size === 256 ? 0 : size;
-    e[1] = size === 256 ? 0 : size;
-    e[2] = 0;                              // palette colours
-    e[3] = 0;                              // reserved
-    e.writeUInt16LE(1, 4);                 // colour planes
-    e.writeUInt16LE(32, 6);                // bits per pixel
-    e.writeUInt32LE(png.length, 8);
-    e.writeUInt32LE(offset, 12);
-    entries.push(e);
-    offset += png.length;
+  for (const size of [192, 512]) {
+    for (const maskable of [false, true]) {
+      const png = encodePng(size, size, drawIcon(size, { maskable }));
+      const name = maskable ? `icon-${size}-maskable.png` : `icon-${size}.png`;
+      const file = path.join(outDir, name);
+      fs.writeFileSync(file, png);
+      console.log(`  ${name}  ${size}×${size}  ${png.length} bytes`);
+    }
   }
 
-  const ico = Buffer.concat([header, ...entries, ...images.map((i) => i.png)]);
-  const dir = path.join(process.cwd(), 'desktop');
-  fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, 'icon.ico');
-  fs.writeFileSync(file, ico);
-  console.log(`  icon.ico  ${sizes.join('/')}  ${ico.length} bytes`);
+  // The browser tab icon. A 32px PNG keeps the mark crisp where an SVG would
+  // need the font and shapes inlined; it is small enough to be free.
+  {
+    const png = encodePng(32, 32, drawIcon(32));
+    const file = path.join(outDir, 'favicon-32.png');
+    fs.writeFileSync(file, png);
+    console.log(`  favicon-32.png  32×32  ${png.length} bytes`);
+  }
+
+  /**
+   * The Windows executable icon.
+   *
+   * ICO is a container, not an image format: a six-byte header, then one 16-byte
+   * directory entry per image, then the images themselves. Since Vista the
+   * entries may hold a PNG verbatim, so this needs no second encoder — the same
+   * `encodePng` output goes straight in.
+   *
+   * Several sizes are embedded because Windows picks per context: 16px for the
+   * title bar and task list, 32px for the desktop, 48px and 256px for Explorer's
+   * larger views. Shipping only 256 would have Windows downscale a detailed mark
+   * to 16px, which is where the flask turns to mush.
+   */
+  {
+    const sizes = [16, 32, 48, 64, 128, 256];
+    const images = sizes.map((s) => ({ size: s, png: encodePng(s, s, drawIcon(s)) }));
+
+    const header = Buffer.alloc(6);
+    header.writeUInt16LE(0, 0);              // reserved
+    header.writeUInt16LE(1, 2);              // type: 1 = icon
+    header.writeUInt16LE(images.length, 4);
+
+    const dirSize = 16 * images.length;
+    let offset = 6 + dirSize;
+    const entries = [];
+    for (const { size, png } of images) {
+      const e = Buffer.alloc(16);
+      // 256 is stored as 0 — the field is one byte and 256 does not fit.
+      e[0] = size === 256 ? 0 : size;
+      e[1] = size === 256 ? 0 : size;
+      e[2] = 0;                              // palette colours
+      e[3] = 0;                              // reserved
+      e.writeUInt16LE(1, 4);                 // colour planes
+      e.writeUInt16LE(32, 6);                // bits per pixel
+      e.writeUInt32LE(png.length, 8);
+      e.writeUInt32LE(offset, 12);
+      entries.push(e);
+      offset += png.length;
+    }
+
+    const ico = Buffer.concat([header, ...entries, ...images.map((i) => i.png)]);
+    const dir = path.join(process.cwd(), 'desktop');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'icon.ico');
+    fs.writeFileSync(file, ico);
+    console.log(`  icon.ico  ${sizes.join('/')}  ${ico.length} bytes`);
+  }
 }

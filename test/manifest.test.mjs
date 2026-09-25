@@ -42,6 +42,33 @@ describe('web app manifest', () => {
     }
   });
 
+  it('should declare screenshots for the rich install prompt', () => {
+    /*
+     * Without this field the app installs, but Android's prompt is a plain bar
+     * instead of a card with a preview — nothing breaks, so a missing entry is
+     * invisible. `form_factor` is what lets a phone pick the narrow one rather
+     * than letterboxing a desktop shot.
+     */
+    expect(manifest.screenshots?.length).toBeGreaterThan(0);
+    for (const shot of manifest.screenshots) {
+      expect(['narrow', 'wide']).toContain(shot.form_factor);
+      const p = `public/${shot.src.replace(/^\.\//, '')}`;
+      expect(existsSync(p), `${shot.src} should exist`).toBe(true);
+    }
+  });
+
+  it('should ship a narrow screenshot, not only a wide one', () => {
+    // A phone given only a wide screenshot shows it letterboxed with bars.
+    const factors = (manifest.screenshots ?? []).map((s) => s.form_factor);
+    expect(factors).toContain('narrow');
+  });
+
+  it('should identify the app by an id that survives a start_url change', () => {
+    // Without `id` the identity is derived from start_url, so adding a query
+    // param there would make an installed app look like a different app.
+    expect(manifest.id).toBeTruthy();
+  });
+
   it('should only link shortcuts to tabs that exist', () => {
     // A stale id here is a shortcut that opens the default tab, which looks
     // like the shortcut is broken rather than misconfigured.

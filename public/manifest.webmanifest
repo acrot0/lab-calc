@@ -2,9 +2,11 @@
   "name": "Lab Calc — 实验室溶液计算器",
   "short_name": "Lab Calc",
   "description": "称量、稀释、缓冲液、pH、滴定曲线、反应计量、电化学、元素周期表。每次计算自动留存，可导出 Excel / CSV / Markdown / PDF 报告，可离线使用。",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "any",
   "background_color": "#0b0d12",
   "theme_color": "#0b0d12",
@@ -39,6 +41,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./screenshot-narrow.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "手机：表单、元素周期表与计算器面板"
+    },
+    {
+      "src": "./screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "桌面：周期表主视图、结果栏与可拖拽计算器"
     }
   ],
   "shortcuts": [

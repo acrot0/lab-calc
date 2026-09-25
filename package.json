@@ -13,6 +13,7 @@
     "check": "node scripts/check-imports.mjs src",
     "verify": "node scripts/check-imports.mjs src && node scripts/check-dead-exports.mjs src && node scripts/check-licences.mjs && node scripts/smoke.mjs",
     "icons": "node scripts/make-icons.mjs",
+    "screenshots": "node scripts/make-screenshots.mjs",
     "package:desktop": "node scripts/package-desktop.mjs",
     "package:desktop:fast": "node scripts/package-desktop.mjs --no-build",
     "licences": "node scripts/check-licences.mjs"
