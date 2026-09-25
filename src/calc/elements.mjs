@@ -178,25 +178,13 @@ const CATEGORY_MEMBERS = {
 export const ELEMENT_CATEGORIES = Object.keys(CATEGORY_MEMBERS);
 
 /**
- * One colour per category, for the "colour by category" view.
+ * Category colours live in src/ui/palette.mjs, not here.
  *
- * The per-element CPK colours elsewhere in this file cannot serve here: they
- * distinguish 118 individual elements, so colouring by them produces 118 hues
- * and shows no grouping at all. These are the same hues as the conventional
- * periodic-table colouring, which is what a reader already recognises.
+ * They were defined in this file until the palette grew contrast and
+ * colour-vision checks, at which point a data module holding presentation
+ * values with no test coverage became the wrong home for them. This module
+ * answers "what is this element"; the UI module answers "what colour is it".
  */
-export const CATEGORY_COLOR = {
-  alkali: '#ff7a6b',
-  alkaline: '#ffb15c',
-  transition: '#8fa4bd',
-  postTransition: '#7fb69b',
-  metalloid: '#62c9c3',
-  nonmetal: '#4ea1ff',
-  halogen: '#8ee06a',
-  noble: '#c78cf0',
-  lanthanide: '#e08fc0',
-  actinide: '#d9708a',
-};
 
 const CATEGORY_BY_SYMBOL = new Map();
 for (const [category, symbols] of Object.entries(CATEGORY_MEMBERS)) {

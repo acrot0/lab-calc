@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ELEMENTS, elementBySymbol, ELEMENT_COUNT, gridPosition,
-  categoryOf, ELEMENT_CATEGORIES, CATEGORY_COLOR, blockOf, periodOf, isFBlock,
+  categoryOf, ELEMENT_CATEGORIES, blockOf, periodOf, isFBlock,
 } from '../src/calc/elements.mjs';
 import { ATOMIC_WEIGHTS, molarMass } from '../src/calc/solution.mjs';
 
@@ -161,14 +161,6 @@ describe('categoryOf', () => {
     // A plausible default is how the thirteen wrong labels shipped unnoticed.
     expect(() => categoryOf('Xx')).toThrow(/no category/);
     expect(() => categoryOf(null)).toThrow(/no category/);
-  });
-
-  it('should give every category a distinct colour', () => {
-    const colors = ELEMENT_CATEGORIES.map((c) => CATEGORY_COLOR[c]);
-    expect(new Set(colors).size).toBe(ELEMENT_CATEGORIES.length);
-    for (const c of ELEMENT_CATEGORIES) {
-      expect(CATEGORY_COLOR[c], c).toMatch(/^#[0-9a-f]{6}$/i);
-    }
   });
 
   it('should assign each element to exactly one category', () => {

@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ELEMENTS, elementBySymbol, categoryOf, blockOf, periodOf, isFBlock,
-  ELEMENT_CATEGORIES, CATEGORY_COLOR,
+  ELEMENT_CATEGORIES,
 } from '../../calc/elements.mjs';
+import {
+  ELEMENT_CATEGORY_COLOR, BLOCK_COLOR, sequentialColor,
+} from '../palette.mjs';
 import { electronConfig } from '../../calc/config.mjs';
 import { propertiesOf } from '../../calc/element-properties.mjs';
 import { fmt, fmtSci } from '../format.mjs';
@@ -34,19 +37,13 @@ const COLOR_BY = ['category', 'block', 'mass', 'rcow', 'rvdw'];
 /** The numeric properties, and their range across the whole table. */
 const NUMERIC_KEYS = ['mass', 'rcow', 'rvdw'];
 
-const BLOCK_COLOR = { s: '#ff8f6b', p: '#4ea1ff', d: '#9db4cc', f: '#e08fc0' };
 const BLOCKS = ['s', 'p', 'd', 'f'];
 
-/** Sequential ramp for the numeric properties; returns 0-1. */
+/** Where a value sits in its range, 0 to 1. */
 function heat(el, key, range) {
   const v = el[key];
   if (!Number.isFinite(v) || range.max === range.min) return 0.5;
   return (v - range.min) / (range.max - range.min);
-}
-
-/** Heat colour: 200° (blue) at the low end, 0° (red) at the high end. */
-function hueOf(h) {
-  return 200 - h * 200;
 }
 
 /**
@@ -56,14 +53,20 @@ function hueOf(h) {
  * heat ramp is an hsl() string, which needs the alpha inside the parentheses
  * instead. One helper for both so the legend and the cells cannot drift.
  */
+/**
+ * Cell fill and border for a palette colour.
+ *
+ * Every colour reaching here is a six-digit hex — the palette module normalises
+ * to that — so the alpha rides along as an eight-digit hex suffix rather than
+ * as rgba(). Eight-digit hex is a CSS colour in its own right, which keeps the
+ * value a single string the browser parses without a conversion step.
+ *
+ * The fill is deliberately faint: the cell's own text has to stay readable on
+ * top of it, and the legend is where the colour is meant to be read at full
+ * strength.
+ */
 function tinted(color) {
-  if (color.startsWith('#')) {
-    return { background: `${color}33`, borderColor: `${color}88` };
-  }
-  return {
-    background: color.replace(')', ' / 0.22)'),
-    borderColor: color.replace(')', ' / 0.6)'),
-  };
+  return { background: `${color}33`, borderColor: `${color}88` };
 }
 
 export default function ElementsTab() {
@@ -166,10 +169,13 @@ export default function ElementsTab() {
 
   /** Inline style for one cell: background follows the chosen colouring. */
   function cellStyle(el) {
-    if (colorBy === 'category') return tinted(CATEGORY_COLOR[categoryOf(el)]);
+    if (colorBy === 'category') return tinted(ELEMENT_CATEGORY_COLOR[categoryOf(el)]);
     if (colorBy === 'block') return tinted(BLOCK_COLOR[blockOf(el)]);
-    // Same ramp as the legend, so the two cannot drift apart.
-    return tinted(`hsl(${hueOf(heat(el, colorBy, ranges[colorBy]))} 72% 52%)`);
+    // Viridis, not a rainbow. A rainbow ramp is not monotonic in lightness, so
+    // it draws boundaries where the data is smooth and is unreadable in
+    // greyscale; see the note in palette.mjs. Same function the legend uses, so
+    // the two cannot drift apart.
+    return tinted(sequentialColor(heat(el, colorBy, ranges[colorBy])));
   }
 
   const dim = (el) => (matched && !matched.has(el.symbol) ? ' is-dim' : '');
@@ -209,7 +215,7 @@ export default function ElementsTab() {
       <div className="legend" aria-hidden="true">
         {colorBy === 'category' && ELEMENT_CATEGORIES.map((c) => (
           <span className="legend-item" key={c}>
-            <span className="legend-sw" style={{ background: CATEGORY_COLOR[c] }} />
+            <span className="legend-sw" style={{ background: ELEMENT_CATEGORY_COLOR[c] }} />
             {t(`elements.cat_${c}`)}
           </span>
         ))}
