@@ -4,6 +4,63 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-09-25
+
+Installable, and correct on a phone.
+
+### Added
+
+- **An install offer, with the right instructions per platform.** An
+  installable PWA says nothing about being installable — Chrome buries the
+  entry in a menu, and iOS Safari has no menu item at all (Share → Add to Home
+  Screen is not discoverable). Three paths, and the difference is the point:
+  Chromium's held `beforeinstallprompt` opens the real native dialog; iOS and
+  iPadOS get written steps, because they never fire that event; a browser with
+  no install path gets nothing. A dismissal is remembered and never asked
+  again.
+  - iPadOS 13+ reports itself as a Macintosh, so it is detected by touch points
+    as well as user agent. Without that, every modern iPad is shown an install
+    button that does not exist there.
+- **Install-prompt screenshots** in the manifest. Without them an Android
+  install shows a plain bar instead of a card with a preview. They are
+  composed rather than captured, and drawn from the app's own palette —
+  imported, not copied — so they cannot disagree with the product.
+- **`id` and `display_override`** in the manifest. The first pins the app's
+  identity so a future `start_url` change does not make an installed app look
+  like a different app; the second lets a Chromium browser that understands it
+  go a step beyond `standalone`.
+
+### Fixed
+
+- **The back gesture closed the app instead of the layer.** Installed, there is
+  no browser back button, so the system gesture is the only way back — and with
+  no history entries of our own it exited the app, taking whatever was typed
+  into the form with it. One entry is now pushed per open layer, so the gesture
+  closes the topmost one. Two cases that are easy to get wrong: a layer
+  dismissed by its own X used to strand its entry, so the next back press
+  exited the app with no visible cause; and the first-visit disclaimer is not
+  dismissible by back until it has been acknowledged.
+- **The status bar and home indicator overlapped the page.** Installed, the app
+  runs full-screen, so the sticky topbar sat under the clock and the
+  calculator's last keypad row under the gesture bar. `env()` reports the
+  insets but only when the viewport opts in via `viewport-fit=cover`, which
+  was missing — so the CSS would have silently done nothing.
+- **The result reveal never replayed.** `.result-main` was animated directly,
+  and a CSS animation runs on mount, so the panel animated once on the first
+  result of the session and every result after it appeared with no transition.
+  Invisible in a screenshot, because the end state is identical. The contents
+  are now keyed on the value.
+
+### Changed
+
+- **Motion.** Three named durations and three curves, so a rule that wants
+  "something arrives" reaches for `--dur-enter` rather than a number. The tab
+  underline scales in from the centre rather than jumping, and the live
+  expression value slides in as it appears — the movement is how a user
+  discovers that a box labelled "volume" accepts `250*0.1/2`.
+  - Reduced motion keeps the meaning and drops the movement: the underline
+    fades instead of scaling, and the keyed reveals fall back to opacity only.
+
 ## [0.5.0] — 2026-09-25
 
 ### Added
