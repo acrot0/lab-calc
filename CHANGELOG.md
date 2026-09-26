@@ -4,6 +4,102 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-09-26
+
+A phone build, an Android build, and a desktop build that works.
+
+### Fixed
+
+- **The packaged Windows build rendered a blank window.** Since code splitting
+  arrived, every released desktop build has been dead: the app opened, showed a
+  title and a background colour, and drew nothing. Two causes, stacked, both
+  invisible to the unit suite because both only fail under `file://`. The
+  packager strips `type="module"`, because `file://` refuses module scripts —
+  and what was left still contained `import.meta`, which is a **syntax error**
+  outside a module, so the whole script failed to parse. `import.meta` comes
+  from Vite's own preload helper and is injected whether or not splitting is on.
+  The desktop build is now an IIFE, which has no module semantics and nothing to
+  resolve. The packager refuses a bundle containing `import.meta`, a dynamic
+  `import(`, or more than one JS file — the failure now lands in the build
+  rather than in a user's first launch.
+- **The calculator was unusable on a phone.** Measured at 390×844: keys 40px
+  against a 44px floor, DEG/RAD 48×28, unit chips 28px, and 25 of 42 keys
+  reachable at 360×640. The sheet was also anchored to `bottom: 0` with no idea
+  the software keyboard existed — no viewport unit accounts for it, because it
+  overlays the page rather than resizing it — and the input auto-focused on
+  open, summoning that keyboard over the keypad. Touch sizing is keyed on
+  `pointer: coarse` rather than a width, because the defect is the input device:
+  a touch laptop at 1440px has the same fingertip as a phone. A landscape phone
+  (844×390) passes the width breakpoint and got the floating window, whose clamp
+  only guarantees the grab margin stays on screen — right for a window a cursor
+  can drag back, wrong for one a thumb cannot; measured there, zero of 42 keys
+  were reachable. It now takes the sheet, turns to two columns, and shows 25.
+- The smoke test's tab count was hardcoded at 15 and had been failing since a
+  tab was added; it now counts the tab files.
+
+### Added
+
+- **The pH tab corrects for ionic strength.** The buffer tab did and the pH tab
+  did not, which read as a claim the README was careful not to make. Both
+  models are now shown side by side. The correction needs two things a pKa does
+  not carry — the charge of the acid form and the background ionic strength —
+  and both default to the values that make it vanish, so a user who does not
+  know their ionic strength gets the number the tab always gave. Measured at
+  I = 0.1: phosphate pKa₂ (z = −1) 4.100 → 3.993, ammonium (z = +1) 5.125 →
+  5.232, acetic acid (z = 0) 2.880 → 2.884. The 0.004 is reported as it is: for
+  a neutral acid the terms cancel, the ideal model is right, and manufacturing a
+  visible shift would teach a wrong mechanism. A neutral base is worked as the
+  same equation with OH⁻ in the proton's role and with z = 0 — its conjugate
+  acid is a cation, but passing +1 over-corrects by the full 0.10.
+- **Product yield against how much of a reactant is supplied, on the reaction
+  tab.** The numbers answer "how much do I get"; the question they cannot answer
+  is "would more of this help". The answer is a plateau, and a plateau is
+  invisible in one row of results. Swept, it is a wedge with a corner at the
+  balanced ratio — 4 Fe to 3 O₂ as a place the line bends rather than a fact to
+  memorise. The colligative tab was considered and left alone: its `i` is an
+  input rather than a function of concentration, so the chart would be a
+  straight line through the origin, restating one number more slowly than the
+  number.
+- **Diagrams export as standalone SVG.** The component's own comment claimed
+  they "can be exported by copying the markup", which was untrue: every shape is
+  styled through a CSS class resolving through a theme token, so the markup
+  alone is unstyled black hairlines. The export reads each element's computed
+  style and writes those values onto the elements — no stylesheet, no font
+  files, no JavaScript. Values equal to the SVG initial are not written, which
+  drops 25 black fills from a figure containing no black and takes the file from
+  15 KB to 10.5 KB.
+- **An Android APK**, built from the same web bundle as everything else.
+  Measured 4.5 MB against 268 MB for Electron — same app. The launcher icon is
+  the app's own mark in all five density buckets plus the adaptive foreground,
+  verified by comparing sampled pixels against the PWA icon (25 of 25
+  identical); the version reads the repository's `package.json` rather than
+  Capacitor's template `1.0`.
+- **A Tauri shell** as an alternative desktop build, for a machine where the
+  Electron build's size is the obstacle. Scaffolding and configuration are
+  complete; the first Rust build is not, because fetching the crate index from
+  crates.io exceeds any timeout worth waiting on here.
+- The installed PWA reuses its open window on relaunch (`navigate-existing`
+  rather than `focus-existing`, so a shortcut's `?tab=` still arrives).
+
+### Changed
+
+- The desktop build is 268 MB rather than 322: the DirectX shader compilers and
+  the software Vulkan fallback are gone (37 MB, no caller in a 2D-only app) and
+  the Chromium licence file is gzipped in place (19.5 → 2.0 MB, notices kept in
+  full, nothing summarised).
+- The pH tab's preset list comes from the buffer table rather than being written
+  out again, which brings in the charged cases — Tris-HCl, HEPES, phosphate
+  pKa₂ — where the correction actually moves.
+
+### Documentation
+
+`README.md` and `docs/research-value.zh.md` both said activity correction lives
+only in the reagent tab and that non-buffer pH is computed ideally. Both now say
+which tabs correct and which do not, and why the ones that do not are
+unaffected — a preparation answers "how much do I weigh out", and activity does
+not change a mass. `research-value.zh.md` also listed its idealisation caveats
+twice; one copy removed. The roadmap header still described v0.5.0.
+
 ## [0.7.0] — 2026-09-26
 
 Two more charts on calculate.
@@ -487,6 +583,7 @@ Installable, correct on a phone, and able to do the arithmetic.
 - 3-OS × 2-Node CI, plus a smoke test asserting known answers and a check for
   unused imports.
 
+[0.8.0]: https://github.com/acrot0/lab-calc/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/acrot0/lab-calc/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/acrot0/lab-calc/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/acrot0/lab-calc/compare/v0.4.0...v0.5.0
