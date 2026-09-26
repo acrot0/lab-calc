@@ -6,6 +6,7 @@ import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 export default function SeriesTab({ onRecord, restored }) {
   const { t } = useI18n();
@@ -81,7 +82,7 @@ export default function SeriesTab({ onRecord, restored }) {
   }
 
   return (
-    <div className="card">
+    <Card>
       <div className="row">
         <NumField label={t('series.stockConc')} value={stock} onChange={setStock} min="0" />
         <NumField label={t('series.factor')} value={factor} onChange={setFactor} min="1" hint={t('series.factorHint')} />
@@ -136,6 +137,6 @@ export default function SeriesTab({ onRecord, restored }) {
           <Worked steps={worked} label={t('common.worked')} />
         </div>
       )}
-    </div>
+    </Card>
   );
 }

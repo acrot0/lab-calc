@@ -5,6 +5,7 @@ import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 export default function DiluteTab({ onRecord, restored }) {
   const { t } = useI18n();
@@ -65,7 +66,7 @@ export default function DiluteTab({ onRecord, restored }) {
   }
 
   return (
-    <div className="card">
+    <Card>
       <div className="row">
         <NumField label={t('dilute.stockConc')} value={stock} onChange={setStock} min="0" />
         <NumField label={t('dilute.targetConc')} value={target} onChange={setTarget} min="0" />
@@ -85,6 +86,6 @@ export default function DiluteTab({ onRecord, restored }) {
         worked={worked}
         workedLabel={t('common.worked')}
       />
-    </div>
+    </Card>
   );
 }

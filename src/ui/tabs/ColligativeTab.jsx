@@ -7,6 +7,7 @@ import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /**
  * Colligative properties: boiling point, freezing point, osmotic pressure, and
@@ -134,7 +135,7 @@ export default function ColligativeTab({ onRecord, restored }) {
   const solventName = t(`colligative.solvent_${solvent}`);
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="coll-mode">{t('colligative.mode')}</label>
         <select id="coll-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -224,6 +225,6 @@ export default function ColligativeTab({ onRecord, restored }) {
           ]}
           worked={worked} workedLabel={t('common.worked')} />
       )}
-    </div>
+    </Card>
   );
 }

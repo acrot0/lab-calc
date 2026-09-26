@@ -5,6 +5,7 @@ import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 export default function WeighTab({ onRecord, restored }) {
   const { t } = useI18n();
@@ -95,7 +96,7 @@ export default function WeighTab({ onRecord, restored }) {
   }
 
   return (
-    <div className="card">
+    <Card>
       <TextField
         label={t('common.formula')} value={formula} onChange={setFormula}
         placeholder={t('common.formulaPlaceholder')}
@@ -122,6 +123,6 @@ export default function WeighTab({ onRecord, restored }) {
         worked={worked}
         workedLabel={t('common.worked')}
       />
-    </div>
+    </Card>
   );
 }

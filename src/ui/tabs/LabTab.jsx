@@ -7,6 +7,7 @@ import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /**
  * Everyday bench arithmetic: moles, plating, nucleic acids, master mixes.
@@ -213,7 +214,7 @@ export default function LabTab({ onRecord, restored }) {
   const setComponent = (i, patch) => setComponents(components.map((c, j) => (j === i ? { ...c, ...patch } : c)));
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="lab-mode">{t('lab.mode')}</label>
         <select id="lab-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -370,7 +371,7 @@ export default function LabTab({ onRecord, restored }) {
           <Worked steps={worked} label={t('common.worked')} />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

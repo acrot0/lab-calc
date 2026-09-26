@@ -5,6 +5,7 @@ import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /** Draw the calibration line with its points, so the fit is visible not asserted. */
 function CurvePlot({ points, fit, reading, width = 520, height = 220, theme = 'dark' }) {
@@ -270,7 +271,7 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
   }, [shown, mode, epsilon, conc, path, absorbance, reading, t]);
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="spectro-mode">{t('spectro.mode')}</label>
         <select id="spectro-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -371,6 +372,6 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
       )}
 
       {mode !== 'curve' && <Warn>{t('spectro.warning', { max: LINEAR_ABSORBANCE_MAX })}</Warn>}
-    </div>
+    </Card>
   );
 }

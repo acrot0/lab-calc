@@ -8,6 +8,7 @@ import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /**
  * Reaction stoichiometry — balancing, limiting reagent, empirical formula.
@@ -226,7 +227,7 @@ export default function ReactionTab({ onRecord, restored }) {
     : null;
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="rx-mode">{t('reaction.mode')}</label>
         <select id="rx-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -360,6 +361,6 @@ export default function ReactionTab({ onRecord, restored }) {
       )}
 
       <Warn>{t('reaction.disclaimer')}</Warn>
-    </div>
+    </Card>
   );
 }

@@ -5,6 +5,7 @@ import { fmt, n, fmtSci, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /**
  * Electrochemistry — cell potential under non-standard conditions.
@@ -116,7 +117,7 @@ export default function ElectroTab({ onRecord, restored }) {
   }, [shown, mode, q, t]);
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="ec-mode">{t('electro.mode')}</label>
         <select id="ec-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -178,6 +179,6 @@ export default function ElectroTab({ onRecord, restored }) {
           <Warn>{shown.spontaneous ? t('electro.spontaneous') : t('electro.notSpontaneous')}</Warn>
         </>
       )}
-    </div>
+    </Card>
   );
 }

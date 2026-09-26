@@ -6,6 +6,7 @@ import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 export default function BufferTab({ onRecord, restored }) {
   const { t } = useI18n();
@@ -59,7 +60,7 @@ export default function BufferTab({ onRecord, restored }) {
   }
 
   return (
-    <div className="card">
+    <Card>
       <div className="row">
         <NumField label={t('buffer.pka')} value={pka} onChange={setPka} hint={t('buffer.pkaHint')} />
         <NumField label={t('buffer.targetPh')} value={ph} onChange={setPh} />
@@ -89,6 +90,6 @@ export default function BufferTab({ onRecord, restored }) {
         worked={worked}
         workedLabel={t('common.worked')}
       />
-    </div>
+    </Card>
   );
 }

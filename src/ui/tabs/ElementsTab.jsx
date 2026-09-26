@@ -16,6 +16,7 @@ import { useI18n } from '../LocaleContext.jsx';
 import ElementCompare from '../components/ElementCompare.jsx';
 import ElementDetail from '../components/ElementDetail.jsx';
 import Molecule from '../components/Molecule.jsx';
+import Card from '../components/Card.jsx';
 
 /**
  * Interactive periodic table.
@@ -230,7 +231,7 @@ export default function ElementsTab({ theme = 'dark' }) {
   const props = selected ? propertiesOf(selected.number) : null;
 
   return (
-    <div className="card is-elements">
+    <Card className="is-elements">
       <div className="row">
         <div className="field">
           <label htmlFor="el-color">{t('elements.colorBy')}</label>
@@ -472,6 +473,6 @@ export default function ElementsTab({ theme = 'dark' }) {
         properties={props}
       />
       </div>
-    </div>
+    </Card>
   );
 }

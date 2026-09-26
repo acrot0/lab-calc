@@ -5,6 +5,7 @@ import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /** Common lab acids and bases, so the pKa field is not a blank guess. */
 const PRESETS = [
@@ -87,7 +88,7 @@ export default function PhTab({ onRecord, restored }) {
 
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="ph-kind">{t('ph.kind')}</label>
         <select id="ph-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
@@ -126,6 +127,6 @@ export default function PhTab({ onRecord, restored }) {
         worked={worked}
         workedLabel={t('common.worked')}
       />
-    </div>
+    </Card>
   );
 }

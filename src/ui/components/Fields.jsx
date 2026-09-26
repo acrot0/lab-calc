@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { evaluate, looksLikeExpression } from '../../calc/expression.mjs';
 import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
+import { claimField } from '../field-bridge.mjs';
 
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
 
@@ -28,6 +29,29 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
   const id = idProp ?? `f-${label}`;
   const { t } = useI18n();
   const [draft, setDraft] = useState(null);
+  const inputRef = useRef(null);
+
+  /*
+   * Tell the calculator which field it may fill.
+   *
+   * On focus rather than on mount: a tab can render twenty fields, and the one
+   * the user means is the one they were last typing in. The claim is released
+   * on unmount so a removed field is never written to.
+   */
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return undefined;
+    let release = null;
+    const onFocus = () => {
+      release?.();
+      release = claimField(el);
+    };
+    el.addEventListener('focus', onFocus);
+    return () => {
+      el.removeEventListener('focus', onFocus);
+      release?.();
+    };
+  }, []);
 
   /*
    * `draft` holds what the user is typing; `value` is the evaluated number the
@@ -57,6 +81,7 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <input
+        ref={inputRef}
         id={id}
         type="text"
         inputMode="decimal"

@@ -8,6 +8,7 @@ import { ArtBalance, ArtCylinder, ArtConvert } from '../components/Illustrations
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
+import Card from '../components/Card.jsx';
 
 /**
  * The dimensions this screen offers, in the order they are shown.
@@ -55,7 +56,7 @@ export default function ConvertTab() {
   const [mode, setMode] = useState('convert');
 
   return (
-    <div className="card">
+    <Card>
       <div className="seg" role="group" aria-label={t('convert.title')}>
         <button
           type="button"
@@ -76,7 +77,7 @@ export default function ConvertTab() {
       </div>
 
       {mode === 'convert' ? <Converter /> : <Calculator />}
-    </div>
+    </Card>
   );
 }
 

@@ -809,69 +809,49 @@ select.control {
  */
 @container card (min-width: 620px) {
   /*
-   * The split is gated on there being something to split against.
+   * Two columns, and the reason they are two containers rather than one grid.
    *
-   * Without the `:has()`, ten of the fifteen tabs — the ones whose result
-   * appears only after a calculation, or which have no result at all — were
-   * laid out in two columns with the right-hand one permanently empty. The
-   * effect was a form squeezed into half the card, a lone primary button
-   * marooned at the bottom of the left half, and a large blank field to its
-   * right. That is the "space is too empty" complaint, and it is the same
-   * defect as the stranded button: neither is a styling problem, both are this
-   * query firing when it has nothing to lay out.
+   * The card was previously a single grid with results placed into column 2 via
+   * `grid-column`. That reads correctly and was the bug: **CSS Grid shares row
+   * heights across columns.** A tall result in column 2 stretched row 1 for
+   * both columns, so the primary button in column 1 — which belongs directly
+   * under the fields — was pushed down by the full height of the result.
+   * Measured: a 282px result moved the button 212px. That is the "the layout
+   * jumps down when a result appears" complaint.
    *
-   * A card earns two columns by having a result in it. Until then it is one
-   * column, and the form gets the full width it was always meant to have.
+   * No grid tuning fixes this. The shared row is what a grid is, and the two
+   * columns here are meant to flow past each other. So the split is two flow
+   * contexts: each column lays out independently, and neither can push the
+   * other around.
+   *
+   * `Card.jsx` does the partitioning, so a tab writes its children in reading
+   * order and never thinks about columns.
    */
-  .card:has(> .result):not(.is-elements) {
+  .card:has(> .card-results):not(.is-elements) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: var(--s5) var(--s6);
+    gap: 0 var(--s6);
     align-items: start;
-    /*
-     * `dense` is the whole trick, and without it this layout is broken.
-     *
-     * The default packing is sparse: the placement cursor only moves forward,
-     * never back. The result is the last element in every tab's markup, so by
-     * the time the cursor reached it, the form had already consumed rows 1-3 of
-     * column 1 — and the result landed on row 3 of column 2, level with nothing,
-     * with rows 1 and 2 of its own column empty. That is exactly what "the
-     * result is at the bottom and the top-right is blank" was.
-     *
-     * Dense packing backfills: a result assigned to column 2 takes the earliest
-     * free row there, which is row 1, so it sits level with the first input.
-     */
-    grid-auto-flow: row dense;
   }
 
-  /* Column 1: everything the user fills in, plus the button and any message. */
-  .card > :not(.result) { grid-column: 1; }
+  /* Each column is a plain block stack. `min-width: 0` lets a wide table inside
+     one scroll rather than forcing the column wider than its share. */
+  .card > .card-main,
+  .card > .card-results {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
 
-  /* Column 2: results only. Several queue down this column in source order —
-     Reagent has five — which is the order they are meant to be read in. */
-  .card > .result { grid-column: 2; }
+  /* Results are separated from each other, not from the column edge — the
+     card's own padding already does that. */
+  .card > .card-results > * + * { margin-top: var(--s5); }
 
-  /*
-   * The button keeps its own width.
-   *
-   * `inline-flex` is a request, not a guarantee: a grid item stretches to its
-   * column by default, which is how a 120px "Calculate" became a 421px bar.
-   * `justify-self` is what actually overrides the stretch.
-   */
-  .card > button { justify-self: start; }
-
-  /*
-   * The result is not a card inside a card.
-   *
-   * It kept its own background, border and margin from the single-column
-   * layout, where it was a panel sitting below a form. Here it is already in a
-   * column of its own, so the border drew a box inside a box and the 20px
-   * margin pushed it below the first input — nothing in the two columns lined
-   * up. This is the fix for the misalignment that made the layout look broken.
-   */
-  .card > .result {
+  /* The result loses its own box in this layout: the column divider already
+     separates it, and a panel inside a panel reads as a nested card. */
+  .card > .card-results > .result {
     margin-top: 0;
-    padding: 0 0 0 var(--s6);
+    padding: 0;
     background: none;
     border: none;
     border-radius: 0;
@@ -880,7 +860,7 @@ select.control {
   /*
    * The rule between the form and the results, drawn on the card.
    *
-   * Drawn here rather than as a `border-left` on the first result because
+   * Drawn here rather than as a `border-left` on the results column because
    * `:first-of-type` matches the first element *of its tag*, not the first of
    * its class — and the first div in every card is a `.field`, so that selector
    * silently matched nothing and the divider never appeared.
@@ -890,10 +870,10 @@ select.control {
    * the form it is meant to separate. The padding is symmetric, so 50% of the
    * padding box is exactly the column boundary.
    *
-   * `:has()` gates it on there being a result to separate; a tab with no
-   * result yet gets no line down the middle of an empty card.
+   * `:has()` gates it on there being a results column; a tab with no result yet
+   * gets no line down the middle of an empty card.
    */
-  .card:has(> .result):not(.is-elements) {
+  .card:has(> .card-results):not(.is-elements) {
     background-image: linear-gradient(
       to right,
       transparent calc(50% - 0.5px),
@@ -1800,16 +1780,18 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
  *
  * Below 100 is deliberate — the notice modal is 100 and must stay above it.
  */
-.calc-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  padding: 0;
-  background: var(--scrim);
-  border: none;
-  cursor: default;
-  animation: fade var(--dur) var(--ease);
-}
+/*
+ * There is no scrim, and its absence is the point.
+ *
+ * The window used to sit behind a full-screen scrim whose only job was to
+ * close it on an outside click. That is the behaviour of a modal — and this is
+ * not a modal: it exists so a number can be worked out *while* filling in the
+ * form behind it. A scrim that dismisses it on the first click into a field
+ * made it useless for the one thing it is for, and it dimmed the page the user
+ * was reading.
+ *
+ * The window closes only when asked: its X, or Escape.
+ */
 
 /*
  * The window itself.
@@ -2015,6 +1997,36 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .calc-idle { color: var(--text-dim); font-size: var(--t-sm); }
 .calc-error { color: var(--err-ink); font-size: var(--t-sm); line-height: 1.45; }
+
+/*
+ * Send the answer into the field behind the window.
+ *
+ * Full width, directly under the readout: it is the action the window exists
+ * for, and it should be the largest target in it. It only renders when a
+ * numeric field has been focused, so it never offers to write to nowhere.
+ *
+ * Accent-filled rather than outlined, because it is a primary action — but
+ * only on the row it occupies, so it does not compete with the keypad.
+ */
+.calc-fill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-sm);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 550;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.calc-fill:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 
 .calc-units {
   display: flex;

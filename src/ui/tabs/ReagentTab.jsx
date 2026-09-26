@@ -9,6 +9,7 @@ import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /**
  * Concentrated reagents with their published density and weight percentage.
@@ -209,7 +210,7 @@ export default function ReagentTab({ onRecord, restored }) {
   }, [shown, mode, density, percent, targetM, targetV, molarity, nEq, moles, solventKg, formula, t]);
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="reagent-mode">{t('reagent.mode')}</label>
         <select id="reagent-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -357,6 +358,6 @@ export default function ReagentTab({ onRecord, restored }) {
       {mode === 'ionic' && shown?.activityOutOfRange && (
         <Warn>{t('reagent.activityOutOfRange', { max: '0.5' })}</Warn>
       )}
-    </div>
+    </Card>
   );
 }

@@ -5,6 +5,7 @@ import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 /** Parse "2.15, 7.20, 12.35" into numbers. Returns null on anything unusable. */
 function parsePkaList(text) {
@@ -242,7 +243,7 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
   }
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="acid-type">{t('curve.acidType')}</label>
         <select id="acid-type" value={acidType} onChange={(e) => setAcidType(e.target.value)}>
@@ -304,6 +305,6 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
       )}
 
       <Warn>{t('curve.warning')}</Warn>
-    </div>
+    </Card>
   );
 }

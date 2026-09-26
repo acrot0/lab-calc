@@ -6,6 +6,7 @@ import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
+import Card from '../components/Card.jsx';
 
 export default function PercentTab({ onRecord, restored }) {
   const { t } = useI18n();
@@ -111,7 +112,7 @@ export default function PercentTab({ onRecord, restored }) {
     : null;
 
   return (
-    <div className="card">
+    <Card>
       <div className="field">
         <label htmlFor="pct-mode">{t('percent.mode')}</label>
         <select id="pct-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -167,6 +168,6 @@ export default function PercentTab({ onRecord, restored }) {
           workedLabel={t('common.worked')}
         />
       )}
-    </div>
+    </Card>
   );
 }

@@ -7,6 +7,7 @@ import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { Icons, ICON_SIZE } from '../icons.jsx';
+import { canFill, fillField, onFieldChange } from '../field-bridge.mjs';
 import {
   clampPosition, defaultPosition, dragTo, isDragHandle,
 } from '../float-window.mjs';
@@ -119,6 +120,10 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   const { t } = useI18n();
   const [src, setSrc] = useState('');
   const [degrees, setDegrees] = useState(false);
+  // Whether a numeric field is currently claiming the fill target. Tracked in
+  // state so the button appears and disappears as focus moves.
+  const [canFillHere, setCanFillHere] = useState(false);
+  const [filled, setFilled] = useState(false);
   const inputRef = useRef(null);
 
   /*
@@ -265,6 +270,20 @@ export default function CalculatorDrawer({ open, onClose, store }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  /*
+   * Watch which field is claiming the fill target.
+   *
+   * Re-read on every render while open as well as on subscription, because the
+   * target can be claimed by a field that mounted before this window opened —
+   * the user focuses an input, then opens the calculator, and no change event
+   * fires in between.
+   */
+  useEffect(() => {
+    if (!open) return undefined;
+    setCanFillHere(canFill());
+    return onFieldChange(() => setCanFillHere(canFill()));
+  }, [open]);
+
   if (!open) return null;
 
   const dimLabel = result?.dimension
@@ -275,15 +294,8 @@ export default function CalculatorDrawer({ open, onClose, store }) {
 
   return (
     <>
-      {/* The scrim closes the window on click. It is a button rather than a div
-          so that it is reachable and announced, and it carries no label of its
-          own because the window beside it already names itself. */}
-      <button
-        type="button"
-        className="calc-scrim"
-        aria-label={t('convert.calcClose')}
-        onClick={onClose}
-      />
+      {/* No scrim: the window stays put while the form behind it is used. See
+          the note where `.calc-scrim` used to be in styles.css. */}
       <aside
         ref={winRef}
         className="calc-drawer"
@@ -348,6 +360,29 @@ export default function CalculatorDrawer({ open, onClose, store }) {
               </>
             )}
           </div>
+
+          {/* Filling the field behind the window is the reason the window can
+              stay open at all. It appears only when a numeric field has been
+              focused, so it never offers to write somewhere there is nowhere
+              to write to. */}
+          {canFillHere && result && !result.error && (
+            <button
+              type="button"
+              className="calc-fill"
+              onClick={() => {
+                // The raw value, not the formatted one: the readout rounds to
+                // ten significant figures for reading, and writing the rounded
+                // text back would lose precision on every round trip.
+                if (fillField(String(result.value))) {
+                  setFilled(true);
+                  window.setTimeout(() => setFilled(false), 1400);
+                }
+              }}
+            >
+              <Icons.check size={ICON_SIZE.inline} aria-hidden="true" />
+              {filled ? t('convert.calcFilled') : t('convert.calcFill')}
+            </button>
+          )}
 
           <div className="calc-units" role="group" aria-label={t('convert.calcUnits')}>
             {UNIT_KEYS.map((u) => (
