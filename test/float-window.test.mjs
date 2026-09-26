@@ -259,3 +259,38 @@ describe('calculator touch targets', () => {
     expect(css).toMatch(/max-height:\s*calc\(100dvh\s*-\s*var\(--kb-inset/);
   });
 });
+
+describe('topbar control alignment', () => {
+  /*
+   * The language picker rendered 2px shorter than the four buttons beside it.
+   *
+   * `.control` is 34px, but `.control-group select.control` carried a hardcoded
+   * 32px inside a 34px wrapper — small enough to read as "that row looks off"
+   * without being obvious enough to name, which is the kind of defect that
+   * survives review. Asserted against the stylesheet because the fix is a
+   * declaration, and a DOM test would need a layout engine to catch its
+   * absence.
+   */
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+  const rule = /\.control-group select\.control\s*\{([^}]*)\}/.exec(css);
+
+  it('should size the grouped select from its wrapper, not from a literal', () => {
+    expect(rule, '.control-group select.control rule').not.toBeNull();
+    expect(rule[1]).toMatch(/height:\s*100%/);
+    // The literal that caused the mismatch must not come back.
+    expect(rule[1]).not.toMatch(/height:\s*\d+px/);
+  });
+
+  it('should stretch the select so the percentage height resolves', () => {
+    // The wrapper is a flex row with `align-items: center`, which sizes children
+    // to their content and leaves `height: 100%` with nothing to resolve
+    // against. Without this the fix silently does nothing.
+    expect(rule[1]).toMatch(/align-self:\s*stretch/);
+  });
+
+  it('should centre the dropdown arrow rather than pinning it to a pixel', () => {
+    // It was `14px`, which was the middle of the old 32px box and one pixel low
+    // in a 34px one.
+    expect(rule[1]).toMatch(/background-position:[^;]*center/);
+  });
+});

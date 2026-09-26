@@ -505,12 +505,29 @@ select.control {
 
 .control-group:hover { border-color: var(--border-strong); }
 
+/*
+ * The select fills its wrapper rather than carrying its own height.
+ *
+ * It was a hardcoded 32px inside a 34px `.control-group`, so the language
+ * picker sat 2px shorter than the four buttons beside it — a difference small
+ * enough to read as "the row is misaligned" without being obvious enough to
+ * name. `height: 100%` ties it to whatever the wrapper is, so the two cannot
+ * drift when the control height changes.
+ *
+ * `align-self: stretch` is what makes `height: 100%` resolve: the wrapper is a
+ * flex row with `align-items: center`, which sizes children to their content
+ * and leaves a percentage height with nothing to resolve against.
+ */
 .control-group select.control {
-  height: 32px;
+  height: 100%;
+  align-self: stretch;
   padding: 0 22px 0 0;
   background-color: transparent;
   border: none;
-  background-position: calc(100% - 8px) 14px, calc(100% - 4px) 14px;
+  /* Centred against the wrapper rather than pinned to a pixel offset: the
+     arrow is 4px tall, so 14px put it at the middle of a 32px box and 1px low
+     in a 34px one. */
+  background-position: calc(100% - 8px) center, calc(100% - 4px) center;
 }
 
 .control-group select.control:hover { background-color: transparent; border: none; color: var(--text); }
