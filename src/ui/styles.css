@@ -2833,6 +2833,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   background: none;
 }
 
+/* A species swatch. Unlike the two above it carries no literal colour: the
+   plot computes each curve's ink from the active palette and passes it in, so
+   a hardcoded value here would be a legend that disagrees with its chart on
+   every theme but the one it was written against. */
+.legend-sw-line {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+}
+
 /* Keyed on the scheme, not on a theme name.
    These two swatches are drawn at low opacity, which reads correctly on a dark
    surface and washes out on a light one. Selecting on `data-theme="light"`

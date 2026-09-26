@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { useI18n } from '../LocaleContext.jsx';
 import { chartColors } from '../chart-colors.mjs';
+import { niceTicks } from './chart-axis.mjs';
 import { fmt } from '../format.mjs';
 
 /**
@@ -190,27 +191,4 @@ export default function KineticsPlot({ points, fit, theme = 'dark', width = 520,
       <figcaption>{t('bio.kineticsCaption')}</figcaption>
     </figure>
   );
-}
-
-/**
- * Round tick values at roughly `count` intervals.
- *
- * A 1/2/5×10ⁿ step rather than an even division of the range, because an even
- * division produces labels like 0.37 and 0.74 — arithmetically correct and
- * unreadable on an axis. The step is chosen so the ticks land on numbers a
- * reader can do arithmetic with.
- */
-export function niceTicks(max, count = 5) {
-  if (!(max > 0)) return [0];
-  const raw = max / count;
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const norm = raw / mag;
-  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
-  const out = [];
-  for (let v = 0; v <= max + step * 0.001; v += step) {
-    // Floating-point accumulation makes 0.30000000000000004 out of 0.1×3, which
-    // prints as a tick label nobody wants.
-    out.push(Number(v.toPrecision(12)));
-  }
-  return out;
 }

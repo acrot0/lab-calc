@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { titrationCurve, findEquivalencePoint, weakAcidCurveParams } from '../src/calc/curve.mjs';
+import {
+  titrationCurve, findEquivalencePoint, weakAcidCurveParams, speciationCurve,
+} from '../src/calc/curve.mjs';
 
 /**
  * The titration curve is generated from the exact equilibrium treatment rather
@@ -144,5 +146,105 @@ describe('concentrated strong acid', () => {
   it('should not change a weak-acid curve', () => {
     const curve = titrationCurve({ pKa: 4.76, conc: 0.1, volumeMl: 25, titrantConc: 0.1 });
     expect(curve[0].ph).toBeCloseTo(2.88, 2);
+  });
+});
+
+/**
+ * The speciation curve is the picture behind the pH tab's warning.
+ *
+ * That tab rests on [H+] ≈ sqrt(Ka·C), which is only valid while the acid is
+ * barely dissociated. The distribution is what makes the domain of that
+ * approximation checkable rather than asserted.
+ */
+describe('speciationCurve', () => {
+  const acetate = speciationCurve({ pKa: 4.76, points: 200 });
+
+  it('should give one more species than there are pKa values', () => {
+    expect(acetate.species).toHaveLength(2);
+    expect(speciationCurve({ pKas: [2.15, 7.20, 12.35] }).species).toHaveLength(4);
+  });
+
+  it('should name the species from most to least protonated', () => {
+    expect(acetate.species).toEqual(['HA', 'A⁻']);
+    expect(speciationCurve({ pKas: [2.15, 7.20, 12.35] }).species)
+      .toEqual(['H₃A', 'H₂A⁻', 'HA²⁻', 'A³⁻']);
+  });
+
+  it('should sum the fractions to 1 at every pH', () => {
+    // A denominator that drops a term still produces a plausible-looking curve,
+    // so the normalisation is asserted rather than assumed.
+    for (const p of acetate.points) {
+      const sum = p.fractions.reduce((a, b) => a + b, 0);
+      expect(sum).toBeCloseTo(1, 10);
+    }
+  });
+
+  it('should cross at pH = pKa, where the two forms are equal', () => {
+    // Sampled so the pKa lands exactly on a grid point: an odd count over a
+    // range symmetric about it. Searching the default grid instead would only
+    // test the crossing to within the sampling step, which is a weaker claim.
+    const sym = speciationCurve({ pKa: 4.76, points: 7, phMin: 3.76, phMax: 5.76 });
+    const atPka = sym.points[3];
+    expect(atPka.ph).toBeCloseTo(4.76, 10);
+    expect(atPka.fractions[0]).toBeCloseTo(0.5, 10);
+    expect(atPka.fractions[1]).toBeCloseTo(0.5, 10);
+  });
+
+  it('should be almost entirely protonated three units below the pKa', () => {
+    // This is the region the sqrt(Ka·C) approximation is entitled to.
+    const low = acetate.points[0];
+    expect(low.ph).toBeCloseTo(1.76, 6);
+    expect(low.fractions[0]).toBeGreaterThan(0.999);
+  });
+
+  it('should be almost entirely deprotonated three units above the pKa', () => {
+    const high = acetate.points.at(-1);
+    expect(high.ph).toBeCloseTo(7.76, 6);
+    expect(high.fractions[1]).toBeGreaterThan(0.999);
+  });
+
+  it('should place the pH range three units either side of the pKas', () => {
+    expect(acetate.phMin).toBeCloseTo(1.76, 6);
+    expect(acetate.phMax).toBeCloseTo(7.76, 6);
+  });
+
+  it('should cover the widest pKa span of a polyprotic acid', () => {
+    const phosphoric = speciationCurve({ pKas: [2.15, 7.20, 12.35] });
+    expect(phosphoric.phMin).toBeCloseTo(0, 6);   // clamped: 2.15 - 3 < 0
+    expect(phosphoric.phMax).toBeCloseTo(14, 6);  // clamped: 12.35 + 3 > 14
+  });
+
+  it('should never sample outside the pH range water allows', () => {
+    const phosphoric = speciationCurve({ pKas: [2.15, 7.20, 12.35] });
+    for (const p of phosphoric.points) {
+      expect(p.ph).toBeGreaterThanOrEqual(0);
+      expect(p.ph).toBeLessThanOrEqual(14);
+    }
+  });
+
+  it('should put all the weight on the anion for a strong acid', () => {
+    const strong = speciationCurve({ strongAcid: true });
+    expect(strong.species).toEqual(['A⁻']);
+    expect(strong.points[0].fractions).toEqual([1]);
+  });
+
+  it('should return the requested number of samples', () => {
+    expect(speciationCurve({ pKa: 4.76, points: 40 }).points).toHaveLength(40);
+    expect(speciationCurve({ pKa: 4.76 }).points).toHaveLength(120);
+  });
+
+  it('should refuse a non-positive point count', () => {
+    expect(() => speciationCurve({ pKa: 4.76, points: 0 }))
+      .toThrowError(expect.objectContaining({ code: 'pointsNotPositive' }));
+  });
+
+  it('should refuse a spec with no pKa', () => {
+    expect(() => speciationCurve({}))
+      .toThrowError(expect.objectContaining({ code: 'acidSpecMissing' }));
+  });
+
+  it('should refuse an empty pH range', () => {
+    expect(() => speciationCurve({ pKa: 4.76, phMin: 9, phMax: 3 }))
+      .toThrowError(expect.objectContaining({ code: 'phRangeEmpty' }));
   });
 });

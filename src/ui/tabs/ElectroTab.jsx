@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { nernst, cellFromHalfCells, STANDARD_POTENTIALS } from '../../calc/electro.mjs';
+import {
+  nernst, nernstLine, cellFromHalfCells, STANDARD_POTENTIALS,
+} from '../../calc/electro.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
+import NernstPlot from '../components/NernstPlot.jsx';
 import { fmt, n, fmtSci, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -16,7 +19,7 @@ import Card from '../components/Card.jsx';
  */
 const MODES = ['nernst', 'cell'];
 
-export default function ElectroTab({ onRecord, restored }) {
+export default function ElectroTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [mode, setMode] = useState(restored?.mode ?? 'nernst');
   const [e0, setE0] = useState(restored?.e0 != null ? String(restored.e0) : '1.1037');
@@ -27,6 +30,7 @@ export default function ElectroTab({ onRecord, restored }) {
   const [anode, setAnode] = useState(restored?.anode ?? 'Zn2+/Zn');
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+  const [showLine, setShowLine] = useState(false);
 
   useEffect(() => {
     setOut(null); setErr(null);
@@ -56,6 +60,21 @@ export default function ElectroTab({ onRecord, restored }) {
   }
 
   const shown = shownFor(out, 'mode', mode);
+
+  /*
+   * The Nernst line, drawn from the same result the tab just reported rather
+   * than recomputed from the fields: E° differs between the two modes (typed
+   * in one, derived from two half cells in the other), and reading it off the
+   * result is what keeps the chart and the number from disagreeing.
+   */
+  const line = useMemo(() => {
+    if (!shown) return null;
+    try {
+      return nernstLine({ e0: shown.e0, n: shown.n, q: shown.q, tempC: n(tempC) });
+    } catch {
+      return null;
+    }
+  }, [shown, tempC]);
 
   /*
    * Nernst, term by term.
@@ -156,7 +175,15 @@ export default function ElectroTab({ onRecord, restored }) {
       <NumField label={t('electro.tempC')} value={tempC} onChange={setTempC}
         hint={t('electro.tempCHint')} />
 
-      <button className="primary" onClick={run} style={{ marginTop: 'var(--s4)' }}>{t('common.calc')}</button>
+      <div className="row row-actions" style={{ marginTop: 'var(--s4)' }}>
+        <button className="primary" onClick={run}>{t('common.calc')}</button>
+        {line && (
+          <button className="link-btn" onClick={() => setShowLine((v) => !v)}>
+            {showLine ? t('diagram.hide') : t('electro.showNernst')}
+          </button>
+        )}
+      </div>
+      {showLine && line && <NernstPlot line={line} theme={theme} />}
       {err && <Err>{err}</Err>}
 
       {shown && (

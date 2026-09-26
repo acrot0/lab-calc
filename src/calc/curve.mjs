@@ -59,15 +59,21 @@ export function normalizeAcid(spec) {
 }
 
 /**
- * Average charge on the acid at a given [H+].
+ * The fraction of the acid in each protonation state at a given [H+].
  *
- *   z̄ = Σ i·α_i,  α_i = (Π_{j≤i} Ka_j · h^(n-i)) / D
- *   D = h^n + Ka_1·h^(n-1) + Ka_1Ka_2·h^(n-2) + ... + Π Ka_j
+ *   α_i = (Π_{j≤i} Ka_j · h^(n−i)) / D
+ *   D   = h^n + Ka_1·h^(n−1) + Ka_1Ka_2·h^(n−2) + … + Π Ka_j
  *
- * A strong acid is fully dissociated at every pH we model, so z̄ = 1.
+ * Index 0 is the fully protonated form (H₃A for a triprotic acid) and index n
+ * is the fully deprotonated one. The fractions sum to 1 by construction, which
+ * `test/curve.test.mjs` asserts rather than assumes — a denominator that drops
+ * a term still produces a plausible-looking curve.
+ *
+ * A strong acid is fully dissociated at every pH this model covers, so all of
+ * the weight is on the last state.
  */
-function zBar(h, kas, strong) {
-  if (strong) return 1;
+function alphas(h, kas, strong) {
+  if (strong) return [1];
   const n = kas.length;
 
   let D = h ** n;
@@ -77,13 +83,25 @@ function zBar(h, kas, strong) {
     D += term * h ** (n - 1 - i);
   }
 
-  let sum = 0;
+  const out = [];
   term = 1;
-  for (let i = 1; i <= n; i++) {
-    term *= kas[i - 1];
-    sum += (i * term * h ** (n - i)) / D;
+  for (let i = 0; i <= n; i++) {
+    if (i > 0) term *= kas[i - 1];
+    out.push((term * h ** (n - i)) / D);
   }
-  return sum;
+  return out;
+}
+
+/**
+ * Average charge on the acid at a given [H+].
+ *
+ *   z̄ = Σ i·α_i
+ *
+ * A strong acid is fully dissociated at every pH we model, so z̄ = 1.
+ */
+function zBar(h, kas, strong) {
+  if (strong) return 1;
+  return alphas(h, kas, false).reduce((sum, a, i) => sum + i * a, 0);
 }
 
 /**
@@ -184,6 +202,88 @@ export function weakAcidCurveParams({ pKa, conc, volumeMl }) {
     volumeMl,
     molesAnalyte: conc * (volumeMl / 1000),
   };
+}
+
+/**
+ * The distribution of an acid over its protonation states, as a function of pH.
+ *
+ * ## Why this is worth a chart
+ *
+ * The pH tab rests on `[H⁺] ≈ √(Ka·C)`, and that approximation has a domain:
+ * it assumes the acid is barely dissociated, which is true only while the pH
+ * sits well below the pKa. A reader who has seen the distribution knows when
+ * the formula applies without being told; one who has only memorised the
+ * formula does not. This is the picture that makes the tab's own warning
+ * checkable rather than a claim.
+ *
+ * It also shows the two things the formula hides: the curves cross at exactly
+ * pH = pKa, and by pH = pKa + 2 the acid form is 99% gone — which is where the
+ * approximation has already failed.
+ *
+ * `species` names the forms from fully protonated to fully deprotonated, so a
+ * caller can label them H₃A / H₂A⁻ / HA²⁻ / A³⁻ without recomputing anything.
+ *
+ * @param {number} [points]  Samples across the pH range
+ * @param {number} [phMin]   Defaults to 3 units below the lowest pKa
+ * @param {number} [phMax]   Defaults to 3 units above the highest pKa
+ */
+export function speciationCurve(spec) {
+  const acid = normalizeAcid(spec);
+  const kas = acid.pKas.map((v) => 10 ** -v);
+  const points = spec.points ?? 120;
+  if (!Number.isInteger(points) || points <= 0) fail('pointsNotPositive', { points });
+
+  /*
+   * Three units either side of the pKa is where the interesting movement is —
+   * outside that window the fractions are pinned at 0 and 1 and the curve is a
+   * flat line. Clamped to the pH range water allows, because drawing a
+   * distribution at pH 17 implies the model says something there.
+   */
+  const lo = acid.strong ? 0 : Math.min(...acid.pKas);
+  const hi = acid.strong ? 0 : Math.max(...acid.pKas);
+  const phMin = clampPh(spec.phMin ?? lo - 3);
+  const phMax = clampPh(spec.phMax ?? hi + 3);
+  if (!(phMax > phMin)) fail('phRangeEmpty', { phMin, phMax });
+
+  const n = acid.strong ? 1 : acid.pKas.length;
+  const out = [];
+  for (let i = 0; i < points; i++) {
+    const ph = phMin + ((phMax - phMin) * i) / (points - 1);
+    out.push({ ph, fractions: alphas(10 ** -ph, kas, acid.strong) });
+  }
+
+  return {
+    points: out,
+    species: speciesLabels(n, acid.strong),
+    pKas: acid.pKas,
+    phMin,
+    phMax,
+  };
+}
+
+/** pH outside 0–14 is outside what this model claims to describe. */
+const clampPh = (v) => Math.min(14, Math.max(0, v));
+
+/** Superscript digits for the charge on a species with two or more. */
+const SUP = { 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶' };
+
+/**
+ * Names for the n+1 protonation states, most protonated first.
+ *
+ * Only the neutral form is written without a charge: that is the one a reader
+ * can count from, and marking it is how the sequence H₃A → H₂A⁻ → HA²⁻ → A³⁻
+ * stays readable. For a strong acid there is one state and it is the anion.
+ */
+function speciesLabels(n, strong) {
+  if (strong) return ['A⁻'];
+  const SUB = ['₀', '₁', '₂', '₃', '₄', '₅', '₆'];
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const protons = n - i;
+    const charge = i;
+    const formula = protons === 0 ? 'A' : `H${protons === 1 ? '' : SUB[protons]}A`;
+    if (charge === 0) return formula;
+    return `${formula}${charge === 1 ? '⁻' : `${SUP[charge]}⁻`}`;
+  });
 }
 
 /**

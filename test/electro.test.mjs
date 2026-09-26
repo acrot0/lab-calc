@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  FARADAY, R_GAS, nernst, cellFromHalfCells, STANDARD_POTENTIALS,
+  FARADAY, R_GAS, nernst, nernstLine, cellFromHalfCells, STANDARD_POTENTIALS,
 } from '../src/calc/electro.mjs';
 
 describe('constants', () => {
@@ -158,5 +158,130 @@ describe('cellFromHalfCells', () => {
 
   it('should reject a half reaction it does not have a potential for', () => {
     expect(() => cellFromHalfCells({ cathode: 'Xx3+/Xx', anode: 'Zn2+/Zn' })).toThrow(/unknownHalfCell/);
+  });
+});
+
+/**
+ * The Nernst line is the answer to "how far can Q move before the cell stops
+ * driving the reaction", which a single potential cannot express.
+ */
+describe('nernstLine', () => {
+  const cell = { e0: 1.1037, n: 2, q: 1, tempC: 25 };
+  const line = nernstLine(cell);
+
+  it('should be straight in log Q, with the Nernst slope', () => {
+    const [a, b] = [line.points[0], line.points.at(-1)];
+    const observed = (a.e - b.e) / (b.logQ - a.logQ);
+    expect(observed).toBeCloseTo(line.slope, 12);
+  });
+
+  it('should pass through E° at log Q = 0', () => {
+    const atZero = line.points.reduce((best, p) => (
+      Math.abs(p.logQ) < Math.abs(best.logQ) ? p : best
+    ));
+    // The default range brackets log Q = 0 but does not necessarily land on it.
+    expect(atZero.e + line.slope * atZero.logQ).toBeCloseTo(1.1037, 10);
+  });
+
+  it('should agree with nernst at the operating point', () => {
+    const one = nernst({ ...cell, q: 0.01 });
+    const plot = nernstLine({ ...cell, q: 0.01 });
+    expect(plot.operatingPoint.logQ).toBeCloseTo(one.logQ, 12);
+    expect(plot.operatingPoint.e).toBeCloseTo(one.e, 12);
+  });
+
+  it('should bracket the operating point by one decade either side', () => {
+    // The window is where the line is informative. Stretching it to reach a
+    // distant crossing would squash this region into a pixel.
+    expect(line.logQMin).toBeCloseTo(line.operatingPoint.logQ - 1, 12);
+    expect(line.logQMax).toBeCloseTo(line.operatingPoint.logQ + 1, 12);
+  });
+
+  it('should omit the crossing when the cell is far from equilibrium', () => {
+    // A Daniell cell reaches E = 0 at log Q ≈ 37. A chart drawn to include it
+    // would show 38 decades and no usable slope, so the window stops at the
+    // operating point and the marker is honestly absent.
+    expect(line.zeroCrossing).toBeNull();
+  });
+
+  it('should mark the crossing when it falls inside the window', () => {
+    // log₁₀K = E°/slope, so E° below the slope puts the crossing inside the
+    // ±1 decade window. At 25 °C with n = 2 the slope is 0.0296 V.
+    const near = nernstLine({ e0: 0.02, n: 2, q: 1 });
+    expect(near.zeroCrossing).not.toBeNull();
+    // The line is exactly linear in log Q, so the reported crossing lands on
+    // E = 0 — not merely near it.
+    expect(near.e0 - near.slope * near.zeroCrossing).toBeCloseTo(0, 12);
+    expect(near.zeroCrossing).toBeGreaterThanOrEqual(near.logQMin);
+    expect(near.zeroCrossing).toBeLessThanOrEqual(near.logQMax);
+  });
+
+  it('should agree with log10 K, which is the same crossing by definition', () => {
+    const one = nernst({ ...cell });
+    expect(line.zeroCrossing ?? one.log10K).toBeCloseTo(one.log10K, 12);
+  });
+
+  it('should follow the operating point rather than a fixed window', () => {
+    // A cell at Q = 1e-6 sits well past equilibrium; the window must move with
+    // it, not stay where Q = 1 put it.
+    const far = nernstLine({ ...cell, q: 1e-6 });
+    expect(far.logQMin).toBeCloseTo(-7, 12);
+    expect(far.logQMax).toBeCloseTo(-5, 12);
+    expect(far.zeroCrossing).toBeNull();
+  });
+
+  it('should rotate the line with n, without moving the crossing at log Q = 0', () => {
+    const two = nernstLine({ ...cell, n: 2 });
+    const one = nernstLine({ ...cell, n: 1 });
+    expect(one.slope).toBeCloseTo(two.slope * 2, 12);
+    expect(one.points[0].e + one.slope * one.points[0].logQ).toBeCloseTo(1.1037, 10);
+  });
+
+  it('should steepen the line as the temperature falls', () => {
+    const cold = nernstLine({ ...cell, tempC: 4 });
+    expect(cold.slope).toBeLessThan(line.slope);
+  });
+
+  it('should report no crossing when the range cannot contain one', () => {
+    // A negative E° puts the crossing at a negative log Q; clamping the range
+    // to positive decades leaves it outside, and the marker must not be drawn.
+    const bad = nernstLine({ e0: -0.5, n: 2, q: 1, logQMin: 0, logQMax: 5 });
+    expect(bad.zeroCrossing).toBeNull();
+  });
+
+  it('should return the requested number of samples', () => {
+    expect(nernstLine({ ...cell, points: 30 }).points).toHaveLength(30);
+    expect(line.points).toHaveLength(120);
+  });
+
+  it('should refuse a non-positive point count', () => {
+    expect(() => nernstLine({ ...cell, points: -1 }))
+      .toThrowError(expect.objectContaining({ code: 'pointsNotPositive' }));
+  });
+
+  it('should refuse an empty range', () => {
+    expect(() => nernstLine({ ...cell, logQMin: 5, logQMax: 5 }))
+      .toThrowError(expect.objectContaining({ code: 'logRangeEmpty' }));
+  });
+
+  it('should refuse a non-positive n, as nernst does', () => {
+    expect(() => nernstLine({ ...cell, n: 0 }))
+      .toThrowError(expect.objectContaining({ code: 'mustBePositive' }));
+  });
+});
+
+describe('nernstLine zeroCrossingAt', () => {
+  it('should report where the crossing would be, even when out of range', () => {
+    // The caption uses this to say how far from equilibrium the cell is; a
+    // null zeroCrossing alone cannot express "37 decades away".
+    const line = nernstLine({ e0: 1.1037, n: 2, q: 1 });
+    expect(line.zeroCrossing).toBeNull();
+    expect(line.zeroCrossingAt).toBeCloseTo(nernst({ e0: 1.1037, n: 2, q: 1 }).log10K, 12);
+    expect(line.zeroCrossingAt).toBeGreaterThan(30);
+  });
+
+  it('should equal zeroCrossing when the crossing is in range', () => {
+    const near = nernstLine({ e0: 0.02, n: 2, q: 1 });
+    expect(near.zeroCrossing).toBeCloseTo(near.zeroCrossingAt, 12);
   });
 });

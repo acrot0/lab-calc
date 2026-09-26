@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { weakAcidPh, weakBasePh } from '../../calc/titration.mjs';
+import { speciationCurve } from '../../calc/curve.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
+import SpeciationPlot from '../components/SpeciationPlot.jsx';
 import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -17,15 +19,39 @@ const PRESETS = [
   { name: 'preset_pyridine', kind: 'base', value: 8.77 },
 ];
 
-export default function PhTab({ onRecord, restored }) {
+export default function PhTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [kind, setKind] = useState(restored?.kind ?? 'acid');
   const [pk, setPk] = useState(restored?.pk != null ? String(restored.pk) : '4.76');
   const [conc, setConc] = useState(restored?.conc != null ? String(restored.conc) : '0.1');
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+  const [showCurve, setShowCurve] = useState(false);
 
   useEffect(() => { setOut(null); setErr(null); }, [kind, pk, conc]);
+
+  /*
+   * The distribution behind the approximation this tab uses.
+   *
+   * Built from the pKa alone and computed whether or not the chart is open —
+   * it is a model evaluation, not a recorded calculation, so it does not need
+   * the Calculate button. For a base the tab is given pKb, and the pKa the
+   * distribution is drawn against is that of the conjugate acid.
+   *
+   * Only the acid direction is drawn. The base case is the same picture
+   * mirrored about pH = pKa, and drawing it would need a second axis to say so
+   * honestly — a labelled mirror is worse than a link that explains it.
+   */
+  const speciation = useMemo(() => {
+    if (kind !== 'acid') return null;
+    const pKa = n(pk);
+    if (!Number.isFinite(pKa) || pKa <= 0 || pKa >= 14) return null;
+    try {
+      return speciationCurve({ pKa });
+    } catch {
+      return null;
+    }
+  }, [kind, pk]);
 
   function run() {
     try {
@@ -107,7 +133,24 @@ export default function PhTab({ onRecord, restored }) {
       />
       <NumField label={t('ph.conc')} value={conc} onChange={setConc} min="0" />
 
-      <button className="primary" onClick={run}>{t('common.calc')}</button>
+      <div className="row row-actions">
+        <button className="primary" onClick={run}>{t('common.calc')}</button>
+        {/* Collapsed by default, for the reason the buffer diagram is: it
+            explains the formula, which is worth reading once, not on every
+            visit and not while typing into the field above it. */}
+        {speciation && (
+          <button className="link-btn" onClick={() => setShowCurve((v) => !v)}>
+            {showCurve ? t('diagram.hide') : t('ph.showSpeciation')}
+          </button>
+        )}
+      </div>
+      {showCurve && speciation && (
+        <SpeciationPlot
+          curve={speciation}
+          currentPh={shown ? shown.ph : null}
+          theme={theme}
+        />
+      )}
       {err && <Err>{err}</Err>}
 
       <Warn>{t('ph.warning')}</Warn>

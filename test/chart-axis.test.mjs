@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { niceTicks } from '../src/ui/components/KineticsPlot.jsx';
+import { niceTicks } from '../src/ui/components/chart-axis.mjs';
 
 /**
- * Axis ticks.
+ * Axis ticks, shared by the canvas charts.
  *
- * The chart itself is canvas and not worth asserting on, but the tick
+ * The charts themselves are canvas and not worth asserting on, but the tick
  * arithmetic is pure and is where the bugs are: an axis labelled 0.37 / 0.74 /
  * 1.11 is arithmetically correct and useless to read.
  */
@@ -69,5 +69,36 @@ describe('niceTicks', () => {
       const ticks = niceTicks(100, count);
       expect(Math.abs(ticks.length - 1 - count), `count=${count}`).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+describe('niceTicks with a non-zero minimum', () => {
+  it('should shift the sequence so ticks land on round numbers', () => {
+    // The Nernst line runs over negative log Q. Measuring the step from zero
+    // would put ticks at −5, 0, 5 and leave the plotted range unlabelled.
+    expect(niceTicks(1, 5, -4)).toEqual([-4, -3, -2, -1, 0, 1]);
+    // A coarser step is still measured from the minimum, not from zero.
+    expect(niceTicks(1, 4, -4)).toEqual([-4, -2, 0]);
+  });
+
+  it('should never emit a tick below the minimum', () => {
+    for (const [min, max] of [[-4, 1], [-0.7, 2.3], [3, 3.05], [-12, -8]]) {
+      for (const v of niceTicks(max, 5, min)) {
+        expect(v, `min=${min} max=${max}`).toBeGreaterThanOrEqual(min - 1e-9);
+        expect(v, `min=${min} max=${max}`).toBeLessThanOrEqual(max + 1e-9);
+      }
+    }
+  });
+
+  it('should return the minimum alone for a degenerate range', () => {
+    expect(niceTicks(5, 5, 5)).toEqual([5]);
+    expect(niceTicks(-1, 5, 3)).toEqual([3]);
+  });
+
+  it('should keep the plain case identical to before', () => {
+    // The default min = 0 path is what every existing chart uses, and the
+    // extraction must not have moved it.
+    expect(niceTicks(10, 5)).toEqual([0, 2, 4, 6, 8, 10]);
+    expect(niceTicks(0.5, 5)).toEqual([0, 0.1, 0.2, 0.3, 0.4, 0.5]);
   });
 });
