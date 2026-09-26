@@ -6,10 +6,8 @@ import {
 import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
-import { useTheme, ThemeToggle } from './ThemeContext.jsx';
-import { IconStyleToggle } from './IconStyleContext.jsx';
-import { DensityToggle } from './DensityContext.jsx';
-import { LOCALES } from './i18n.mjs';
+import { useTheme } from './ThemeContext.jsx';
+import SettingsMenu from './components/SettingsMenu.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
@@ -18,6 +16,9 @@ import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
 import { installBackNav } from './back-nav.mjs';
+import {
+  cycleTab, isTyping, matchShortcut, shouldIgnore, worksWhileTyping,
+} from './shortcuts.mjs';
 
 /*
  * Tabs are loaded on demand.
@@ -95,25 +96,8 @@ const TABS = [
   { id: 'convert', icon: Icons.convert, Component: ConvertTab },
 ];
 
-function LocaleSelect() {
-  const { locale, setLocale, t } = useI18n();
-  return (
-    <span className="control-group">
-      <Icons.language size={ICON_SIZE.inline} aria-hidden="true" />
-      <label className="sr-only" htmlFor="locale-select">{t('app.langLabel')}</label>
-      <select
-        id="locale-select"
-        className="control"
-        value={locale}
-        onChange={(e) => setLocale(e.target.value)}
-      >
-        {Object.entries(LOCALES).map(([code, name]) => (
-          <option key={code} value={code}>{name}</option>
-        ))}
-      </select>
-    </span>
-  );
-}
+/** The tab ids, in order — what the arrow shortcuts cycle through. */
+const TAB_IDS = TABS.map((t) => t.id);
 
 /**
  * Which tab to open on load.
@@ -142,21 +126,51 @@ export default function App() {
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [ackd, setAckd] = useState(true);
   const [calcOpen, setCalcOpen] = useState(false);
+  // Lifted out of `SettingsMenu` so the `?` shortcut can open it. The menu owns
+  // its own outside-click and Escape handling; it just no longer owns whether
+  // it is open.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const store = useMemo(() => resolveStore(), []);
 
   /*
-   * Ctrl/Cmd+K opens the calculator from anywhere.
+   * The keyboard shortcuts.
    *
-   * Bound on the document rather than on a focused element, because the whole
-   * point is reaching it without leaving the field you are in. `preventDefault`
-   * is only called when the shortcut actually matches — swallowing every key
-   * would break the browser's own find and the address bar.
+   * Bound on the window rather than on a focused element, because the point of
+   * most of them is reaching something without leaving the field you are in.
+   *
+   * Two rules the handler follows, and both are what a naive global handler
+   * gets wrong. Nothing fires while the user is typing — a `2` that switched
+   * tabs because it is a shortcut would make the app unusable, and the check is
+   * in `shouldIgnore`. And `preventDefault` is called only when a shortcut
+   * actually matched, so the browser keeps its own find, its address bar and
+   * its tab keys.
+   *
+   * The matching is in `shortcuts.mjs` so the list the settings popover shows
+   * and the list this acts on cannot drift.
    */
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCalcOpen((v) => !v);
+      if (shouldIgnore(e)) return;
+      const action = matchShortcut(e);
+      if (!action) return;
+      // Suppressed only for the shortcuts that would otherwise eat a keystroke
+      // the field needs. `Ctrl+K` is not one of them — the calculator focuses
+      // its own entry when it opens, so suppressing it there is what made the
+      // window impossible to close from the keyboard. See `shortcuts.mjs`.
+      if (isTyping(document.activeElement) && !worksWhileTyping(action)) return;
+      e.preventDefault();
+      switch (action) {
+        case 'calc': setCalcOpen((v) => !v); break;
+        case 'nextTab': setTab((t) => cycleTab(TAB_IDS, t, 1)); break;
+        case 'prevTab': setTab((t) => cycleTab(TAB_IDS, t, -1)); break;
+        // Move the focus into the tab's own content, so a keyboard user lands
+        // on the form rather than having to tab through the whole navigation.
+        case 'focusWork': document.querySelector('.work input, .work select, .work button')?.focus(); break;
+        // The shortcut list lives in the settings popover, so `?` opens that
+        // rather than a help screen of its own — the list and the thing it
+        // describes are then the same panel.
+        case 'help': setSettingsOpen((v) => !v); break;
+        default: break;
       }
     };
     window.addEventListener('keydown', onKey);
@@ -261,10 +275,7 @@ export default function App() {
             <Icons.calc size={ICON_SIZE.control} aria-hidden="true" />
             <span className="control-label">{t('convert.calcOpen')}</span>
           </button>
-          <LocaleSelect />
-          <IconStyleToggle />
-          <DensityToggle />
-          <ThemeToggle />
+          <SettingsMenu open={settingsOpen} onOpenChange={setSettingsOpen} />
         </div>
       </header>
 

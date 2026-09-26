@@ -132,7 +132,9 @@ export default function UnitConverter({ compact = false, onFill = null }) {
     <>
       <NumField label={t('convert.value')} value={value} onChange={setValue} />
 
-      <div className="field">
+      {/* Wide: this picker lists every dimension the app knows, and their names
+          are the longest text in the panel. */}
+      <div className="field is-wide">
         <label htmlFor={compact ? 'drawer-dim' : 'dim'}>{t('convert.title')}</label>
         <select
           id={compact ? 'drawer-dim' : 'dim'}

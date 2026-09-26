@@ -1175,7 +1175,53 @@ select.control {
    Fields
    ========================================================================== */
 
-.field { margin-bottom: var(--s4); }
+/*
+ * A field is as wide as the value it holds needs to be, and no wider.
+ *
+ * Measured at 1920px: a chemical-formula box holding `NaCl` was 894px across —
+ * four characters in a metre of input, and the label sat above it, so the eye
+ * had to travel the width of the card to connect the two. That is what "the
+ * layout is not right on a big screen" means here; it is not that the page is
+ * too wide, it is that the controls are.
+ *
+ * 34ch is chosen from the longest realistic entry: a hydrate formula like
+ * `CuSO4·5H2O` is 11 characters, and a value with a unit is under 20. 34 is
+ * roughly double the longest, which leaves room for a caret at the end without
+ * the box looking empty. The `max()` floor keeps it usable when the card is
+ * narrow — a field must not shrink below something a finger can hit.
+ *
+ * `.row` fields are exempt: two fields side by side are already half the width,
+ * and capping each at 34ch would leave a gap between them.
+ */
+.field {
+  margin-bottom: var(--s4);
+  max-width: max(220px, 34ch);
+}
+
+/*
+ * A card with no results column is capped, so its button is not a metre wide.
+ *
+ * The field cap above fixes the inputs; the primary button is not a field and
+ * was still spanning the whole card — measured at 1920px, a 220px input above
+ * an 894px button, which reads as two unrelated layouts stacked. The cap is on
+ * the column rather than on the button so everything in it agrees.
+ *
+ * 560px is wide enough for the two-column `.row` the forms use (each half about
+ * 270px) and for a result table, and narrow enough that a button is a button.
+ * Only the single-column case: a card with a results column is already two
+ * ~460px columns at this width, and capping those would waste the layout.
+ */
+@container card (min-width: 620px) {
+  .card:not(:has(> .card-results)) > .card-main { max-width: 560px; }
+}
+
+.row .field { max-width: none; }
+
+/* A field that genuinely needs the width says so. The converter's dimension
+   picker and the calculator's entry are the two: one lists 35 dimension names,
+   the other holds an expression several tokens long. */
+.field.is-wide,
+.field:has(textarea) { max-width: none; }
 
 .field > label,
 .field > .field-label {
@@ -3724,6 +3770,233 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 /* ==========================================================================
+   Settings popover
+   ========================================================================== */
+
+/*
+ * The four preference controls, behind one button.
+ *
+ * They were four dropdowns on the topbar at the same visual weight as the
+ * calculator button — a tool used every minute crowded by settings that change
+ * once a session. On a 390px phone they took the whole second header line
+ * before wrapping.
+ *
+ * Anchored to the right edge rather than centred on the button: the button is
+ * the last thing in the topbar, and a panel centred on it would run off the
+ * right of the screen.
+ */
+.settings-wrap { position: relative; }
+
+.settings-menu {
+  /* `fixed`, not `absolute`: the panel is a portal on `document.body`, so there
+     is no positioned ancestor to be absolute against — and the coordinates it
+     is given are viewport coordinates, read from the button. */
+  position: fixed;
+  z-index: 85;
+  /*
+   * Wide enough for the theme list, which is the widest thing in it.
+   *
+   * 300px was too narrow: the theme rows carry a swatch, a name and a credit,
+   * and at 300 the credit pushed the row past the panel's padding and produced
+   * a horizontal scrollbar across the whole popover — which on a settings panel
+   * reads as the panel being broken rather than as one row being long.
+   *
+   * `min()` against the viewport so it still fits on a phone, and `overflow-x:
+   * hidden` so a future long string ellipsises rather than reintroducing the
+   * scrollbar.
+   */
+  width: min(380px, calc(100vw - var(--s5)));
+  max-height: min(80dvh, 620px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--s3);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-3);
+  animation: rise var(--dur-fast) var(--ease);
+}
+
+/* The controls beside a label must not push it: the theme list and the selects
+   are the wide things here, and a `flex: none` label beside a shrinking control
+   is what keeps the label readable at any panel width. */
+.settings-row > *:not(.settings-label) { min-width: 0; }
+
+/*
+ * A row per setting: the name on the left, the control on the right.
+ *
+ * The label is text rather than an icon because these are the four settings a
+ * user comes here not knowing the name of — "what is that thing that changes
+ * the spacing" needs a word to find.
+ */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-height: 40px;
+  padding: var(--s1) 0;
+}
+
+.settings-label {
+  /* `flex: none` and no wrapping: the theme list below is wider than the panel
+     wants to be, and without this the labels beside the controls were squeezed
+     to one character per line — "配色" rendered as two stacked glyphs. */
+  flex: none;
+  color: var(--text-mid);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+
+.settings-note {
+  margin: var(--s1) 0 var(--s3);
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+}
+
+/* The theme list inside the popover: it is already in a panel, so its own
+   background and border would draw a box inside a box. */
+.settings-menu .theme-group-label { padding: var(--s2) 0 var(--s1); }
+.settings-menu .theme-item { padding: var(--s1) var(--s2); }
+
+/*
+ * On a phone the popover becomes a bottom sheet.
+ *
+ * Anchored to the right edge of the topbar button, it ran off the left of the
+ * screen: the topbar wraps at 390px, so the settings button is at the *start*
+ * of the second line, and a 374px panel hanging left from there starts at
+ * x=-281. Measured.
+ *
+ * A sheet is also the better shape here regardless of the arithmetic — it is
+ * what a phone user expects for a panel of settings, it is reachable with a
+ * thumb, and it has room for the theme list without scrolling sideways.
+ */
+@media (max-width: 640px) {
+  .settings-menu {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: auto;
+    /* Above the bottom navigation, which is at 60. The sheet covers the bar
+       while it is open: the bar's own destinations are unreachable behind a
+       modal panel anyway, and leaving it visible under the sheet cut off the
+       last rows of the shortcut list. */
+    z-index: 85;
+    width: 100%;
+    max-height: 80dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: none;
+    padding-bottom: calc(var(--s5) + env(safe-area-inset-bottom, 0px));
+    animation: sheet-in var(--dur) var(--ease);
+  }
+}
+
+/* The theme list is a block of its own rather than a control beside a label —
+   it is eleven choices, not a setting, and squeezing it into the right half of
+   a row is what made the panel overflow sideways. */
+.settings-block {
+  padding-top: var(--s2);
+  border-top: 1px solid var(--border);
+  margin-top: var(--s2);
+}
+
+/* The block's own header is a button, because the list behind it is a
+   disclosure. It spans the row so the whole line is the target. */
+.settings-block-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  min-height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.settings-block-toggle:hover .settings-label { color: var(--text); }
+
+/* What is currently chosen, shown while the list is closed — otherwise the
+   collapsed state says nothing about the setting it is hiding. */
+.settings-current {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+
+.settings-block-toggle[aria-expanded="true"] .caret { transform: rotate(180deg); }
+.settings-block-toggle .caret { transition: transform var(--dur-fast) var(--ease); }
+
+.settings-menu .theme-item .theme-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The credit is provenance; in a panel this narrow it is the first thing that
+   should go rather than the theme's own name. */
+.settings-menu .theme-credit { display: none; }
+
+/* ==========================================================================
+   Keyboard shortcuts
+   ========================================================================== */
+
+.settings-shortcuts {
+  border-top: 1px solid var(--border);
+  padding-top: var(--s3);
+}
+
+.settings-shortcuts-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settings-shortcuts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.settings-shortcuts li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  font-size: var(--t-xs);
+}
+
+/* Fixed width so the descriptions line up: a ragged left edge on a list of
+   key-and-meaning pairs makes it read as prose rather than as a table. */
+.settings-keys {
+  flex: none;
+  display: inline-flex;
+  gap: 3px;
+  min-width: 92px;
+}
+
+.settings-keys kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-num);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.settings-action { color: var(--text-mid); }
+
+/* ==========================================================================
    Theme picker
    ========================================================================== */
 
@@ -4366,6 +4639,19 @@ body,
   .topbar-actions .control-label { display: none; }
 
   .topbar-actions .control { padding: 0 var(--s3); }
+
+  /*
+   * The settings panel is not a topbar control, so the rule above must not
+   * reach it.
+   *
+   * `display: none` on every `.control-label` inside `.topbar-actions` is right
+   * for the bar itself — the icons carry the meaning once the row is tight —
+   * but the settings popover is *rendered inside* `.topbar-actions`, so its own
+   * icon-style and density buttons lost their labels too and became two
+   * unlabelled glyphs. The label is the thing that says what they do; without
+   * it the panel is a row of symbols.
+   */
+  .settings-menu .control-label { display: inline; }
 }
 
 /* ==========================================================================

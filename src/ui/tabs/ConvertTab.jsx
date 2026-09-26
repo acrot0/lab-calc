@@ -115,7 +115,7 @@ function Calculator() {
 
   return (
     <>
-      <div className="field">
+      <div className="field is-wide">
         <label htmlFor="calc-src">{t('convert.calcLabel')}</label>
         <input
           id="calc-src"

@@ -54,6 +54,9 @@ import { Shapes } from '@phosphor-icons/react/dist/csr/Shapes';
 import { DotsThreeOutline } from '@phosphor-icons/react/dist/csr/DotsThreeOutline';
 import { Sidebar } from '@phosphor-icons/react/dist/csr/Sidebar';
 import { CaretDoubleLeft } from '@phosphor-icons/react/dist/csr/CaretDoubleLeft';
+import { GearSix } from '@phosphor-icons/react/dist/csr/GearSix';
+import { Keyboard } from '@phosphor-icons/react/dist/csr/Keyboard';
+import { CaretDown } from '@phosphor-icons/react/dist/csr/CaretDown';
 
 /*
  * React is imported explicitly, not left to the JSX transform.
@@ -191,6 +194,11 @@ export const Icons = {
   // that flipped meaning would be two glyphs wearing one name.
   expandNav: styled(Sidebar),
   collapseNav: styled(CaretDoubleLeft),
+  settings: styled(GearSix),
+  caret: styled(CaretDown),
+  // The keyboard-shortcut list. A keyboard glyph rather than a question mark:
+  // the panel is a reference, and the glyph says what it is about.
+  shortcuts: styled(Keyboard),
   history: styled(ClockCounterClockwise),
   search: styled(MagnifyingGlass),
   remove: styled(Trash),

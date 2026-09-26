@@ -13,6 +13,17 @@ export const zh = {
     collapseNav: '收起导航',
     settings: '设置',
     closeSettings: '收起设置',
+    setLang: '语言',
+    setTheme: '配色',
+    setIcons: '图标样式',
+    setDensity: '界面密度',
+    densityNote: '「紧凑 / 标准 / 宽松」同时调整间距与字号。',
+    shortcuts: '键盘快捷键',
+    scCalc: '打开 / 关闭计算器',
+    scTabs: '按顺序切换到下一个 / 上一个功能',
+    scFocus: '把焦点移到当前功能的内容区',
+    scClose: '关闭当前弹层（计算器、设置、对话框）',
+    scHelp: '显示 / 隐藏这个列表',
     // The version is injected at build time from package.json (see
     // vite.config.js) — it was a literal here and in en.mjs, two strings that
     // nothing tied to the manifest.

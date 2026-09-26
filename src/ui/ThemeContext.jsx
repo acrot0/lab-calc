@@ -64,7 +64,7 @@ export function useTheme() {
 }
 
 /** The label for a theme key in the current locale. */
-function labelOf(key, locale) {
+export function labelOf(key, locale) {
   const t = THEMES[key];
   return t ? (locale === 'zh' ? t.zh : t.en) : key;
 }
@@ -90,13 +90,58 @@ function Swatch({ themeKey }) {
 }
 
 /**
- * The theme picker.
+ * The theme list, rendered flat.
+ *
+ * The same list the menu shows, without the menu. It exists because the theme
+ * picker now lives inside the settings popover, and a menu that opens a menu is
+ * a thing to get wrong — the inner one has to close the outer one on an outside
+ * click, and the two compete for the same Escape key. Flat, there is one
+ * overlay and one Escape.
+ *
+ * Grouped by scheme, which is the distinction that matters most: a user looking
+ * for a light theme should not have to read the dark ones to find it.
+ */
+export function ThemePicker() {
+  const { preference, resolved, setPreference } = useTheme();
+  const { locale, t } = useI18n();
+
+  return (
+    <>
+      {THEME_GROUPS.map((group) => (
+        <div className="theme-group" key={group.id}>
+          <div className="theme-group-label">{t(`theme.group_${group.id}`)}</div>
+          {group.keys.map((key) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={preference === key}
+              className={`theme-item${preference === key ? ' is-on' : ''}`}
+              key={key}
+              onClick={() => setPreference(key)}
+            >
+              <Swatch themeKey={key === 'system' ? resolved : key} />
+              <span className="theme-name">{labelOf(key, locale)}</span>
+              {PALETTES[key]?.credit && (
+                <span className="theme-credit">{PALETTES[key].credit}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The theme picker as a button that opens a menu.
  *
  * A menu rather than a cycling button. Cycling was right when there were three
  * states; with seven it means up to six clicks to reach the one you want, and
- * no way to see what the options are. The menu also groups them by scheme,
- * which is the distinction that matters most — a user looking for a light
- * theme should not have to read the dark ones to find it.
+ * no way to see what the options are.
+ *
+ * Kept as its own component even though the topbar now uses the settings
+ * popover: this is the shape for a place with room for a control of its own,
+ * and the flat list above is the shape for inside a panel.
  */
 export function ThemeToggle() {
   const { preference, resolved, setPreference } = useTheme();
