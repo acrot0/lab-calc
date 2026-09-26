@@ -561,3 +561,152 @@ describe('min, which is both a function and a unit', () => {
     expect(code('sin 5')).toBe('expressionSyntax');
   });
 });
+
+describe('pasted typography', () => {
+  /*
+   * Nobody types `×` on a keyboard. They copy it out of Word, a slide, an Excel
+   * cell or a PDF, and all of those substitute the typographic character. Each
+   * one used to be reported as "cannot parse", which reads to the user as the
+   * calculator refusing a paste — and a paste is how a number actually gets
+   * into this app.
+   *
+   * Measured against mathjs before writing this: it rejects every one of these
+   * too, because the problem is not the grammar. Nothing normalises the text
+   * before the grammar sees it, which is what these tests cover.
+   */
+
+  it('should read typographic multiplication and division', () => {
+    expect(evaluate('0.1 × 250 ÷ 58.44').value).toBeCloseTo(0.4277891855, 9);
+    expect(evaluate('2 ⨯ 3').value).toBe(6);
+    expect(evaluate('2 ⋅ 3').value).toBe(6);
+    expect(evaluate('2 · 3').value).toBe(6);
+  });
+
+  it('should read the Unicode minus and the whole dash family as subtraction', () => {
+    expect(evaluate('2−3').value).toBe(-1);
+    expect(evaluate('5 – 3').value).toBe(2);
+    expect(evaluate('5 — 3').value).toBe(2);
+    expect(evaluate('5 ― 3').value).toBe(2);
+    expect(evaluate('5 ‒ 3').value).toBe(2);
+  });
+
+  it('should read fullwidth digits, letters and operators', () => {
+    // A Chinese IME produces these by default, and they are indistinguishable
+    // from ASCII in the input box: `１２＋３` looks like arithmetic and is not.
+    expect(evaluate('１２＋３').value).toBe(15);
+    expect(evaluate('（2+3）').value).toBe(5);
+    expect(evaluate('２．５').value).toBe(2.5);
+    expect(evaluate('５×２').value).toBe(10);
+  });
+
+  it('should read a superscript exponent rather than dropping it', () => {
+    // The reason the normalisation is a table and not `String.normalize`:
+    // NFKC maps `²` to a plain `2`, so `2²` would silently become twenty-two.
+    expect(evaluate('10⁻³').value).toBe(0.001);
+    expect(evaluate('2²').value).toBe(4);
+    expect(evaluate('10⁻³ M').value).toBe(0.001);
+  });
+
+  it('should read a superscript unit exponent', () => {
+    expect(evaluate('5 cm²').value).toBeCloseTo(0.0025, 12);
+  });
+
+  it('should read a space-grouped number', () => {
+    expect(evaluate('1 234').value).toBe(1234);
+    expect(evaluate('1 234 567').value).toBe(1234567);
+  });
+
+  it('should read a non-breaking space as a grouping separator', () => {
+    expect(evaluate('1\u00a0234.5').value).toBe(1234.5);
+    expect(evaluate('1\u2009234.5').value).toBe(1234.5);
+  });
+
+  it('should read the fraction slash a PDF produces', () => {
+    expect(evaluate('1⁄2').value).toBe(0.5);
+  });
+
+  it('should read the Greek mu as the micro sign the unit table holds', () => {
+    // `μg` copied out of a paper is U+03BC; the unit table's key is U+00B5.
+    // These are different characters that render identically.
+    expect(evaluate('5 μg').value).toBe(5);
+    expect(evaluate('5 µg').value).toBe(5);
+  });
+
+  it('should read the canonical-equivalence symbols for ohm and angstrom', () => {
+    // Unicode says the ohm sign and Greek omega are the same character, and a
+    // typesetting system will use whichever it prefers.
+    expect(evaluate('1 kΩ').unit).toBe('kΩ');
+    expect(evaluate('1 kΩ').value).toBe(1);
+    expect(evaluate('5 Å').value).toBe(5);
+  });
+
+  it('should keep refusing two numbers separated by a space', () => {
+    // The grouping rule requires exactly three digits, as the comma rule does.
+    // Guessing more loosely would join two numbers the user kept apart.
+    expect(code('2 3')).toBe('expressionSyntax');
+  });
+
+  it('should keep refusing to add a mass to a volume', () => {
+    expect(code('5 g + 2 mL')).toBe('incompatibleUnits');
+  });
+});
+
+describe('units the converter offers and the calculator can spell', () => {
+  /*
+   * The tokenizer's identifier rule was ASCII-only, so every unit whose symbol
+   * contains a non-ASCII character — `µg`, `µm`, `Å`, `Ω`, `°C`, `‰` — was
+   * unreadable in an expression while working perfectly in the converter. A
+   * unit that works in one half of the app and is "cannot parse" in the other
+   * is worse than one that is missing, because the failure looks like a typo.
+   */
+  it('should read the micro-prefixed units', () => {
+    expect(evaluate('1 µg').unit).toBe('µg');
+    expect(evaluate('1 µm').unit).toBe('µm');
+    expect(evaluate('1 µs').unit).toBe('µs');
+    expect(evaluate('1 µmol/L').value).toBeCloseTo(1e-6, 12);
+  });
+
+  it('should read the ohm family', () => {
+    expect(evaluate('1 Ω').unit).toBe('Ω');
+    expect(evaluate('1 kΩ').value).toBe(1);
+    expect(evaluate('1 MΩ').value).toBe(1);
+  });
+
+  it('should read the angstrom', () => {
+    expect(evaluate('5 Å').unit).toBe('Å');
+    expect(evaluate('1 Å').value).toBe(1);
+  });
+});
+
+describe('units with no exponent vector', () => {
+  /*
+   * `ratio` and `angle` deliberately have no exponent vector, because an
+   * all-zeroes one would make every plain number look like an angle. Reading
+   * `EXPONENTS[dim]` without checking therefore produced `undefined`, and the
+   * first arithmetic on it threw a raw `TypeError` — whose English message,
+   * "Cannot read properties of undefined", was shown to the user. `1 deg`,
+   * `1 turn` and `1 ‰` all did this.
+   */
+  it('should refuse a unit of a dimension that has no exponent vector, by code', () => {
+    expect(code('1 deg')).toBe('unitNotInExpressions');
+    expect(code('1 turn')).toBe('unitNotInExpressions');
+    expect(code('1 ‰')).toBe('unitNotInExpressions');
+    expect(code('1 permille')).toBe('unitNotInExpressions');
+  });
+
+  it('should never throw a raw TypeError, which has no code and cannot be translated', () => {
+    for (const src of ['1 deg', '1 °', '1 turn', '1 ‰', '1 grad', '1 arcmin']) {
+      let e = null;
+      try { evaluate(src); } catch (err) { e = err; }
+      expect(e, `${src} should throw`).not.toBeNull();
+      expect(e.code, `${src} threw ${e.name}: ${e.message}`).toBe('unitNotInExpressions');
+    }
+  });
+
+  it('should still refuse a temperature in an expression, with its own code', () => {
+    // The more specific message wins: a temperature is a unit this app *does*
+    // use, and "convert it separately" is the useful thing to say.
+    expect(code('1 K')).toBe('temperatureInExpression');
+    expect(code('1 °C')).toBe('temperatureInExpression');
+  });
+});

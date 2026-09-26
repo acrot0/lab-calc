@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
-import { evaluate, looksLikeExpression } from '../../calc/expression.mjs';
+import { looksLikeExpression } from '../../calc/expression.mjs';
+import { readNumberField, safeEvaluate } from '../field-input.mjs';
 import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { claimField } from '../field-bridge.mjs';
@@ -64,16 +65,25 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
    */
   const shown = draft ?? value;
 
-  /** The expression's value if the draft is one, else null. */
+  /**
+   * The expression's value, shown under the field while it is being typed.
+   *
+   * `looksLikeExpression` gates this so the hint appears only for something that
+   * is doing arithmetic. A pasted `1,234.5` is a number, not an expression, and
+   * echoing "= 1234.5" under a field that already reads 1,234.5 would be noise.
+   * The value itself still goes through the evaluator either way — see
+   * `readNumberField`.
+   */
   const preview = draft !== null && looksLikeExpression(draft) ? safeEvaluate(draft) : null;
 
   function handle(e) {
     const next = e.target.value;
     setDraft(next);
     // A plain number goes straight through; an expression is evaluated and its
-    // value passed up, so the tab always sees a number.
-    const parsed = looksLikeExpression(next) ? safeEvaluate(next) : Number.parseFloat(next);
-    if (parsed !== null && Number.isFinite(parsed)) onChange(String(parsed));
+    // value passed up, so the tab always sees a number. Anything unreadable
+    // leaves the tab holding its previous value rather than a partial parse.
+    const parsed = readNumberField(next);
+    if (parsed !== null) onChange(String(parsed));
   }
 
   return (
@@ -115,18 +125,15 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
   );
 }
 
+/**
+ * What a number field holds, from what the user typed or pasted.
+ *
+ * The decision itself lives in `field-input.mjs`, where it can be tested
+ * without a browser — see the note there for why the order of its two attempts
+ * is the whole point. This file only renders.
+ */
+
 /** The value of an expression, or null if it does not evaluate. */
-function safeEvaluate(src) {
-  try {
-    const r = evaluate(src);
-    // A dimensioned result has no place in a scalar field: `5 g / 2 mL` is a
-    // concentration, and putting 2500 into a "volume in mL" box would be
-    // putting a number where a different kind of quantity belongs.
-    return r.dimensionless ? r.value : null;
-  } catch {
-    return null;
-  }
-}
 
 export function TextField({ label, value, onChange, hint, error, placeholder, id: idProp }) {
   const id = idProp ?? `f-${label}`;

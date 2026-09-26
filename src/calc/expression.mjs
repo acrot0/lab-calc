@@ -281,6 +281,149 @@ function applyFunction(name, args) {
 }
 
 /**
+ * Typographic characters that stand for an operator, and the ASCII they mean.
+ *
+ * This exists because of where expressions come from. Nobody types `×` on a
+ * keyboard — they copy it out of a Word document, a slide, an Excel cell or a
+ * PDF, and those all substitute the typographic form: `×` for the asterisk,
+ * `÷` for the slash, U+2212 for the hyphen. Every one of them was rejected as
+ * "cannot parse", which reads to the user as the calculator refusing a paste.
+ *
+ * The alternative — swapping in a general maths library — does not fix this.
+ * `mathjs` rejects `0.1 × 250 ÷ 58.44`, `2−3`, `1 234.5` and `１２＋３` exactly
+ * as this parser did (measured), because the problem is not the grammar. It is
+ * that nobody normalises the text before the grammar sees it. That is what this
+ * table is for, and it is 40 lines rather than a 654 KB dependency that brings
+ * its own unit system and would replace the one this app is built around.
+ *
+ * Nothing here is a unit symbol, which is what makes a blanket substitution
+ * safe. `µ` (U+00B5) is checked in particular: it *is* a unit prefix, so it is
+ * not in the left column — the Greek mu is mapped onto it rather than away from
+ * it, so a `μg` copied from a paper lands on the `µg` the unit table holds.
+ */
+const CHAR_ALIASES = new Map(Object.entries({
+  // Multiplication, in every spelling Unicode offers.
+  '×': '*', '⨯': '*', '⨉': '*', '∙': '*',
+  '⋅': '*', '·': '*', '∗': '*', '＊': '*',
+  // Division. U+2044 is the fraction slash a PDF produces for `1⁄2`.
+  '÷': '/', '∕': '/', '⁄': '/', '／': '/',
+  /*
+   * Subtraction. The dash family is the reason this table has to be explicit:
+   * en dash, em dash, horizontal bar and figure dash are four different
+   * characters that a word processor picks between by context, and all four
+   * mean "minus" when they appear between two numbers.
+   */
+  '−': '-', '–': '-', '—': '-', '―': '-',
+  '‒': '-', '﹣': '-', '－': '-',
+  '＋': '+',
+  '，': ',', '％': '%',
+  '（': '(', '）': ')', '．': '.',
+  // Spaces that are not U+0020: a pasted table cell is full of these, and one
+  // of them is enough to make a number unreadable to the tokenizer.
+  ' ': ' ', ' ': ' ', ' ': ' ', ' ': ' ',
+  ' ': ' ', ' ': ' ', '　': ' ',
+  /*
+   * Canonical-equivalence characters. These are the ones where Unicode says two
+   * codepoints are *the same character*, and a paper will use whichever its
+   * typesetting system picked: the ohm sign rather than Greek omega, the
+   * angstrom sign rather than A-with-ring. Mapped onto the form the unit table
+   * stores, so `1 kΩ` and `5 Å` survive a paste.
+   */
+  'μ': 'µ', 'Ω': 'Ω', 'Å': 'Å',
+}));
+
+/**
+ * Superscript digits, as an exponent.
+ *
+ * `cm²` and `10⁻³` are how a unit and a power are written in every textbook,
+ * and neither is typeable on the keypad. They are rewritten to `cm^2` and
+ * `10^-3` rather than dropped, because dropping the exponent changes the value:
+ * `2²` would become `22`.
+ *
+ * This is why the normalisation is a table and not `String.normalize('NFKC')`,
+ * which looks like the obvious answer and is wrong here. NFKC maps `²` to a
+ * plain `2`, so `2²` silently becomes twenty-two; it maps `½` to the three
+ * characters `1⁄2`; and it maps `µ` onto Greek mu, breaking every microgram in
+ * the unit table. A normaliser for arithmetic has to know what the characters
+ * *mean*, which is a judgement NFKC does not make.
+ */
+const SUPERSCRIPTS = new Map(Object.entries({
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+  '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+  '⁺': '+', '⁻': '-',
+}));
+
+/**
+ * Rewrite pasted typography into the characters the tokenizer reads.
+ *
+ * Applied inside `evaluate`, so every entry point gets it — the calculator
+ * window, the inline expression fields and the tests all go through the same
+ * door, and there is no path that parses unnormalised text.
+ *
+ * The original text is not kept for the error message. If a character was
+ * normalised it is because it is understood, so an error that quotes the
+ * normalised form is quoting something the user can act on; quoting `×` back at
+ * someone who just pasted `×` would tell them nothing.
+ */
+export function normalizeExpression(source) {
+  const text = String(source ?? '');
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+
+    // A run of superscripts is one exponent, so `^` is emitted once for the run
+    // rather than once per digit: `10⁻³` is `10^-3`, not `10^-^3`.
+    const sup = SUPERSCRIPTS.get(c);
+    if (sup !== undefined) {
+      let digits = sup;
+      while (i + 1 < text.length && SUPERSCRIPTS.has(text[i + 1])) {
+        i += 1;
+        digits += SUPERSCRIPTS.get(text[i]);
+      }
+      out += `^${digits}`;
+      continue;
+    }
+
+    // Fullwidth forms, which a Chinese IME produces by default and which are
+    // invisible in the input box: `１２＋３` looks like arithmetic and is not.
+    const code = c.charCodeAt(0);
+    if (code >= 0xff10 && code <= 0xff19) { out += String.fromCharCode(code - 0xff10 + 0x30); continue; }
+    if (code >= 0xff21 && code <= 0xff3a) { out += String.fromCharCode(code - 0xff21 + 0x41); continue; }
+    if (code >= 0xff41 && code <= 0xff5a) { out += String.fromCharCode(code - 0xff41 + 0x61); continue; }
+
+    out += CHAR_ALIASES.get(c) ?? c;
+  }
+
+  /*
+   * A space between digit groups is a thousands separator.
+   *
+   * The strict three-digit grouping is required, exactly as the comma rule in
+   * the tokenizer requires it: `1 234 567` collapses, while `2 3` does not and
+   * stays the syntax error it should be. Guessing more loosely would turn two
+   * numbers someone meant to keep apart into one they did not.
+   */
+  return out.replace(/(\d)[ \t](?=\d{3}(?!\d))/g, '$1');
+}
+
+/**
+ * What an identifier may be made of.
+ *
+ * ASCII letters and digits are the ordinary case. The five non-ASCII
+ * characters are here because they are the *keys* of real units — `µg`, `µm`,
+ * `Å`, `Ω`, `kΩ`, `°C`, `‰` — and the tokenizer's ASCII-only rule could not
+ * read any of them. A unit the converter offers but the calculator cannot spell
+ * is a unit that works in one half of the app and is "cannot parse" in the
+ * other, which is how `1 kΩ` and `5 µg` were failing.
+ *
+ * Widening the class is safe because these characters are not operators and not
+ * digits: none of them can change how a number or an expression tokenizes. The
+ * lookup that follows is still against the unit table, so an unreadable string
+ * of them is reported as an unknown unit rather than accepted.
+ */
+const IDENT_START = /[A-Za-z_µÅΩ°‰]/;
+const IDENT_CONT = /[A-Za-z0-9_µÅΩ°‰]/;
+
+/**
  * Split input into tokens.
  *
  * Numbers may carry an exponent (`1.5e-3`) and units may carry a digit
@@ -328,8 +471,8 @@ function tokenize(src) {
       continue;
     }
 
-    if (/[A-Za-z_]/.test(c)) {
-      const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+    if (IDENT_START.test(c)) {
+      const m = new RegExp(`^${IDENT_START.source}${IDENT_CONT.source}*`).exec(src.slice(i));
       tokens.push({ type: 'ident', value: m[0] });
       i += m[0].length;
       continue;
@@ -390,6 +533,23 @@ function tokenize(src) {
 function parse(tokens, t) {
   let pos = 0;
 
+  /*
+   * Whether a number may absorb a following unit name as part of itself.
+   *
+   * True everywhere except inside an exponent. `250 mL` is one quantity, but in
+   * `10^-3 M` the `M` belongs to the whole power rather than to the `3` — and
+   * the exponent is parsed by the same `atom` that implements the
+   * number-then-unit rule, so without this flag the `M` was swallowed into the
+   * exponent and the expression was rejected as "an exponent must be a plain
+   * number".
+   *
+   * A flag rather than a parameter because the alternative is threading it
+   * through `atom` → `postfix` → `power` → `unary` and back, four signatures
+   * changed to carry one bit that only one call site ever sets. It is set and
+   * restored around a single parse call, so it cannot leak.
+   */
+  let unitSuffix = true;
+
   const peek = () => tokens[pos];
   const eat = (type) => (peek()?.type === type ? tokens[pos++] : null);
 
@@ -422,10 +582,37 @@ function parse(tokens, t) {
     return UNITS[name].factor;
   }
 
+  /**
+   * The exponent vector of a unit symbol, rejecting anything that is not one.
+   *
+   * Three refusals, in order of specificity:
+   *
+   * 1. **An affine unit.** Temperature does not scale from its base by
+   *    multiplication — 0 °C is 273.15 K — so a quantity carrying it has no
+   *    factor, and every expression that mixes it with one is meaningless.
+   *    Checked by *dimension*, not by symbol: `TEMPERATURE_UNITS` is keyed by
+   *    the ASCII symbols (`K`, `C`, `F`, `R`) while `UNITS` also holds the
+   *    typographic `°C` and `°F`, so a symbol test let `1 °C` through and
+   *    treated it as a factor-1 unit. That is a silent wrong answer, which is
+   *    worse than the parse error it replaced.
+   * 2. **An unknown unit.** A typo should say so rather than become a variable.
+   * 3. **A dimension with no exponent vector.** `ratio` and `angle` have none —
+   *    deliberately, because an all-zeroes one would make every plain number
+   *    look like an angle (see the note on `EXPONENTS`). Reading
+   *    `EXPONENTS[dim]` without this check produced `undefined`, and the first
+   *    arithmetic on it threw a raw `TypeError` whose English message —
+   *    "Cannot read properties of undefined" — was shown to the user.
+   *    `1 deg`, `1 turn` and `1 ‰` all did this.
+   */
   function exponentsOfUnit(name) {
+    if (name in UNITS && DIMENSIONS[UNITS[name].dim]?.affine) {
+      fail('temperatureInExpression', { unit: name });
+    }
     if (name in TEMPERATURE_UNITS) fail('temperatureInExpression', { unit: name });
     if (!(name in UNITS)) fail('unknownUnit', { unit: name });
-    return EXPONENTS[UNITS[name].dim];
+    const exp = EXPONENTS[UNITS[name].dim];
+    if (!exp) fail('unitNotInExpressions', { unit: name });
+    return exp;
   }
 
   function atom() {
@@ -435,7 +622,7 @@ function parse(tokens, t) {
       pos++;
       // A number followed by a unit is one quantity: `250 mL`. A number on its
       // own is dimensionless, which is what makes `2 * 3 g` work.
-      const next = peek();
+      const next = unitSuffix ? peek() : null;
       if (next?.type === 'ident') {
         /*
          * A callable name is only a function when a `(` follows it.
@@ -528,7 +715,23 @@ function parse(tokens, t) {
     }
 
     if (eat('(')) {
-      const inner = expression();
+      /*
+       * Inside brackets, a number may take a unit again.
+       *
+       * The `unitSuffix` suspension exists for one shape — `10^-3 M`, where the
+       * unit belongs to the power rather than to the exponent. It must not
+       * follow the parse into a bracketed group, or `2^(3 g)` would stop being
+       * "an exponent must be a plain number" and become a bare syntax error
+       * pointing at the `g`, which describes the input worse.
+       */
+      const outer = unitSuffix;
+      unitSuffix = true;
+      let inner;
+      try {
+        inner = expression();
+      } finally {
+        unitSuffix = outer;
+      }
       if (!eat(')')) fail('expressionSyntax', { at: 'missing )' });
       return inner;
     }
@@ -565,7 +768,14 @@ function parse(tokens, t) {
   function power() {
     let base = postfix();
     while (eat('^')) {
-      const exp = unary();
+      // The exponent may not absorb a unit name — see `unitSuffix`.
+      unitSuffix = false;
+      let exp;
+      try {
+        exp = unary();
+      } finally {
+        unitSuffix = true;
+      }
       if (!isDimensionless(exp.exp)) fail('exponentNotDimensionless', { unit: exp.unit ?? '' });
       const n = exp.value;
       if (!Number.isFinite(n)) fail('expressionSyntax', { at: 'exponent' });
@@ -573,6 +783,29 @@ function parse(tokens, t) {
       // square root of an area is a length — so the exponents are scaled rather
       // than the base being required to be dimensionless.
       base = quantity(base.value ** n, base.exp.map((x) => x * n), base.unit, base.scale ** n, false);
+
+      /*
+       * A unit written after a power belongs to the whole power.
+       *
+       * `10^-3 M` is (10⁻³) × M: the exponent is `-3`, not `-3 M`. The unit
+       * name is taken here rather than by `atom` because `atom` is where the
+       * number-then-unit rule lives, and by the time the exponent has been
+       * parsed the number it would have applied to is gone.
+       *
+       * This is not implicit multiplication arriving by the back door. It is
+       * the same rule `250 mL` uses — a number followed by a unit is one
+       * quantity — applied to a number that happens to have an exponent. Only a
+       * bare unit name is taken, so `2^3 pi` is still a trailing-token error.
+       *
+       * The `10ˣ` keypad key inserts exactly `10^` and the unit chips insert a
+       * bare `M`, so this is the sequence that key was added for: `10ˣ`, `3`,
+       * `−`, `M`. It was the one path that did not work.
+       */
+      const after = unitSuffix ? peek() : null;
+      if (after?.type === 'ident' && !WORD_OPERATORS.has(after.value) && after.value in UNITS) {
+        pos++;
+        base = quantity(base.value, exponentsOfUnit(after.value), after.value, factorOfUnit(after.value), false);
+      }
     }
     return base;
   }
@@ -702,7 +935,7 @@ function sameExponents(a, b) {
  * as an error just because it has no familiar name.
  */
 export function evaluate(source) {
-  const text = String(source ?? '').trim();
+  const text = normalizeExpression(source).trim();
   if (text === '') fail('expressionEmpty', {});
   const q = parse(tokenize(text), text);
   const si = toSi(q);
