@@ -143,18 +143,20 @@ describe('app shell', () => {
     );
   };
 
-  it('should render both navigations from the same tab list', async () => {
+  it('should render the desktop rail with every tab', async () => {
     const html = await shell();
-    const rail = [...html.matchAll(/class="rail-item"/g)].length;
-    const bar = [...html.matchAll(/role="tab"/g)].length;
-    expect(rail, 'rail items').toBeGreaterThan(0);
-    expect(bar, 'tab buttons').toBeGreaterThan(0);
-    // Equal counts is the check: both render TABS.map, so a tab added to one
-    // and missed in the other fails here.
-    expect(rail, 'rail and tab bar disagree on the tab count').toBe(bar);
+    // The toggle is a `.rail-item` too and is not a destination, so it is
+    // counted out rather than making the totals disagree by one.
+    const items = [...html.matchAll(/class="rail-item"/g)].length
+      + [...html.matchAll(/class="rail-item rail-toggle"/g)].length;
+    const { PRIMARY_TABS } = await import('../src/ui/nav.mjs');
+    const bar = [...html.matchAll(/class="mobile-nav-item/g)].length;
+    expect(items, 'rail items').toBeGreaterThan(PRIMARY_TABS.length);
+    // The phone bar is five destinations plus the "more" button.
+    expect(bar, 'bottom bar items').toBe(PRIMARY_TABS.length + 1);
   });
 
-  it('should name the tab in each navigation', async () => {
+  it('should name every destination in the rail', async () => {
     // A rail item with no accessible name is an icon and a shrug. The label is
     // in the DOM whether or not the CSS is showing it.
     const html = await shell();
@@ -166,10 +168,11 @@ describe('app shell', () => {
     for (const l of labels) expect(l, 'untranslated rail label').not.toMatch(/^tabs\./);
   });
 
-  it('should mark exactly one tab as the current page', async () => {
+  it('should mark exactly one destination as the current page', async () => {
     const html = await shell();
-    expect([...html.matchAll(/aria-current="page"/g)].length).toBe(1);
-    expect([...html.matchAll(/aria-selected="true"/g)].length).toBe(1);
+    // One in the rail, one in the phone bar. Both are in the DOM because CSS
+    // decides which is shown, and both must agree on where the user is.
+    expect([...html.matchAll(/aria-current="page"/g)].length).toBe(2);
   });
 
   it('should publish the material on the control', async () => {

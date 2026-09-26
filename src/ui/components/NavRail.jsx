@@ -1,36 +1,64 @@
-import React from 'react';
-import { ICON_SIZE } from '../icons.jsx';
+import React, { useState } from 'react';
+import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 
 /**
  * The desktop navigation rail.
  *
- * Collapsed it is a strip of icons; on hover or keyboard focus it widens to
- * show the labels. The point is not decoration: fifteen tabs do not fit on one
- * row at the width this app is designed for, so the old horizontal bar wrapped
- * onto two or three lines and pushed the actual content below the fold. A rail
- * spends 56px of width to give the content the rest of the height.
+ * Collapsed it is a strip of icons; expanded it shows the labels beside them.
  *
- * The width is animated in CSS rather than by React state. Tracking hover in
- * state would re-render the whole app on every pointer crossing, and a
- * re-render mid-transition is what makes a menu like this stutter. The browser
- * can expand a `:hover` rule on the compositor without React's involvement, so
- * the interaction stays smooth and the app stays out of the way.
+ * ## Why it expands on click rather than on hover
  *
- * Focus, not just hover, drives the expansion: a keyboard user tabbing into the
- * rail must be able to read the labels too, and `:focus-within` is the CSS that
- * says so. That is also why the labels are always in the DOM and merely hidden
- * by `overflow` — a screen reader announces them either way, and nothing has to
- * be mounted to satisfy a hover.
+ * Hover-to-expand was the previous behaviour and it was wrong for two reasons.
+ * A rail that widens when the pointer crosses it moves the thing the user is
+ * aiming at — the icons shift right by 152px at the moment of the click, which
+ * is how a hover-expanded menu turns a correct click into a wrong one. And it
+ * is unreachable on a touch laptop, where there is no hover at all: the rail
+ * would stay a column of unlabelled glyphs with no way to ask what they mean.
  *
- * Below the breakpoint the rail is hidden entirely and the horizontal tab bar
- * takes over, which is the layout a thumb expects on a phone.
+ * A click is deliberate. It is also discoverable, which hover is not: nothing
+ * on screen says the rail can expand, and a control the user does not know
+ * about is not a control. The toggle below carries the affordance.
+ *
+ * ## Why the labels are always in the DOM
+ *
+ * A screen reader announces them either way, and nothing has to be mounted to
+ * satisfy a hover. The CSS hides them by width, not by `display: none`.
+ *
+ * Below the breakpoint the rail is hidden entirely and the bottom bar takes
+ * over, which is the layout a thumb expects on a phone.
  */
 export default function NavRail({ tabs, current, onSelect }) {
   const { t } = useI18n();
+  const [open, setOpen] = useState(false);
 
   return (
-    <nav className="rail" aria-label={t('app.navLabel')}>
+    <nav className={`rail${open ? ' is-open' : ''}`} aria-label={t('app.navRailLabel')}>
+      {/*
+        The expand toggle.
+
+        It is the first item in the rail so it sits where the icons are and
+        moves with them, and it is the only control in the rail that is not a
+        destination — which is why it is separated by a rule rather than
+        blending into the list.
+      */}
+      <button
+        type="button"
+        className="rail-item rail-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        title={open ? t('app.collapseNav') : t('app.expandNav')}
+      >
+        <span className="rail-icon" aria-hidden="true">
+          {open
+            ? <Icons.collapseNav size={ICON_SIZE.display} />
+            : <Icons.expandNav size={ICON_SIZE.display} />}
+        </span>
+        <span className="rail-label">
+          {open ? t('app.collapseNav') : t('app.expandNav')}
+        </span>
+      </button>
+
       <div className="rail-inner">
         {tabs.map(({ id, icon: Icon }) => (
           <button

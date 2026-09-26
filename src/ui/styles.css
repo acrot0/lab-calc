@@ -537,15 +537,20 @@ select.control {
    ========================================================================== */
 
 /*
- * Collapsed it is 56px of icons; hovered or focused it widens to 208px and the
- * labels fade in. The width lives on the rail and the labels are always in the
- * DOM, hidden by the rail's `overflow: hidden` — so the expansion is a single
+ * Collapsed it is 56px of icons; expanded it is 208px with the labels beside
+ * them. The width lives on the rail and the labels are always in the DOM,
+ * hidden by the rail's `overflow: hidden` — so the expansion is a single
  * animatable property rather than a mount/unmount, and a screen reader sees the
- * same labels whether or not a pointer happens to be over the rail.
+ * same labels whether or not the rail happens to be expanded.
  *
- * `:focus-within` is what makes this usable by keyboard: tabbing into the rail
- * expands it exactly as hovering does. A hover-only menu is one a keyboard user
- * cannot read.
+ * ## Why `.is-open` and not `:hover`
+ *
+ * Hover was the previous trigger and it moved the target: crossing the rail to
+ * click an icon widened it by 152px, shifting the icon out from under the
+ * pointer on the way. It was also unreachable without a pointer, so a touch
+ * laptop got a column of unlabelled glyphs and no way to ask what they meant.
+ * The class is set by the rail's own toggle button, which is deliberate and
+ * visible. See `NavRail.jsx`.
  *
  * The panel is sticky so the rail stays reachable while a long result table
  * scrolls, and `align-self: start` keeps it from stretching to the full column
@@ -553,10 +558,17 @@ select.control {
  */
 .rail {
   display: none;
+  /* A column: the toggle at the top, then the destinations. The `max-height`
+     with `min-height: 0` on the list is what lets the sixteen destinations
+     scroll inside the sticky rail when they are taller than the viewport,
+     which they are on a laptop held sideways. Without it the list is sized to
+     its content and the rail overflows the window instead. */
+  flex-direction: column;
   position: sticky;
   top: var(--s4);
   z-index: 20;
   width: 56px;
+  max-height: calc(100dvh - var(--s10));
   padding: var(--s2);
   background: var(--chrome);
   border: 1px solid var(--chrome-border);
@@ -568,8 +580,7 @@ select.control {
               box-shadow var(--dur) var(--ease);
 }
 
-.rail:hover,
-.rail:focus-within {
+.rail.is-open {
   width: 208px;
   box-shadow: var(--shadow-2);
 }
@@ -578,6 +589,20 @@ select.control {
   display: flex;
   flex-direction: column;
   gap: var(--s1);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The toggle is separated by a rule: it is the one control in the rail that is
+   not a destination, and blending it into the list is how a user clicks it
+   expecting to navigate somewhere. */
+.rail-toggle {
+  margin-bottom: var(--s2);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  height: auto;
+  min-height: 38px;
 }
 
 .rail-item {
@@ -626,79 +651,182 @@ select.control {
   transition: opacity var(--dur-fast) var(--ease);
 }
 
-.rail:hover .rail-label,
-.rail:focus-within .rail-label {
+.rail.is-open .rail-label {
   opacity: 1;
   visibility: visible;
 }
 
 /* ==========================================================================
-   Tabs — mobile
+   Navigation — phone
    ========================================================================== */
 
 /*
- * Wraps rather than scrolls. With fourteen tabs a single row overflows, and a
- * scrollbar hidden with `scrollbar-width: none` leaves the last tabs reachable
- * only by a horizontal swipe most desktop users never try — the tab is simply
- * missing as far as they are concerned.
+ * A fixed bar of five destinations at the bottom of the screen.
+ *
+ * ## Why the bottom
+ *
+ * The bottom third of a phone screen is where a thumb rests; the top corners
+ * are the hardest to reach one-handed. Material 3 and iOS both put primary
+ * navigation here for that reason. The previous layout was a horizontal tab row
+ * under the header — sixteen items, wrapped onto three lines, in the hardest
+ * place to reach.
+ *
+ * ## Why it is `position: fixed`
+ *
+ * A bar in the document flow scrolls away, and a navigation that is only
+ * reachable by scrolling back to the top is not navigation. Fixed, it is always
+ * there. The padding below is what keeps the page's own content from ending
+ * underneath it — see `.app` in the phone block.
+ *
+ * ## Why five
+ *
+ * Material 3 and iOS both specify 3–5 destinations, and both say the rest
+ * belong behind a "more" affordance. Sixteen items at 390px would be 24px each,
+ * under the 44px touch floor; five gives 78px. The reasoning is in `nav.mjs`.
  */
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s1);
-  margin: var(--s6) 0;
-  padding-bottom: var(--s1);
-  border-bottom: 1px solid var(--border);
-  row-gap: 0;
+.mobile-nav {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* Above the home indicator on a gesture-navigation phone, where the bar would
+     otherwise sit under the system gesture area and the bottom row of targets
+     would be hard to hit. Zero on a device without an inset. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--chrome, var(--surface));
+  border-top: 1px solid var(--border);
+  /* A blur behind it, so content scrolling under the bar reads as behind it
+     rather than as cut off by it. */
+  backdrop-filter: blur(12px);
 }
 
-.tab {
-  position: relative;
-  display: inline-flex;
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--s2);
-  padding: var(--s3) var(--s4);
+  justify-content: center;
+  gap: 3px;
+  /* 56px: the Material 3 small navigation bar's item height. It is also 12px
+     above the 44px touch floor, which matters because these are the targets a
+     thumb hits without looking. */
+  min-height: 56px;
+  padding: var(--s1) 2px;
   background: none;
   border: none;
-  border-radius: var(--r-sm) var(--r-sm) 0 0;
   color: var(--text-dim);
   cursor: pointer;
   font: inherit;
-  font-size: var(--t-sm);
+  /* `labelMedium` in M3 and Caption in iOS are both 12. */
+  font-size: var(--t-xs);
   font-weight: 500;
-  white-space: nowrap;
-  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  line-height: 1.1;
+  /* Two-word labels wrap rather than truncate: "Serial dilution" clipped to
+     "Serial dil…" is not a label. The glyph stays on one line. */
+  text-align: center;
+  transition: color var(--dur-fast) var(--ease);
 }
 
-.tab:hover { color: var(--text-mid); background: var(--surface-2); }
+.mobile-nav-item span { word-break: break-word; }
 
-.tab[aria-selected="true"] { color: var(--accent); }
+.mobile-nav-item[aria-current="page"],
+.mobile-nav-item.is-current { color: var(--accent); }
+
+/* The selected item's pill, which is how M3 marks the active destination. */
+.mobile-nav-item[aria-current="page"]::before,
+.mobile-nav-item.is-current::before {
+  content: '';
+  position: absolute;
+}
+
+.mobile-nav-item:active { background: var(--surface-2); }
 
 /*
- * The selection underline grows from the centre rather than appearing.
+ * The sheet behind the "more" item.
  *
- * It is a pseudo-element scaled from zero, not a width transition, so it costs
- * no layout on the frames it animates — a transitioned `width` re-lays-out the
- * whole tab row on every frame, which on a wrapped row of fifteen tabs is
- * visible as a stutter.
- *
- * `transform-origin: center` is what makes it read as growing out of the tab
- * rather than sliding in from one edge; a scale from the left would look like
- * it belonged to the tab before.
+ * A sheet rather than a dropdown: eleven items with icons and labels do not fit
+ * in a menu, and a dropdown anchored to the rightmost item would run off the
+ * right edge. Full width, scrolls, and it is the pattern both platforms use for
+ * exactly this.
  */
-.tab::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 -1px 0;
-  height: 2px;
-  background: var(--accent);
-  border-radius: var(--r-full);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform var(--dur) var(--ease-out);
+.nav-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  background: var(--scrim);
+  animation: fade var(--dur) var(--ease);
 }
 
-.tab[aria-selected="true"]::after { transform: scaleX(1); }
+.nav-sheet {
+  width: 100%;
+  max-height: 70dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--shadow-3);
+  animation: sheet-in var(--dur) var(--ease);
+  /* Clear the bar itself, so the last row of the grid is not under it. */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.nav-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5) var(--s2);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-sheet-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--t-lg);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.nav-sheet-head .icon-btn { margin-left: auto; }
+
+/*
+ * Two columns rather than one.
+ *
+ * Eleven items in a single column is a 500px scroll for what is a list of
+ * destinations; two columns fits them in about half that and still leaves each
+ * item 44px tall and half the screen wide, which is a generous target.
+ */
+.nav-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s1);
+  padding: var(--s3) var(--s4) var(--s5);
+  overflow-y: auto;
+}
+
+.nav-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 48px;
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: none;
+  border-radius: var(--r-md);
+  color: var(--text-mid);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  text-align: left;
+}
+
+.nav-sheet-item:hover { background: var(--surface-2); color: var(--text); }
+
+.nav-sheet-item[aria-current="page"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
 
 /* ==========================================================================
    Layout
@@ -775,13 +903,44 @@ select.control {
      expanded width would leave a permanent 152px gutter and defeat the point
      of collapsing at all. */
   .shell { grid-template-columns: 56px minmax(0, 1fr); }
-  .rail { display: block; }
-  .tabs { display: none; }
+  .rail { display: flex; }
+  .mobile-nav { display: none; }
+
+  /*
+   * The column widens with the rail, so the content reflows instead of being
+   * covered.
+   *
+   * This is the opposite of what the rail did when it expanded on hover, and
+   * the change of trigger is what changes the answer. A hover-expanded rail had
+   * to overlay: the content must not reflow every time the pointer crosses the
+   * rail on its way somewhere else. A rail expanded by a deliberate click has
+   * no such constraint — the user asked for it — and overlaying is then the
+   * worse outcome, because 152px of the page they are working on sits
+   * permanently under the rail they just opened. One reflow per click is the
+   * cheaper cost.
+   *
+   * `:has()` rather than a class on the shell, so the open state stays where it
+   * is used — in `NavRail` — and the layout stays in the stylesheet. The
+   * fallback where `:has()` is unsupported is the old overlay behaviour, which
+   * still works; it just covers the content.
+   */
+  .shell:has(.rail.is-open) { grid-template-columns: 208px minmax(0, 1fr); }
 }
 
 @media (max-width: 940px) {
   .split { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
-  .app { padding: var(--s6) var(--s4) var(--s10); }
+  /*
+   * Bottom padding clears the fixed navigation bar.
+   *
+   * The bar is 56px plus the device's bottom inset, and it is out of the flow —
+   * so without this the footer and the last row of every card end up underneath
+   * it and cannot be scrolled into view. The extra `--s6` is breathing room, so
+   * the footer does not sit flush against the bar.
+   */
+  .app {
+    padding: var(--s6) var(--s4)
+             calc(56px + env(safe-area-inset-bottom, 0px) + var(--s6));
+  }
 }
 
 /*
@@ -1391,19 +1550,6 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   .expr-value {
     animation: value-fade-soft 220ms ease both !important;
   }
-
-  /*
-   * The tab underline keeps its transition but loses the movement: a scale is
-   * still a size change, and the point of the preference is that nothing
-   * changes size. It fades instead, so the selection is still marked.
-   */
-  .tab::after {
-    transition: opacity var(--dur-fast) linear !important;
-    transform: scaleX(1);
-    opacity: 0;
-  }
-
-  .tab[aria-selected="true"]::after { opacity: 1; }
 
   /* Transforms are removed rather than shortened: a 0.01ms translate is still
      a position change, and for a user who asked for no motion the point is
@@ -3038,13 +3184,6 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
  */
 
 /* Cards and results settle in rather than snapping. */
-/* The active tab's underline is a transition, declared in the Motion block
-   below. It was a keyframe, which meant it replayed on every re-render — the
-   underline re-grew whenever any state changed anywhere in the tab. */
-.tab::after { transform-origin: center; }
-
-/* Primary buttons press in. A 1px shift is enough to feel physical without
-   moving the button out from under the cursor. */
 .primary { transition: background var(--dur-fast) var(--ease), transform 80ms var(--ease), box-shadow var(--dur-fast) var(--ease); }
 .primary:hover { box-shadow: var(--shadow-2, var(--shadow-1)); }
 .primary:active { transform: translateY(1px); }
@@ -3757,38 +3896,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .history-item:hover { transform: translateX(2px); }
 
-/* The tab bar's active indicator is a scaleX transition rather than the
-   keyframe it used to be: an animation replays on every re-render, so the
-   underline re-grew whenever any state changed anywhere in the tab. */
-.tab { transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease); }
-
-.tab::after {
-  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
-  transform: scaleX(0);
-  opacity: 0;
-}
-
-.tab[aria-selected="true"]::after {
-  animation: none;
-  transform: scaleX(1);
-  opacity: 1;
-}
-
-/*
- * A theme change.
- *
- * Switching palette repaints every surface at once. Without a transition that
- * is a hard cut — a flash on a dark-to-light switch. This is the one place a
- * colour transition earns its keep.
- *
- * Scoped to the elements that actually carry a themed colour rather than
- * `*`, which would put a transition on every property of every node and cost
- * more than it is worth on a 118-cell grid.
- */
 body,
 .card,
 .control,
-.tab,
+.rail-item,
+.mobile-nav-item,
+.nav-sheet-item,
 .history-item,
 .field input,
 .field select,

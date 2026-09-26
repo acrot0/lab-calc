@@ -13,6 +13,7 @@ import { LOCALES } from './i18n.mjs';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
+import MobileNav from './components/MobileNav.jsx';
 import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
@@ -268,25 +269,14 @@ export default function App() {
       </header>
 
       {/* Two navigations, one shown at a time by a media query. The rail is the
-          desktop shape — fifteen tabs fit down a column but not across a row —
-          and the horizontal bar is the mobile one, where a thumb expects it.
+          desktop shape — sixteen tabs fit down a column but not across a row —
+          and the bottom bar is the phone shape, where a thumb expects it.
+
           Both are rendered because CSS decides which is visible; hiding one in
           JavaScript would mean measuring the viewport in React, which is how a
-          resize gets missed. */}
-      <div className="tabs" role="tablist">
-        {TABS.map(({ id, icon: Icon }) => (
-          <button
-            key={id}
-            role="tab"
-            className="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-          >
-            <Icon size={ICON_SIZE.control} aria-hidden="true" />
-            {t(`tabs.${id}`)}
-          </button>
-        ))}
-      </div>
+          resize gets missed — and this app is installed as a PWA, where a
+          rotate is a resize. */}
+      <MobileNav tabs={TABS} current={tab} onSelect={setTab} />
 
       {/* The rail and the content share a row so the rail can sit beside the
           table on a wide screen. The grid column stays 56px even while the rail

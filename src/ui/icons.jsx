@@ -51,6 +51,9 @@ import { Dna } from '@phosphor-icons/react/dist/csr/Dna';
 import { Syringe } from '@phosphor-icons/react/dist/csr/Syringe';
 import { Eyedropper } from '@phosphor-icons/react/dist/csr/Eyedropper';
 import { Shapes } from '@phosphor-icons/react/dist/csr/Shapes';
+import { DotsThreeOutline } from '@phosphor-icons/react/dist/csr/DotsThreeOutline';
+import { Sidebar } from '@phosphor-icons/react/dist/csr/Sidebar';
+import { CaretDoubleLeft } from '@phosphor-icons/react/dist/csr/CaretDoubleLeft';
 
 /*
  * React is imported explicitly, not left to the JSX transform.
@@ -179,6 +182,15 @@ export const Icons = {
   icons: styled(Shapes),
 
   // --- Chrome ---
+  // The phone bar's overflow. `DotsThreeOutline` rather than `DotsThree`: the
+  // outlined form is the one both platforms use for a "more" destination, and
+  // the filled dots read as a menu button on a toolbar instead.
+  more: styled(DotsThreeOutline),
+  // The rail's expand toggle, in both states: the sidebar glyph says what the
+  // control acts on, and the chevron says which way it will move. One icon
+  // that flipped meaning would be two glyphs wearing one name.
+  expandNav: styled(Sidebar),
+  collapseNav: styled(CaretDoubleLeft),
   history: styled(ClockCounterClockwise),
   search: styled(MagnifyingGlass),
   remove: styled(Trash),
