@@ -33,7 +33,7 @@ const COLUMNS = [
  * skipped: silently dropping an unreadable entry would compute a mean over
  * fewer points than the user believes they entered.
  */
-export function parseSeries(text) {
+function parseSeries(text) {
   const parts = String(text ?? '')
     .split(/[\s,;]+/)
     .map((s) => s.trim())
@@ -183,14 +183,20 @@ export default function StatsTab({ onRecord, restored }) {
       {err && <Err>{err}</Err>}
 
       {out && (
+        /*
+         * Only what the interval adds. The mean and the standard deviation are
+         * already in the live summary above, and repeating them here put two
+         * identical rows on the screen — the panel read as a duplicate of the
+         * one above it rather than as the next step.
+         */
         <Result
           value={`${fmt(out.interval.low, 5)} – ${fmt(out.interval.high, 5)}`}
           unit={t('stats.ciUnit', { pct: fmt(out.confidence * 100, 0) })}
           note={t('stats.ciNote', { t: fmt(out.interval.t, 4), n: out.interval.n })}
           rows={[
-            [t('stats.mean'), fmt(out.describeA.mean, 5)],
-            [t('stats.sd'), fmt(out.describeA.sd, 5)],
             [t('stats.halfWidth'), `± ${fmt(out.interval.halfWidth, 5)}`],
+            [t('stats.tValue'), fmt(out.interval.t, 4)],
+            [t('stats.dof'), String(out.interval.n - 1)],
           ]}
         />
       )}

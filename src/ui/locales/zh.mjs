@@ -1189,6 +1189,8 @@ export const zh = {
     ciNote: 't = {t}（自由度 {n}−1）。用 1.96 代替 t 是实验报告里最常见的统计错误——样本量小时会低估区间约 30%。',
     mean: '均值',
     halfWidth: '半宽',
+    tValue: 't 值',
+    dof: '自由度',
     grubbs: 'Grubbs 检验',
     grubbsResult: 'G = {G}，临界值 {crit}',
     grubbsFlagged: '{value} 被判为离群值。',

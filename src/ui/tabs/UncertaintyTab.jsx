@@ -13,7 +13,7 @@ import Card from '../components/Card.jsx';
 const MODES = ['molarMass', 'propagate', 'weigh'];
 
 /** Parse "value, uncertainty" pairs, one per line, with an optional label. */
-export function parseTerms(text) {
+function parseTerms(text) {
   const lines = String(text ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
   const terms = [];
   const bad = [];

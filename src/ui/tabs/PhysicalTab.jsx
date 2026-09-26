@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   arrhenius, concentrationAt, crossoverTemperature, degreeOfDissociation,
-  equilibriumConstant, eutectic, fitOrder, gibbsEnergy, halfLife, kohlrausch,
+  equilibriumConstant, eutectic, fitOrder, gibbsEnergy, halfLife,
   molarConductivity, ostwaldDilutionLaw,
 } from '../../calc/physical.mjs';
 import { NumField, TextField, Result, Err, Warn } from '../components/Fields.jsx';
@@ -22,7 +22,7 @@ const MODES = ['kinetics', 'arrhenius', 'conductivity', 'thermo', 'phase'];
  * rather than reported: a trailing newline is how a textarea ends, not a
  * mistake worth a message.
  */
-export function parsePairs(text) {
+function parsePairs(text) {
   const lines = String(text ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
   const pairs = [];
   const bad = [];

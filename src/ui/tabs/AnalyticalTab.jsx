@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   EDTA_FORMATION, conditionalLogK, edtaTitration, gravimetricFactor,
-  gravimetricPercent, maskingMargin, recoveryBias, redoxEquivalence, spikeRecovery,
+  gravimetricPercent, recoveryBias, redoxEquivalence, spikeRecovery,
 } from '../../calc/analytical.mjs';
-import { detectionLimit, detectionStatus, resolution, theoreticalPlates } from '../../calc/instrumental.mjs';
+import { detectionLimit, resolution, theoreticalPlates } from '../../calc/instrumental.mjs';
 import { NumField, TextField, Result, Err, Warn } from '../components/Fields.jsx';
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
@@ -23,7 +23,7 @@ const METALS = Object.keys(EDTA_FORMATION);
  * with a bad entry: there it is a whole column, here it is a short list of
  * replicates, and the error names the offending value either way.
  */
-export function parseNumbers(text) {
+function parseNumbers(text) {
   const parts = String(text ?? '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
   const values = [];
   const bad = [];

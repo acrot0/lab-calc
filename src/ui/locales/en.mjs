@@ -1184,6 +1184,8 @@ export const en = {
     ciNote: 't = {t} at {n}−1 degrees of freedom. Substituting 1.96 for t is the most common statistical error in a lab report — at small n it understates the interval by about 30%.',
     mean: 'Mean',
     halfWidth: 'Half-width',
+    tValue: 't value',
+    dof: 'Degrees of freedom',
     grubbs: 'Grubbs test',
     grubbsResult: 'G = {G}, critical {crit}',
     grubbsFlagged: '{value} is flagged as an outlier.',
