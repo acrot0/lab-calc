@@ -6,6 +6,7 @@ import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import { chartColors } from '../chart-colors.mjs';
 
 /** Parse "2.15, 7.20, 12.35" into numbers. Returns null on anything unusable. */
 function parsePkaList(text) {
@@ -15,21 +16,15 @@ function parsePkaList(text) {
   return nums;
 }
 
-/**
- * Canvas cannot read CSS custom properties, so the palette is passed in.
- * Hardcoding dark values made the grid invisible in the light theme — the
- * chart still drew, it just lost its reference lines.
+/*
+ * Chart colours come from the active palette.
+ *
+ * They used to be a two-entry map keyed "dark" and "light", but the prop is the
+ * palette *key* — "gruvbox", "solarized-light", "catppuccin-mocha" — so nine of
+ * the ten themes matched neither entry and silently drew the dark chart on a
+ * light card. Deriving from the palette fixes every theme at once, including
+ * ones added later.
  */
-const CHART_COLORS = {
-  dark: {
-    grid: 'rgba(255,255,255,0.08)', label: '#9aa3b2', curve: '#5aa9ff',
-    eq: 'rgba(240,180,41,0.55)', band: 'rgba(90,169,255,0.10)',
-  },
-  light: {
-    grid: 'rgba(16,24,40,0.1)', label: '#5a6577', curve: '#1f6feb',
-    eq: 'rgba(165,106,0,0.5)', band: 'rgba(31,111,235,0.08)',
-  },
-};
 
 /**
  * Draw the curve on a canvas. SVG would need ~160 nodes and per-point
@@ -40,7 +35,7 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
   const ref = useRef(null);
   // Memoised: a fresh object each render would re-run the draw effect on every
   // parent render, redrawing an unchanged chart.
-  const palette = useMemo(() => CHART_COLORS[theme] ?? CHART_COLORS.dark, [theme]);
+  const palette = useMemo(() => chartColors(theme), [theme]);
 
   useEffect(() => {
     const canvas = ref.current;

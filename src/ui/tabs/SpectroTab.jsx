@@ -6,13 +6,15 @@ import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import { chartColors } from '../chart-colors.mjs';
 
 /** Draw the calibration line with its points, so the fit is visible not asserted. */
 function CurvePlot({ points, fit, reading, width = 520, height = 220, theme = 'dark' }) {
   const ref = React.useRef(null);
-  const palette = React.useMemo(() => (theme === 'light'
-    ? { grid: 'rgba(16,24,40,0.1)', label: '#6b7688', line: '#1f6feb', dot: '#1f6feb', read: 'rgba(165,106,0,0.85)' }
-    : { grid: 'rgba(255,255,255,0.08)', label: '#9aa3b2', line: '#5aa9ff', dot: '#5aa9ff', read: 'rgba(240,180,41,0.9)' }), [theme]);
+  const c = React.useMemo(() => chartColors(theme), [theme]);
+  const palette = React.useMemo(() => ({
+    grid: c.grid, label: c.label, line: c.curve, dot: c.point, read: c.eq,
+  }), [c]);
 
   useEffect(() => {
     const c = ref.current;
@@ -92,12 +94,10 @@ function CurvePlot({ points, fit, reading, width = 520, height = 220, theme = 'd
  */
 function ResidualPlot({ points, fit, width = 520, height = 110, theme = 'dark' }) {
   const ref = useRef(null);
-  // The same literals as CurvePlot above: both are canvases, neither can read
-  // CSS custom properties, and the two sit on one tab where a mismatch would
-  // show.
-  const palette = useMemo(() => (theme === 'light'
-    ? { grid: 'rgba(16,24,40,0.1)', label: '#5a6577', dot: '#1f6feb' }
-    : { grid: 'rgba(255,255,255,0.08)', label: '#9aa3b2', dot: '#5aa9ff' }), [theme]);
+  // Both plots sit on one tab, so they read the same palette — a mismatch
+  // between them would be the first thing a reader noticed.
+  const c = useMemo(() => chartColors(theme), [theme]);
+  const palette = useMemo(() => ({ grid: c.grid, label: c.label, dot: c.point }), [c]);
 
   useEffect(() => {
     const c = ref.current;
