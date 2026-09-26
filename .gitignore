@@ -23,9 +23,13 @@ docs/maintain-logs/
 src/calc/docs/
 
 # Scratch space for one-off investigation scripts and fetched source data —
-# the audit that produced element-discovery.mjs lived here. Never part of the
-# app, and 3 MB of HTML and JSON is not something to commit by accident.
+# the audit that produced element-discovery.mjs lived here, and so did the
+# Material 3 and iOS navigation specifications the phone layout is based on.
+# Never part of the app, and 3 MB of HTML and JSON is not something to commit
+# by accident. The `-` form is a second directory that a leading-dot pattern
+# does not match.
 .tmp/
+.tmp-*/
 
 # Scratch space for work in progress; removed before the branch is finished.
 .scratch/
