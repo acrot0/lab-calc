@@ -49,9 +49,19 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
   const [arrPoints, setArrPoints] = useState(restored?.arrPoints ?? '20, 0.0012\n30, 0.0035\n40, 0.0094\n50, 0.0235');
 
   // Conductivity
+  /*
+   * The defaults are acetic acid at 0.001 M, whose numbers are self-consistent:
+   * 0.0486 mS/cm against a limiting value of 390.7 S·cm²/mol gives α = 0.124
+   * and pKa 4.75, against a literature 4.76.
+   *
+   * They used to be 1.25 mS/cm against a limiting value of 1250, which are not
+   * independent numbers — the first computes to a molar conductivity of exactly
+   * 1250, so α came out at exactly 1 and Ostwald's law divided by zero. The tab
+   * failed on its own defaults before the user had typed anything.
+   */
   const [condConc, setCondConc] = useState(restored?.condConc ?? '0.001');
-  const [condKappa, setCondKappa] = useState(restored?.condKappa ?? '1.25');
-  const [limiting, setLimiting] = useState(restored?.limiting ?? '1250');
+  const [condKappa, setCondKappa] = useState(restored?.condKappa ?? '0.0486');
+  const [limiting, setLimiting] = useState(restored?.limiting ?? '390.7');
 
   // Thermodynamics
   const [deltaH, setDeltaH] = useState(restored?.deltaH ?? '-50');
@@ -124,7 +134,14 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
         conductivityMsPerCm: n(condKappa), concMolPerL: n(condConc),
       });
       const dis = degreeOfDissociation({ lambda: mc.lambda, limiting: n(limiting) });
-      const ost = dis.valid
+      /*
+       * Ostwald's law divides by (1 − α), so it needs a strictly partial
+       * dissociation. At α = 1 the electrolyte is fully dissociated and there
+       * is no Ka to extract — a strong acid has none by this method. Guarding
+       * on `complete` rather than letting the division throw keeps the message
+       * pointing at the right thing.
+       */
+      const ost = dis.valid && !dis.complete
         ? ostwaldDilutionLaw({ alpha: dis.alpha, conc: n(condConc) })
         : null;
       return { mode, mc, dis, ost, record: { lambda: mc.lambda, alpha: dis.alpha } };

@@ -325,10 +325,22 @@ export function degreeOfDissociation({ lambda, limiting }) {
   const alpha = lambda / limiting;
   return {
     alpha,
-    // Above 1 the measurement contradicts the limiting value, which means one
-    // of them is wrong rather than that the electrolyte is more than fully
-    // dissociated.
+    /*
+     * `valid` means "α is physically possible", i.e. not above 1. Above 1 the
+     * measurement contradicts the limiting value, so one of the two is wrong
+     * rather than the electrolyte being more than fully dissociated.
+     *
+     * α = 1 exactly is a different case and is caught by `complete` below, not
+     * here: a fully dissociated electrolyte is a real thing, but Ostwald's law
+     * divides by (1 − α) and so cannot describe it. Reporting valid: true for
+     * α = 1 let the caller go on to divide by zero and surface the failure as
+     * an "alpha out of range" error from a different function, which points at
+     * the wrong input.
+     */
     valid: alpha <= 1,
+    // At or above 1 the electrolyte is fully dissociated and Ostwald's law does
+    // not apply — a strong acid has no Ka to extract by this method.
+    complete: alpha >= 1,
     percent: alpha * 100,
   };
 }

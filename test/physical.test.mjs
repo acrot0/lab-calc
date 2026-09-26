@@ -460,3 +460,50 @@ describe('liquidusAt', () => {
     expect(() => liquidusAt({ a, b, xA: -0.1 })).toThrow();
   });
 });
+
+/*
+ * The fully-dissociated case, which the defaults used to land on.
+ *
+ * `degreeOfDissociation` reported valid: true at alpha = 1, so the caller went
+ * on to Ostwald's law, which divides by (1 - alpha) and threw "alpha out of
+ * range" — an error naming a different function's parameter than the one the
+ * user could actually change.
+ */
+describe('degreeOfDissociation completeness', () => {
+  it('should flag alpha = 1 as complete, not merely valid', () => {
+    const r = degreeOfDissociation({ lambda: 100, limiting: 100 });
+    expect(r.alpha).toBe(1);
+    expect(r.valid).toBe(true);
+    // Complete is the flag that says "Ostwald does not apply here".
+    expect(r.complete).toBe(true);
+  });
+
+  it('should not flag a partly dissociated electrolyte as complete', () => {
+    // Acetic acid at 0.001 M: alpha about 0.124.
+    const r = degreeOfDissociation({ lambda: 48.6, limiting: 390.7 });
+    expect(r.complete).toBe(false);
+    expect(r.valid).toBe(true);
+  });
+
+  it('should flag alpha above 1 as invalid and complete', () => {
+    const r = degreeOfDissociation({ lambda: 500, limiting: 390.7 });
+    expect(r.valid).toBe(false);
+    expect(r.complete).toBe(true);
+  });
+
+  it('should give a pKa matching the literature for acetic acid', () => {
+    /*
+     * The end-to-end check that the conductivity path is right: 0.001 M acetic
+     * acid reads 0.0486 mS/cm, its limiting molar conductivity is 390.7, and
+     * the pKa that comes out is 4.75 against a literature 4.76.
+     *
+     * This is also the pair the tab now defaults to, so the defaults are
+     * verified to produce a real answer rather than an error.
+     */
+    const mc = molarConductivity({ conductivityMsPerCm: 0.0486, concMolPerL: 0.001 });
+    const dis = degreeOfDissociation({ lambda: mc.lambda, limiting: 390.7 });
+    expect(dis.complete).toBe(false);
+    const ost = ostwaldDilutionLaw({ alpha: dis.alpha, conc: 0.001 });
+    expect(ost.pKa).toBeCloseTo(4.75, 1);
+  });
+});
