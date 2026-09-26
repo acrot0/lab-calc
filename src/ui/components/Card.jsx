@@ -30,14 +30,33 @@ import { Result } from './Fields.jsx';
  */
 export default function Card({ className = '', children }) {
   /*
-   * Flatten fragments first.
+   * Flatten fragments and wrappers into one list.
    *
-   * A tab that renders `<>…</>` around its body would otherwise present one
-   * child — the fragment — and every element inside it would land in the form
-   * column, results included. Flattening is what lets a tab keep using a
-   * fragment for a mode switch without thinking about this component.
+   * Two shapes have to survive this. A tab that renders `<>…</>` around its
+   * body would otherwise present one child — the fragment — and every element
+   * inside it would land in the form column. And a `Result` wrapped in a plain
+   * `<div>` (a conditional's wrapper, say) is not a direct child either, so a
+   * non-recursive partition would miss it and the results column would never
+   * open.
+   *
+   * Only fragments are unwrapped into the *same* list, because a fragment adds
+   * no markup. A wrapper element is kept as a unit — moving a `Result` out of
+   * its `<div>` would change the DOM the tab asked for — so the walk descends
+   * to *find* results without relocating them, and a wrapper counts as a form
+   * child if it holds no results.
    */
   const flat = [];
+  const containsResult = (nodes) => React.Children.toArray(nodes).some((node) => {
+    if (!React.isValidElement(node)) return false;
+    if (node.type === Result) return true;
+    // Fragments and host elements are both descended: a result can sit behind
+    // either, and only the *type* of the result element itself decides.
+    if (node.type === React.Fragment || typeof node.type === 'string') {
+      return containsResult(node.props.children);
+    }
+    return false;
+  });
+
   const walk = (nodes) => {
     React.Children.forEach(nodes, (child) => {
       if (!React.isValidElement(child)) return;
@@ -51,21 +70,44 @@ export default function Card({ className = '', children }) {
   walk(children);
 
   /*
-   * Partition on the element type, not on rendered output.
+   * Partition on whether a child *holds* a result, not on whether it is one.
    *
-   * `Result` returns null when it has no value, so by the time anything is on
-   * screen there is nothing to detect. The type is known before rendering, and
-   * a `Result` that renders nothing simply contributes an empty container —
-   * which is why the two-column layout is gated on `:has(.result)` in CSS and
-   * collapses back to one column until there is something to show.
+   * The difference matters for a wrapped result: the wrapper must go in the
+   * results column, or the result renders inside the form column and the split
+   * is pointless.
    */
-  const results = flat.filter((c) => c.type === Result);
-  const form = flat.filter((c) => c.type !== Result);
+  const holdsResult = (node) => React.isValidElement(node) && containsResult([node]);
+  const results = flat.filter(holdsResult);
+  const form = flat.filter((c) => !holdsResult(c));
+
+  /*
+   * A `Result` with no value returns null, so a tab whose calculation has not
+   * run yet has results in its markup and nothing on screen. Rendering the
+   * column anyway is what produced an empty right half on ten of the fifteen
+   * tabs — the "space is too empty" report, and the same defect as the stranded
+   * button: the two-column layout firing when it has nothing to lay out.
+   *
+   * The props are the only thing available before render, and they are enough:
+   * every `Result` takes `value`, and a null or undefined one draws nothing.
+   * So the column is rendered only when at least one result will actually
+   * appear, and the card stays a single full-width column until then.
+   */
+  const anyValue = (node) => {
+    if (!React.isValidElement(node)) return false;
+    if (node.type === Result) {
+      return node.props?.value !== null && node.props?.value !== undefined;
+    }
+    if (node.type === React.Fragment || typeof node.type === 'string') {
+      return React.Children.toArray(node.props.children).some(anyValue);
+    }
+    return false;
+  };
+  const willRender = results.some(anyValue);
 
   return (
     <div className={`card${className ? ` ${className}` : ''}`}>
       <div className="card-main">{form}</div>
-      {results.length > 0 && <div className="card-results">{results}</div>}
+      {willRender && <div className="card-results">{results}</div>}
     </div>
   );
 }

@@ -33,12 +33,30 @@
 
 import { flavors } from '@catppuccin/palette';
 import { roleColors } from '@rose-pine/palette';
+// Both are CommonJS with a single `module.exports` object, so the default
+// import is the whole palette — a namespace import would give `{ default: … }`
+// and every lookup would be undefined.
+import gruvbox from 'gruvbox';
+import solarized from 'solarized-colors';
 
 /** `#eff1f5` from the package's `hex` field, which has no leading hash. */
 const hash = (hex) => (hex.startsWith('#') ? hex : `#${hex}`);
 
 const cp = (flavor, role) => hash(flavors[flavor].colors[role].hex);
 const rp = (variant, role) => hash(roleColors[role][variant].hex);
+
+/** Gruvbox exports flat camelCase names (`dark0Hard`, `brightBlue`). */
+const gv = (name) => hash(gruvbox[name]);
+
+/**
+ * Solarized, from the package's `main.js`.
+ *
+ * Deliberately not from its `index.js`, which is a verbatim copy of gruvbox's
+ * hex values under a Solarized filename — reading that would have produced a
+ * palette labelled Solarized that is actually gruvbox. `main.js` is the file
+ * the package declares as its entry point and holds Schoonover's real values.
+ */
+const sol = (name) => hash(solarized[name]);
 
 /** rgba() from a hex, for the soft/line variants. */
 export function alpha(hex, a) {
@@ -301,6 +319,164 @@ export const PALETTES = {
       // it clears all three dawn surfaces.
       errInk: '#995468',
       gridLine: alpha(rp('dawn', 'text'), 0.1),
+      shadow: 'light',
+    },
+  },
+
+  /* --- Gruvbox ----------------------------------------------------------- */
+
+  /*
+   * Gruvbox, from the `gruvbox` package (MIT, chee/gruvbox.js).
+   *
+   * Nord was checked again while adding these and is still out: its package is
+   * `(Apache-2.0 AND CC-BY-SA-4.0)`, and share-alike would attach itself to
+   * this MIT distribution. `solarized-colors` and `base16` were both rejected
+   * for a different reason — each ships an `index.js` that is a verbatim copy
+   * of gruvbox's hex values under its own name, so reading from them would
+   * have produced a theme labelled Solarized that was actually gruvbox. The
+   * real Solarized values are in that package's `main.js`, which is what is
+   * read below.
+   *
+   * Gruvbox's dark palette is famously low-contrast by design — the whole point
+   * is a warm, dim scheme for long sessions. That is in direct tension with
+   * this app's 4.5:1 floor, so the dim text levels are derived rather than
+   * taken raw, and the derivations say what forced them.
+   */
+  gruvbox: {
+    label: { zh: 'Gruvbox 暗', en: 'Gruvbox Dark' },
+    scheme: 'dark',
+    credit: 'Gruvbox (MIT)',
+    tokens: {
+      bg: gv('dark0Hard'),                 // #1d2021
+      bgGrad: `radial-gradient(1200px 600px at 15% -10%, ${alpha(gv('brightAqua'), 0.13)} 0%, transparent 60%)`,
+      surface: gv('dark0'),                // #282828
+      surface2: gv('dark0Soft'),           // #32302f
+      surface3: gv('dark1'),               // #3c3836
+      border: gv('dark2'),                 // #504945
+      borderStrong: gv('dark3'),           // #665c54
+      text: gv('light1'),                  // #ebdbb2
+      // gray245 (#928374) measures 3.85:1 on --surface-3. Derived: the same
+      // warm hue lightened until it clears the floor.
+      textMid: '#b8a898',
+      // dark4 (#7c6f64) is 2.8:1, worse still; dim shares the derived value.
+      textDim: '#b8a898',
+      // brightBlue (#83a598) is 4.31:1 on --surface-3. Derived: lightened
+      // until it clears the floor, hue preserved.
+      accent: '#87aa9d',
+      accentHover: gv('brightAqua'),       // #8ec07c
+      accentInk: gv('dark0Hard'),
+      ok: gv('brightGreen'),               // #b8bb26
+      warn: gv('brightYellow'),            // #fabd2f
+      warnInk: gv('brightYellow'),
+      err: gv('brightRed'),                // #fb4934
+      errInk: gv('brightOrange'),          // #fe8019
+      gridLine: alpha(gv('light1'), 0.08),
+      shadow: 'dark',
+    },
+  },
+
+  'gruvbox-light': {
+    label: { zh: 'Gruvbox 亮', en: 'Gruvbox Light' },
+    scheme: 'light',
+    credit: 'Gruvbox (MIT)',
+    tokens: {
+      bg: gv('light0Soft'),                // #f2e5bc
+      bgGrad: `radial-gradient(1200px 600px at 15% -10%, ${alpha(gv('neutralAqua'), 0.12)} 0%, transparent 60%)`,
+      surface: gv('light0'),               // #fbf1c7
+      surface2: gv('light0Soft'),          // #f2e5bc
+      surface3: gv('light1'),              // #ebdbb2
+      border: gv('light2'),                // #d5c4a1
+      borderStrong: gv('light3'),          // #bdae93
+      text: gv('dark0'),                   // #282828
+      textMid: gv('dark2'),                // #504945
+      // dark4 (#7c6f64) is 3.6:1 on --surface-3. Derived: darkened to clear it.
+      textDim: '#6b5f55',
+      // The bright variants are tuned for a dark background and are unreadable
+      // here — brightBlue is 1.9:1 on light0. The neutral set is the one
+      // gruvbox intends for light backgrounds.
+      // neutralBlue (#458588) is 3.08:1 on --surface-3 — gruvbox's palette is
+      // tuned for dark backgrounds. Derived: darkened until it clears all three.
+      accent: '#37696b',
+      accentHover: gv('fadedBlue'),        // #076678
+      accentInk: gv('light0'),
+      ok: gv('neutralGreen'),              // #98971a
+      warn: gv('fadedYellow'),             // #b57614
+      // #8a5a00 measured 4.32:1 on --surface-3. Derived: darkened.
+      warnInk: '#865700',
+      err: gv('neutralRed'),               // #cc241d
+      errInk: gv('fadedRed'),              // #9d0006
+      gridLine: alpha(gv('dark0'), 0.1),
+      shadow: 'light',
+    },
+  },
+
+  /* --- Solarized --------------------------------------------------------- */
+
+  'solarized-dark': {
+    label: { zh: 'Solarized 暗', en: 'Solarized Dark' },
+    scheme: 'dark',
+    credit: 'Solarized, Ethan Schoonover (MIT)',
+    tokens: {
+      bg: sol('base03'),                   // #002b36
+      bgGrad: `radial-gradient(1200px 600px at 15% -10%, ${alpha(sol('cyan'), 0.14)} 0%, transparent 60%)`,
+      surface: sol('base02'),              // #073642
+      surface2: '#0a3f4d',
+      surface3: '#0f4a5a',
+      border: '#1a5566',
+      borderStrong: '#2a6274',
+      text: '#eee8d5',
+      // base0 (#839496) is 4.3:1 on the derived --surface-3. Derived: lightened.
+      textMid: '#a8b8b8',
+      // base01 (#586e75) is 2.4:1 — a background tone, not a text tone.
+      textDim: '#a8b8b8',
+      // Solarized's blue (#268bd2) is 2.66:1 on the derived --surface-3.
+      // Derived: lightened, hue preserved. Cyan is kept for hover.
+      accent: '#33bcff',
+      accentHover: sol('cyan'),            // #2aa198
+      accentInk: sol('base03'),
+      ok: sol('green'),                    // #859900
+      warn: sol('yellow'),                 // #b58900
+      // yellow (#b58900) is 3.05:1 on --surface-3 as text. Derived: lightened.
+      warnInk: '#dfa900',
+      err: sol('red'),                     // #dc322f
+      // orange (#cb4b16) is 2.12:1 on --surface-3. Derived: lightened.
+      errInk: '#ff972c',
+      gridLine: alpha('#eee8d5', 0.08),
+      shadow: 'dark',
+    },
+  },
+
+  'solarized-light': {
+    label: { zh: 'Solarized 亮', en: 'Solarized Light' },
+    scheme: 'light',
+    credit: 'Solarized, Ethan Schoonover (MIT)',
+    tokens: {
+      bg: sol('base2'),                    // #eee8d5
+      bgGrad: `radial-gradient(1200px 600px at 15% -10%, ${alpha(sol('cyan'), 0.12)} 0%, transparent 60%)`,
+      surface: sol('base3'),               // #fdf6e3
+      surface2: sol('base2'),              // #eee8d5
+      surface3: '#e4ddc8',
+      border: '#d5cdb6',
+      borderStrong: sol('base1'),          // #93a1a1
+      // base00 (#657b83) is 4.13:1 on --surface. Solarized's base tones are
+      // background tones; as text they need darkening. Derived.
+      text: '#52646a',
+      // base01 (#586e75) on the derived surface-3 is 4.2:1. Derived: darkened.
+      textMid: '#4e6168',
+      textDim: '#4e6168',
+      // Solarized's accent colours are tuned for the dark background; on the
+      // light one, blue is 3.3:1. Derived: the same hue darkened until it
+      // clears the floor, which is what Solarized's own light guidance does.
+      // Derived from blue (#268bd2), which is 3.3:1 here.
+      accent: '#18669b',
+      accentHover: '#12628f',
+      accentInk: sol('base3'),
+      ok: '#5f7000',
+      warn: '#8a6800',
+      warnInk: '#6b5000',
+      err: sol('red'),                     // #dc322f — 3.9:1, darkened below
+      errInk: '#b0201e',
+      gridLine: alpha(sol('base00'), 0.12),
       shadow: 'light',
     },
   },
