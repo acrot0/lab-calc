@@ -12,22 +12,38 @@ import Card from '../components/Card.jsx';
 
 const MODES = ['molarMass', 'propagate', 'weigh'];
 
-/** Parse "value, uncertainty" pairs, one per line, with an optional label. */
+/**
+ * Parse one quantity per line: "label, value, uncertainty[, power][, @group]".
+ *
+ * The label is optional and comes first. A leading `@` on the last field names
+ * a correlation group — every term sharing one came from the same instrument,
+ * so their errors add linearly rather than in quadrature. Writing `@pipette` on
+ * three lines is how a caller says "this is one pipette used three times",
+ * which is a fact the arithmetic cannot infer and the user is the only one who
+ * knows.
+ */
 function parseTerms(text) {
   const lines = String(text ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
   const terms = [];
   const bad = [];
   for (const line of lines) {
-    // A label is optional and comes first: "mass, 5.844, 0.001".
     const parts = line.split(/[\s,;]+/).filter(Boolean);
+    // The group marker is pulled off before the numeric scan, so it is not
+    // mistaken for a label or a value.
+    let group = null;
+    const last = parts[parts.length - 1];
+    if (last && last.startsWith('@') && last.length > 1) {
+      group = last.slice(1);
+      parts.pop();
+    }
     const numeric = parts.filter((p) => Number.isFinite(Number(p)));
     if (numeric.length < 1) { bad.push(line); continue; }
     const hasLabel = numeric.length < parts.length;
     const label = hasLabel ? parts[0] : null;
     const nums = parts.slice(hasLabel ? 1 : 0).map(Number);
-    if (nums.length === 1) terms.push({ label, value: nums[0], unc: 0, power: 1, factor: 1 });
-    else if (nums.length === 2) terms.push({ label, value: nums[0], unc: nums[1], power: 1, factor: 1 });
-    else terms.push({ label, value: nums[0], unc: nums[1], power: nums[2], factor: 1 });
+    if (nums.length === 1) terms.push({ label, group, value: nums[0], unc: 0, power: 1, factor: 1 });
+    else if (nums.length === 2) terms.push({ label, group, value: nums[0], unc: nums[1], power: 1, factor: 1 });
+    else terms.push({ label, group, value: nums[0], unc: nums[1], power: nums[2], factor: 1 });
   }
   return { terms, bad };
 }
@@ -94,16 +110,31 @@ export default function UncertaintyTab({ onRecord, restored }) {
     }
     if (mode === 'propagate') {
       const terms = parsed.terms.map((x) => ({
-        value: x.value, unc: x.unc, power: x.power,
+        value: x.value, unc: x.unc, power: x.power, group: x.group,
       }));
       const factor = n(scaleFactor);
+      /*
+       * `correlated` is passed only when some term actually names a group, so
+       * the default path is unchanged for every existing input. The comparison
+       * value is computed alongside — showing what the independent assumption
+       * would have given is what makes the difference visible rather than
+       * asserted.
+       */
+      const hasGroups = parsed.terms.some((x) => x.group);
+      const opts = hasGroups ? { correlated: true } : {};
       const combined = op === 'sum'
-        ? sumUncertainty(terms)
-        : productUncertainty(terms, { factor });
+        ? sumUncertainty(terms, opts)
+        : productUncertainty(terms, { factor, ...opts });
+      const independent = hasGroups
+        ? (op === 'sum' ? sumUncertainty(terms) : productUncertainty(terms, { factor }))
+        : null;
       return {
         mode,
         op,
         combined,
+        independent,
+        correlated: hasGroups,
+        groups: [...new Set(parsed.terms.map((x) => x.group).filter(Boolean))],
         relative: relativeUncertainty(combined),
         quoted: roundPair(combined),
         record: { value: combined.value, unc: combined.unc },
@@ -220,18 +251,39 @@ export default function UncertaintyTab({ onRecord, restored }) {
       {err && <Err>{err}</Err>}
 
       {out?.mode === 'propagate' && (
-        <Result
-          value={`${fmt(out.quoted.value, 6)} ± ${fmt(out.quoted.unc, 4)}`}
-          note={t('uncertainty.propagateNote', {
-            rel: fmt(out.relative * 100, 4),
-            rule: out.op === 'sum' ? t('uncertainty.ruleSum') : t('uncertainty.ruleProduct'),
-          })}
-          rows={[
-            [t('uncertainty.rawValue'), fmt(out.combined.value, 8)],
-            [t('uncertainty.rawUnc'), fmt(out.combined.unc, 8)],
-            [t('uncertainty.figures'), String(significantFigures(out.combined) ?? '—')],
-          ]}
-        />
+        <>
+          <Result
+            value={`${fmt(out.quoted.value, 6)} ± ${fmt(out.quoted.unc, 4)}`}
+            note={t('uncertainty.propagateNote', {
+              rel: fmt(out.relative * 100, 4),
+              rule: out.op === 'sum' ? t('uncertainty.ruleSum') : t('uncertainty.ruleProduct'),
+            })}
+            rows={[
+              [t('uncertainty.rawValue'), fmt(out.combined.value, 8)],
+              [t('uncertainty.rawUnc'), fmt(out.combined.unc, 8)],
+              [t('uncertainty.figures'), String(significantFigures(out.combined) ?? '—')],
+            ]}
+          />
+          {/*
+            * When groups were declared, show what the independent assumption
+            * would have given. The gap is the whole reason the feature exists,
+            * and a user who cannot see it has no way to judge whether their
+            * grouping was right.
+            */}
+          {out.correlated && (
+            <div className="msg warn">
+              <div>
+                {t('uncertainty.correlatedNote', {
+                  groups: out.groups.join(', '),
+                  correlated: fmt(out.combined.unc, 6),
+                  independent: fmt(out.independent.unc, 6),
+                  ratio: out.independent.unc > 0
+                    ? fmt(out.combined.unc / out.independent.unc, 3) : '—',
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {out?.mode === 'weigh' && (

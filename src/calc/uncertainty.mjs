@@ -43,10 +43,18 @@
  * out and does not combine in quadrature. It is also invisible in the data. No
  * amount of arithmetic here can find it; only a calibration standard can.
  *
- * Correlated inputs are likewise treated as independent. Two volumes measured
- * with the same pipette share its error, and the true uncertainty is larger
- * than this returns. That is a real limitation and the reason a result from
- * here is an estimate, not a guarantee.
+ * Correlated inputs are handled, and the default is still to treat them as
+ * independent — because that is the common case and the caller who knows
+ * otherwise is the one who should say so. When they are correlated the model
+ * matters: the same pipette used three times adds its error three times
+ * linearly, not in quadrature, so three uses of a 1%-error pipette give 3% and
+ * not 1.7%. Assuming independence there understates the uncertainty by a
+ * factor of 1.7 — and understating is the dangerous direction.
+ *
+ * A caller declares correlation either by tagging terms with a shared `group`
+ * (perfectly correlated within the group) or by supplying an explicit
+ * correlation matrix. Both are opt-in through `{ correlated: true }`, so no
+ * existing call changes behaviour.
  *
  * Pure functions, no I/O — errors are codes (see errors.mjs).
  */
@@ -138,21 +146,24 @@ export function relativeUncertainty({ value, unc }) {
  * large nearly-equal numbers is the worst case in all of measurement, and this
  * reports the blow-up rather than hiding it.
  */
-export function sumUncertainty(terms) {
+export function sumUncertainty(terms, opts = {}) {
   if (!Array.isArray(terms) || terms.length === 0) {
     fail('uncertaintyNoTerms', {});
   }
+  const rho = correlationMatrix(terms, opts);
+  const factors = [];
   let value = 0;
-  let variance = 0;
   for (const term of terms) {
     const { value: v, unc = 0, factor = 1 } = term ?? {};
     requireFinite(v, 'value');
     requireFinite(unc, 'uncertainty');
     requireFinite(factor, 'factor');
     value += factor * v;
-    variance += (factor * unc) ** 2;
+    factors.push(factor * unc);
   }
-  return { value, unc: Math.sqrt(variance) };
+  // sigma^2 = sum_i sum_j rho_ij * a_i * a_j, which reduces to the quadrature
+  // sum when every rho off the diagonal is zero.
+  return { value, unc: Math.sqrt(quadraticForm(factors, rho)) };
 }
 
 /**
@@ -168,13 +179,17 @@ export function sumUncertainty(terms) {
  * definition (1000 mL per litre, a stoichiometric coefficient), not a
  * measurement.
  */
-export function productUncertainty(terms, { factor = 1 } = {}) {
+export function productUncertainty(terms, { factor = 1, ...opts } = {}) {
   if (!Array.isArray(terms) || terms.length === 0) {
     fail('uncertaintyNoTerms', {});
   }
   requireFinite(factor, 'factor');
+  const rho = correlationMatrix(terms, opts);
   let value = factor;
-  let variance = 0;
+  // The relative sensitivities: d(ln f)/d(ln x_i) = power_i. Working in
+  // relative terms is what makes a quotient fall out of the same formula as a
+  // product, with a negative power for the denominator.
+  const sensitivities = [];
   for (const term of terms) {
     const { value: v, unc = 0, power = 1 } = term ?? {};
     requireFinite(v, 'value');
@@ -183,13 +198,13 @@ export function productUncertainty(terms, { factor = 1 } = {}) {
     if (v === 0) {
       // A zero factor with an uncertainty makes the relative form undefined;
       // the product is exactly zero only if the uncertainty is zero too.
-      if (unc === 0) { value = 0; continue; }
+      if (unc === 0) { value = 0; sensitivities.push(0); continue; }
       fail('uncertaintyZeroValue', { unc });
     }
     value *= v ** power;
-    variance += (power * (unc / v)) ** 2;
+    sensitivities.push(power * (unc / v));
   }
-  return { value, unc: Math.abs(value) * Math.sqrt(variance) };
+  return { value, unc: Math.abs(value) * Math.sqrt(quadraticForm(sensitivities, rho)) };
 }
 
 /**
@@ -321,4 +336,122 @@ export function molarMassUncertainty(formula) {
     contributions.map((c) => ({ value: c.contribution, unc: c.count * c.atomicUncertainty })),
   );
   return { molarMass: total, unc, contributions, unknownElements };
+}
+
+/**
+ * The correlation matrix for a set of terms.
+ *
+ * Three ways a caller can describe correlation, in order of precedence:
+ *
+ *   1. An explicit matrix, used as given. This is the general case — any rho
+ *      between any pair — and the only way to express partial correlation.
+ *   2. A shared `group` tag on the terms. Everything in one group is perfectly
+ *      correlated (rho = 1), which is what "the same pipette" means: one
+ *      instrument, one systematic offset, applied every time.
+ *   3. Nothing, which is the default: the identity matrix, i.e. independent.
+ *
+ * The group form exists because writing out a 6x6 matrix to say "these four
+ * came from one pipette" is noise, and the noise is what makes a caller skip
+ * declaring it at all.
+ */
+function correlationMatrix(terms, { correlated = false, correlation = null } = {}) {
+  const n = terms.length;
+  if (correlation !== null && correlation !== undefined) {
+    if (!Array.isArray(correlation) || correlation.length !== n
+      || correlation.some((row) => !Array.isArray(row) || row.length !== n)) {
+      fail('correlationMatrixShape', {
+        n, got: Array.isArray(correlation) ? correlation.length : 0,
+      });
+    }
+    for (const row of correlation) {
+      for (const r of row) {
+        requireFinite(r, 'correlation');
+        if (r < -1 || r > 1) fail('correlationOutOfRange', { rho: r });
+      }
+    }
+    return correlation;
+  }
+
+  // The identity, which is also the answer when nothing is declared.
+  const rho = Array.from({ length: n }, (_, i) => (
+    Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
+  ));
+  if (!correlated) return rho;
+
+  /*
+   * Perfect correlation within a group.
+   *
+   * A term with no group is its own singleton and stays independent of
+   * everything — including other ungrouped terms. Treating every ungrouped
+   * term as one group would silently correlate things the caller never said
+   * were related, which is the same class of error as assuming independence,
+   * only in the other direction.
+   */
+  for (let i = 0; i < n; i++) {
+    const gi = terms[i]?.group;
+    if (gi === undefined || gi === null) continue;
+    for (let j = i + 1; j < n; j++) {
+      if (terms[j]?.group === gi) { rho[i][j] = 1; rho[j][i] = 1; }
+    }
+  }
+  return rho;
+}
+
+/** x^T · rho · x, the variance of a linear combination. */
+function quadraticForm(x, rho) {
+  const n = x.length;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    if (x[i] === 0) continue;
+    for (let j = 0; j < n; j++) {
+      if (rho[i][j] === 0 || x[j] === 0) continue;
+      sum += rho[i][j] * x[i] * x[j];
+    }
+  }
+  /*
+   * Rounding can push a near-zero variance slightly negative, and the square
+   * root of a negative is NaN — which would surface as a blank result rather
+   * than as a zero. Two perfectly anti-correlated terms land here exactly.
+   */
+  return Math.max(0, sum);
+}
+
+/**
+ * Effective degrees of freedom, by the Welch–Satterthwaite formula.
+ *
+ *   nu_eff = (Σ u_i²)² / Σ (u_i⁴ / nu_i)
+ *
+ * Every uncertainty component has its own degrees of freedom: a type-A
+ * component from n replicates has n − 1, while a type-B one read off a
+ * calibration certificate is treated as exactly known and has none (infinity).
+ *
+ * The result is what the coverage factor must be looked up against. A combined
+ * uncertainty dominated by a 1-dof component is not known to the precision its
+ * value suggests, and quoting a k = 2 interval against it understates the
+ * coverage — the interval is narrower than the 95% it claims.
+ *
+ * Returns null when every component is exact: there is then no sampling error
+ * at all, so no limit and no meaningful count.
+ */
+export function effectiveDegreesOfFreedom(components) {
+  if (!Array.isArray(components) || components.length === 0) {
+    fail('uncertaintyNoTerms', {});
+  }
+  let sumSq = 0;
+  let denom = 0;
+  for (const c of components) {
+    const { unc = 0, dof = Infinity } = c ?? {};
+    requireFinite(unc, 'uncertainty');
+    if (unc < 0) fail('uncertaintyNegative', { unc });
+    if (dof !== Infinity && (!Number.isFinite(dof) || dof <= 0)) {
+      fail('mustBePositive', { name: 'degreesOfFreedom', value: dof });
+    }
+    sumSq += unc ** 2;
+    // An infinite dof contributes nothing: an exactly-known constant adds no
+    // sampling error, so it cannot lower the effective count.
+    if (dof !== Infinity && unc > 0) denom += unc ** 4 / dof;
+  }
+  if (sumSq === 0) return null;
+  if (denom === 0) return Infinity;
+  return sumSq ** 2 / denom;
 }

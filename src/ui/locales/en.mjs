@@ -1149,6 +1149,7 @@ export const en = {
     mmNote: 'Relative uncertainty {rel}%. The element contributions combine in quadrature, not by addition — they are independent, so their errors can cancel.',
     unknownElements: 'These elements are not in the atomic weight uncertainty table: {elements}. They contribute zero, so the uncertainty above is a lower bound.',
     propagateNote: 'Relative uncertainty {rel}%. {rule}',
+    correlatedNote: 'Correlated groups declared: {groups}. Quantities in one group share an instrument, so their errors move together and add linearly rather than in quadrature — combined {correlated} against {independent} if treated as independent, a factor of {ratio}. Understating an uncertainty is the dangerous direction to be wrong.',
     ruleSum: 'Sums combine absolute uncertainties in quadrature — subtraction does not cancel error, it amplifies it.',
     ruleProduct: 'Products combine relative uncertainties in quadrature, with the power multiplying each one.',
     rawValue: 'Unrounded value',
@@ -1436,6 +1437,8 @@ export const en = {
     uncertaintyNegative: 'An uncertainty cannot be negative ({unc}). It is the size of an error, and has no direction.',
     uncertaintyZeroValue: 'The value is 0 but its uncertainty is {unc}. A relative uncertainty divides by the value, so zero leaves it undefined — check whether this quantity should have a value at all.',
     uncertaintyNoTerms: 'At least one input quantity is needed to propagate an uncertainty.',
+    correlationMatrixShape: 'The correlation matrix must be {n}x{n} (got {got} rows). It has to correspond one-to-one with the input quantities.',
+    correlationOutOfRange: 'A correlation coefficient must be between -1 and 1 ({rho} given). 1 is perfectly correlated, -1 perfectly anti-correlated, and anything outside that is not a correlation.',
 
     // Experimental statistics
     statsNoData: 'No data. At least one measurement is needed.',

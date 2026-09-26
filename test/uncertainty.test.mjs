@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ATOMIC_WEIGHT_UNCERTAINTY, molarMassUncertainty, productUncertainty, quantity,
   relativeUncertainty, roundPair, roundToSignificant, significantFigures,
-  sumUncertainty, uncertaintyFigures,
+  effectiveDegreesOfFreedom, sumUncertainty, uncertaintyFigures,
 } from '../src/calc/uncertainty.mjs';
 
 /*
@@ -254,5 +254,185 @@ describe('molarMassUncertainty', () => {
     for (const el of ['H', 'C', 'N', 'O', 'Na', 'S', 'Cl', 'K', 'Ca', 'Fe', 'Cu', 'Zn', 'Ag', 'I']) {
       expect(ATOMIC_WEIGHT_UNCERTAINTY).toHaveProperty(el);
     }
+  });
+});
+
+/*
+ * Correlated inputs.
+ *
+ * The same pipette used three times shares one systematic offset, so its three
+ * errors add LINEARLY, not in quadrature. Three uses of a 1%-error pipette give
+ * 3%, not 1.7% — a factor of 1.7 that the independent model gets wrong, and
+ * wrong in the optimistic direction, which is the dangerous way to be wrong.
+ */
+describe('correlated inputs', () => {
+  it('should add perfectly correlated terms linearly, not in quadrature', () => {
+    // Three 10.00 ± 0.05 mL aliquots from one pipette: rho = 1 throughout.
+    // Independent would give sqrt(3)*0.05 = 0.0866; correlated gives 0.15.
+    const terms = [
+      { value: 10, unc: 0.05, group: 'pipette' },
+      { value: 10, unc: 0.05, group: 'pipette' },
+      { value: 10, unc: 0.05, group: 'pipette' },
+    ];
+    const independent = sumUncertainty(terms);
+    const correlated = sumUncertainty(terms, { correlated: true });
+    expect(independent.unc).toBeCloseTo(Math.sqrt(3) * 0.05, 10);
+    expect(correlated.unc).toBeCloseTo(0.15, 10);
+    // The correlated answer is LARGER, which is the point: treating correlated
+    // inputs as independent understates the uncertainty.
+    expect(correlated.unc).toBeGreaterThan(independent.unc);
+  });
+
+  it('should leave terms in different groups independent', () => {
+    // A balance and a flask share nothing, so they still combine in quadrature.
+    const terms = [
+      { value: 10, unc: 0.05, group: 'balance' },
+      { value: 10, unc: 0.05, group: 'flask' },
+    ];
+    const r = sumUncertainty(terms, { correlated: true });
+    expect(r.unc).toBeCloseTo(Math.sqrt(0.05 ** 2 + 0.05 ** 2), 10);
+  });
+
+  it('should mix correlated and independent terms correctly', () => {
+    // Two pipette uses (rho = 1) plus one balance reading (independent).
+    // Sum: 0.1 +- ... the correlated pair contributes 0.10 linearly, then
+    // combines in quadrature with the balance's 0.05.
+    const terms = [
+      { value: 10, unc: 0.05, group: 'pipette' },
+      { value: 10, unc: 0.05, group: 'pipette' },
+      { value: 10, unc: 0.05, group: 'balance' },
+    ];
+    const r = sumUncertainty(terms, { correlated: true });
+    expect(r.unc).toBeCloseTo(Math.sqrt(0.10 ** 2 + 0.05 ** 2), 10);
+  });
+
+  it('should group by an explicit correlation matrix', () => {
+    // rho = 0.5 between two terms: sigma^2 = 0.05^2 + 0.05^2 + 2*0.5*0.05*0.05
+    const terms = [{ value: 1, unc: 0.05 }, { value: 1, unc: 0.05 }];
+    const r = sumUncertainty(terms, { correlation: [[1, 0.5], [0.5, 1]] });
+    expect(r.unc).toBeCloseTo(Math.sqrt(0.0025 + 0.0025 + 2 * 0.5 * 0.0025), 10);
+  });
+
+  it('should treat an unspecified correlation as zero', () => {
+    const terms = [{ value: 1, unc: 0.05 }, { value: 1, unc: 0.05 }];
+    const withMatrix = sumUncertainty(terms, { correlation: [[1, 0], [0, 1]] });
+    const without = sumUncertainty(terms);
+    expect(withMatrix.unc).toBeCloseTo(without.unc, 12);
+  });
+
+  it('should add correlated terms linearly through a product too', () => {
+    // The same pipette diluting twice: the relative errors add linearly.
+    const terms = [
+      { value: 10, unc: 0.05, group: 'pipette' },
+      { value: 10, unc: 0.05, group: 'pipette' },
+    ];
+    const indep = productUncertainty(terms);
+    const corr = productUncertainty(terms, { correlated: true });
+    // Each is 0.5% relative; linearly that is 1.0%, in quadrature 0.707%.
+    expect(indep.unc).toBeCloseTo(100 * Math.sqrt(2 * 0.005 ** 2), 10);
+    expect(corr.unc).toBeCloseTo(100 * 0.01, 10);
+  });
+
+  it('should refuse a correlation matrix of the wrong shape', () => {
+    expect(() => sumUncertainty(
+      [{ value: 1, unc: 0.1 }, { value: 1, unc: 0.1 }],
+      { correlation: [[1]] },
+    )).toThrow();
+  });
+
+  it('should refuse a correlation outside -1 to 1', () => {
+    expect(() => sumUncertainty(
+      [{ value: 1, unc: 0.1 }, { value: 1, unc: 0.1 }],
+      { correlation: [[1, 1.5], [1.5, 1]] },
+    )).toThrow();
+  });
+
+  it('should allow a negative correlation to reduce the uncertainty', () => {
+    // Two errors that tend to cancel: rho = -1 makes them subtract exactly.
+    const terms = [{ value: 1, unc: 0.05 }, { value: 1, unc: 0.05 }];
+    const r = sumUncertainty(terms, { correlation: [[1, -1], [-1, 1]] });
+    expect(r.unc).toBeCloseTo(0, 10);
+  });
+});
+
+/*
+ * Effective degrees of freedom.
+ *
+ * The Welch-Satterthwaite formula. An uncertainty built from a well-known
+ * type-B contribution and a two-replicate type-A one is not known to the
+ * precision the naive count suggests, and the coverage factor has to reflect
+ * the smaller effective count.
+ */
+describe('effectiveDegreesOfFreedom', () => {
+  it('should return the single component dof when there is only one', () => {
+    expect(effectiveDegreesOfFreedom([{ unc: 0.1, dof: 9 }])).toBeCloseTo(9, 10);
+  });
+
+  it('should be pulled toward the least-known component when the two are comparable', () => {
+    /*
+     * The case the formula exists for: a well-known component (100 dof) beside
+     * a poorly-known one of similar size (1 dof). nu_eff = 4.92, far below the
+     * 100 the large component alone would suggest.
+     *
+     * The components must be COMPARABLE for this to happen — see the test
+     * below, where a small 1-dof component barely moves the answer.
+     */
+    const eff = effectiveDegreesOfFreedom([
+      { unc: 1.0, dof: 100 },
+      { unc: 0.9, dof: 1 },
+    ]);
+    expect(eff).toBeCloseTo(4.918330580993843, 6);
+    expect(eff).toBeLessThan(5);
+  });
+
+  it('should barely move when the poorly-known component is negligible', () => {
+    /*
+     * A 1-dof component ten times smaller than the other contributes 1% of the
+     * sum of squares, so it cannot drag the count down — nu_eff is 101, just
+     * above the large component's own 100.
+     *
+     * This is not a flaw: a component that small genuinely does not limit the
+     * result. It is the reason the effective count must be computed rather
+     * than assumed, because "there is a 1-dof component present" is not by
+     * itself a problem.
+     */
+    const eff = effectiveDegreesOfFreedom([
+      { unc: 1.0, dof: 100 },
+      { unc: 0.1, dof: 1 },
+    ]);
+    expect(eff).toBeCloseTo(101, 6);
+    expect(eff).toBeGreaterThan(100);
+  });
+
+  it('should sum the information when comparable components share a dof', () => {
+    /*
+     * Three components each with 5 dof give 12.99, not 5. Welch-Satterthwaite
+     * sums the information: three independent estimates of the same quantity,
+     * each from 6 replicates, together carry more than any one of them.
+     *
+     * An implementation that returned the minimum dof instead would fail this
+     * and would be over-conservative by a factor of 2.6 in the coverage
+     * factor — which is why the formula is not "take the smallest".
+     */
+    const eff = effectiveDegreesOfFreedom([
+      { unc: 0.3, dof: 5 }, { unc: 0.4, dof: 5 }, { unc: 0.5, dof: 5 },
+    ]);
+    expect(eff).toBeCloseTo(12.993762993762994, 6);
+    expect(eff).toBeGreaterThan(5);
+  });
+
+  it('should return null when every component is exact', () => {
+    // No uncertainty at all means no limit on the precision.
+    expect(effectiveDegreesOfFreedom([{ unc: 0, dof: 10 }])).toBeNull();
+  });
+
+  it('should handle an infinite dof as a known constant', () => {
+    // A type-B contribution from a calibration certificate has no dof; the
+    // formula treats it as infinity, so it contributes nothing to the sum.
+    const eff = effectiveDegreesOfFreedom([
+      { unc: 0.5, dof: Infinity },
+      { unc: 0.5, dof: 9 },
+    ]);
+    expect(eff).toBeCloseTo(9 * (0.5 ** 2 + 0.5 ** 2) ** 2 / (0.5 ** 4), 6);
   });
 });

@@ -1154,6 +1154,7 @@ export const zh = {
     mmNote: '相对不确定度 {rel}%。各元素贡献按平方和开方合成——不是简单相加，因为它们相互独立，误差可能相互抵消。',
     unknownElements: '这些元素不在原子量不确定度表里：{elements}。它们按零贡献处理，所以上面的不确定度是下限。',
     propagateNote: '相对不确定度 {rel}%。{rule}',
+    correlatedNote: '已声明相关组：{groups}。组内各量来自同一仪器，误差同向，因此线性相加而非平方和开方——合成不确定度 {correlated}，若按独立处理则为 {independent}，相差 {ratio} 倍。低估不确定度是危险的方向。',
     ruleSum: '加减法按绝对不确定度平方和开方——减法不会抵消误差，反而会放大。',
     ruleProduct: '乘除法按相对不确定度平方和开方，幂次乘以相对不确定度。',
     rawValue: '未修约数值',
@@ -1441,6 +1442,8 @@ export const zh = {
     uncertaintyNegative: '不确定度不能为负数（当前为 {unc}）。不确定度是误差的大小，没有方向。',
     uncertaintyZeroValue: '数值为 0 但不确定度是 {unc}。相对不确定度要除以数值，0 会让它无定义——请检查这个量是不是本该有值。',
     uncertaintyNoTerms: '至少需要一个输入量才能传播不确定度。',
+    correlationMatrixShape: '相关系数矩阵必须是 {n}×{n} 的方阵（当前收到 {got} 行）。矩阵必须和输入量一一对应。',
+    correlationOutOfRange: '相关系数必须在 -1 与 1 之间（当前为 {rho}）。1 表示完全正相关，-1 表示完全负相关，超出这个范围在数学上不成立。',
 
     // 实验统计
     statsNoData: '没有数据。至少要有一个测量值才能统计。',
