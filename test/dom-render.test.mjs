@@ -74,6 +74,18 @@ const TABS = {
   reaction: () => import('../src/ui/tabs/ReactionTab.jsx'),
   electro: () => import('../src/ui/tabs/ElectroTab.jsx'),
   elements: () => import('../src/ui/tabs/ElementsTab.jsx'),
+  /*
+   * The four analysis tabs, and the stats tab.
+   *
+   * They were missing from this list, and that is how the stats tab's shadowed
+   * translator survived: the sweep pressed no button on it because it pressed
+   * no button on any tab it did not know about. A coverage list only covers
+   * what is on it — and this one had been left five entries behind the app.
+   */
+  stats: () => import('../src/ui/tabs/StatsTab.jsx'),
+  uncertainty: () => import('../src/ui/tabs/UncertaintyTab.jsx'),
+  analytical: () => import('../src/ui/tabs/AnalyticalTab.jsx'),
+  physical: () => import('../src/ui/tabs/PhysicalTab.jsx'),
 };
 
 /** Any error React logs during a mount, so a caught throw is not missed. */
@@ -191,8 +203,14 @@ describe('tab mounting with effects', () => {
               });
             }
 
-            const button = [...container.querySelectorAll('button')]
-              .find((b) => /计算|Calculate/.test(b.textContent));
+            /*
+             * The tab's submit button, found by class rather than by its
+             * label. Matching on text meant a tab whose button reads something
+             * other than 计算/Calculate was silently skipped — which is how the
+             * stats tab's `检验与比较` button went unpressed through every
+             * sweep, hiding a shadowed-translator crash behind it.
+             */
+            const button = container.querySelector('button.primary');
             if (button) {
               await act(async () => {
                 button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -208,6 +226,43 @@ describe('tab mounting with effects', () => {
       canvas.restore();
     }
     expect([...failures, ...logged]).toEqual([]);
+  }, 90000);
+
+  it('should not show a thrown-error message on any tab after its button is pressed', async () => {
+    /*
+     * A tab that catches its own exception and renders the message is not
+     * "throwing", so the sweep above cannot see it — `console.error` is never
+     * called and the mount succeeds. The stats tab failed exactly that way:
+     * `run()` caught the shadowed-translator TypeError, called `setErr`, and
+     * the sweep reported a clean pass over a tab whose only button did nothing.
+     *
+     * So this reads the rendered text for the shape of a JS error rather than
+     * for a specific message. A user-visible stack trace is a defect whether or
+     * not it was caught.
+     */
+    const canvas = stubCanvas();
+    const caught = [];
+    try {
+      for (const [name, load] of Object.entries(TABS)) {
+        const { default: Component } = await load();
+        const { container, unmount } = await mount(
+          React.createElement(LocaleProvider, { store: null },
+            React.createElement(Component, { onRecord: () => {}, restored: null, theme: 'dark' })),
+        );
+        const btn = container.querySelector('button.primary');
+        if (btn) {
+          await act(async () => { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+        }
+        const text = container.textContent;
+        // "X is not a function", "Cannot read properties of undefined", etc.
+        const m = text.match(/[^\s。，]{0,40}(is not a function|Cannot read propert|is not defined|undefined is not)[^\s。，]{0,40}/);
+        if (m) caught.push(`${name}: ${m[0].trim()}`);
+        await unmount();
+      }
+    } finally {
+      canvas.restore();
+    }
+    expect(caught, `an error message reached the screen:\n${caught.join('\n')}`).toEqual([]);
   }, 90000);
 
   it('should label the periodic table ramp with the real range of the property', async () => {
@@ -326,8 +381,7 @@ describe('tab mounting with effects', () => {
       );
 
       // Press the tab's own button rather than reaching into its state.
-      const button = [...container.querySelectorAll('button')]
-        .find((b) => /计算|Calculate/.test(b.textContent));
+      const button = container.querySelector('button.primary');
       expect(button, 'the curve tab should have a calculate button').toBeTruthy();
       await act(async () => { button.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
 
