@@ -46,6 +46,9 @@ export default function SettingsMenu({ open, onOpenChange }) {
   const themeLabel = labelOf(preference, locale);
   const wrapRef = useRef(null);
   const btnRef = useRef(null);
+  // The panel is a portal, so it is not inside `wrapRef` and a containment test
+  // against the wrap alone treats every click on a control as an outside click.
+  const panelRef = useRef(null);
 
   /*
    * Controlled when the parent passes a flag, self-managed otherwise.
@@ -78,14 +81,33 @@ export default function SettingsMenu({ open, onOpenChange }) {
     if (r) setAnchor({ top: r.bottom + 6, right: Math.max(8, globalThis.innerWidth - r.right) });
   }, [openState]);
 
+  /*
+   * Close on an outside press, not on any press that misses the button.
+   *
+   * The panel lives in a portal, so it is a sibling of `wrapRef`, not a child.
+   * Testing containment against the wrap alone therefore classified every press
+   * *inside* the panel as an outside press: `mousedown` fired first and closed
+   * the panel, so the `click` that follows landed on a removed node and no
+   * control ever responded. The panel was reachable only for the instant
+   * between opening it and touching it.
+   *
+   * Listening on `mousedown` in the capture phase and testing both refs is what
+   * makes the distinction the intent always was: the button toggles, the panel
+   * keeps its own clicks, and anything else dismisses.
+   */
   useEffect(() => {
     if (!openState) return undefined;
-    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
+    const onDown = (e) => {
+      const target = e.target;
+      if (wrapRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [openState, setOpen]);
@@ -115,11 +137,12 @@ export default function SettingsMenu({ open, onOpenChange }) {
         as `BUTTON.mobile-nav-item`, i.e. the bar was painting over the sheet.
 
         As a portal the panel is a sibling of the topbar, where its own
-        `z-index` is what decides. The click-outside check still works because
-        it tests `contains` against the wrap, and the wrap holds the button.
+        `z-index` is what decides. The click-outside check has to test the panel
+        as well as the wrap for that reason — see the effect above.
       */}
       {openState && createPortal(
         <div
+          ref={panelRef}
           className="settings-menu"
           role="dialog"
           aria-label={t('app.settings')}
