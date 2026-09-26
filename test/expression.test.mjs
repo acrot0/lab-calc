@@ -444,3 +444,120 @@ describe('calculator conventions', () => {
     expect(code('5 mod 0')).toBe('divideByZero');
   });
 });
+
+describe('function coverage', () => {
+  /*
+   * The functions a general calculator is expected to have. The inverse
+   * hyperbolics, the precision-preserving log/exp pair and the multi-argument
+   * forms were all missing, which made the calculator a dead end for anyone who
+   * reached for them.
+   */
+
+  it('should provide the inverse hyperbolic functions', () => {
+    expect(evaluate('asinh(1)').value).toBeCloseTo(Math.asinh(1), 12);
+    expect(evaluate('acosh(2)').value).toBeCloseTo(Math.acosh(2), 12);
+    expect(evaluate('atanh(0.5)').value).toBeCloseTo(Math.atanh(0.5), 12);
+  });
+
+  it('should provide log10 under its own name as well as log', () => {
+    // `log` is base 10 by calculator convention; `log10` is the explicit form
+    // for anyone who does not want to rely on that.
+    expect(evaluate('log(100)').value).toBe(2);
+    expect(evaluate('log10(100)').value).toBe(2);
+    expect(evaluate('ln(e)').value).toBeCloseTo(1, 12);
+  });
+
+  it('should keep log as base 10 rather than natural', () => {
+    // expr-eval defines `log` as natural, which makes log(100) return 4.605
+    // where a person expects 2. A calculator follows the keypad.
+    expect(evaluate('log(100)').value).not.toBeCloseTo(Math.log(100), 6);
+  });
+
+  it('should provide the precision-preserving exp and log forms', () => {
+    // expm1 keeps significant figures near zero where exp(x) - 1 cancels.
+    expect(evaluate('expm1(0)').value).toBe(0);
+    expect(evaluate('log1p(0)').value).toBe(0);
+    expect(evaluate('expm1(1e-10)').value).toBeCloseTo(1e-10, 20);
+  });
+
+  it('should distinguish trunc from floor on negatives', () => {
+    expect(evaluate('trunc(-2.5)').value).toBe(-2);
+    expect(evaluate('floor(-2.5)').value).toBe(-3);
+  });
+
+  it('should provide sign', () => {
+    expect(evaluate('sign(-3)').value).toBe(-1);
+    expect(evaluate('sign(0)').value).toBe(0);
+    expect(evaluate('sign(3)').value).toBe(1);
+  });
+
+  it('should take two arguments for atan2, and get the quadrant right', () => {
+    // The reason atan2 exists: atan(y/x) cannot tell (1,1) from (-1,-1).
+    expect(evaluate('atan2(1,1)').value).toBeCloseTo(Math.PI / 4, 12);
+    expect(evaluate('atan2(-1,-1)').value).toBeCloseTo(-3 * Math.PI / 4, 12);
+    expect(evaluate('atan2(1,1)').value).not.toBe(evaluate('atan2(-1,-1)').value);
+  });
+
+  it('should take any number of arguments for hypot, min and max', () => {
+    expect(evaluate('hypot(3,4)').value).toBe(5);
+    expect(evaluate('hypot(3,4,12)').value).toBe(13);
+    expect(evaluate('min(3,1,2)').value).toBe(1);
+    expect(evaluate('max(3,1,2)').value).toBe(3);
+    expect(evaluate('min(5)').value).toBe(5);
+  });
+
+  it('should reject the wrong number of arguments rather than returning a value', () => {
+    /*
+     * `Math.min()` with no arguments is Infinity and `Math.hypot()` is 0 —
+     * both are answers, and neither is what the user meant.
+     */
+    expect(code('atan2(1)')).toBe('functionArity');
+    expect(code('atan2(1,2,3)')).toBe('functionArity');
+    expect(code('sin(1,2)')).toBe('functionArity');
+    expect(code('hypot()')).toBe('expressionSyntax');
+  });
+
+  it('should refuse a dimensioned argument to a plain function', () => {
+    // The hypotenuse of a mass and a volume is not a quantity.
+    expect(code('hypot(3 g, 4 mL)')).toBe('functionNotDimensionless');
+    expect(code('min(3 g, 2 mL)')).toBe('functionNotDimensionless');
+  });
+});
+
+describe('min, which is both a function and a unit', () => {
+  /*
+   * `min` is the minimum function and the minute. Getting this wrong broke
+   * every expression containing a minute — including the app's own kinetics
+   * and centrifugation tabs, which use the unit.
+   *
+   * The parenthesis is the whole disambiguator: `min(3,1,2)` calls the
+   * function, `1 min` is a duration.
+   */
+  it('should read a bare min as the minute', () => {
+    expect(evaluate('1 min').value).toBe(1);
+    expect(evaluate('5 min').value).toBe(5);
+  });
+
+  it('should read min followed by a parenthesis as the function', () => {
+    expect(evaluate('min(3,1,2)').value).toBe(1);
+  });
+
+  it('should still convert between minute and second', () => {
+    // The regression was total: this is ordinary unit arithmetic that the app
+    // uses, and it stopped parsing.
+    expect(evaluate('2 min + 30 s').value).toBe(150);
+    expect(evaluate('1 min').unit).toBe('min');
+  });
+
+  it('should keep refusing to add a minute to a metre', () => {
+    expect(code('1 min + 1 m')).toBe('incompatibleUnits');
+  });
+
+  it('should still require parentheses for a name that is only a function', () => {
+    // `sin` is not a unit, so a bare one is an error — and saying "unknown unit
+    // sin" would be a worse message than saying it needs its parentheses.
+    expect(code('sin')).toBe('expressionSyntax');
+    expect(code('cos')).toBe('expressionSyntax');
+    expect(code('sin 5')).toBe('expressionSyntax');
+  });
+});

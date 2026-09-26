@@ -43,7 +43,7 @@ export const EXTINCTION = {
 };
 
 /** How much light a 1 cm path absorbs; the standard cuvette. */
-export const DEFAULT_PATH_CM = 1;
+const DEFAULT_PATH_CM = 1;
 
 /**
  * Concentration from absorbance, by Beer–Lambert.

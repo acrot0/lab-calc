@@ -116,14 +116,64 @@ const FUNCTIONS = {
   sinh: (x) => Math.sinh(x),
   cosh: (x) => Math.cosh(x),
   tanh: (x) => Math.tanh(x),
+  // The inverse hyperbolics: a general calculator has the forward ones, and an
+  // inverse that is missing is a dead end for anyone who reaches for it.
+  asinh: (x) => Math.asinh(x),
+  acosh: (x) => Math.acosh(x),
+  atanh: (x) => Math.atanh(x),
+  /*
+   * `log` is base 10 and `ln` is natural.
+   *
+   * That is the calculator convention, and it is worth stating because
+   * libraries disagree: `expr-eval` defines `log` as natural and offers
+   * `log10` separately, which makes `log(100)` return 4.605 where a person
+   * expects 2. A calculator is used by people who learned the convention from
+   * a keypad, so the keypad's meaning wins — and `log2` and `log10` are both
+   * available for anyone who wants to be explicit.
+   */
   ln: (x) => Math.log(x),
   log: (x) => Math.log10(x),
   log2: (x) => Math.log2(x),
+  log10: (x) => Math.log10(x),
   exp: (x) => Math.exp(x),
+  // Accurate near zero, where `exp(x) - 1` loses most of its significant
+  // figures to cancellation.
+  expm1: (x) => Math.expm1(x),
+  log1p: (x) => Math.log1p(x),
   abs: (x) => Math.abs(x),
   round: (x) => Math.round(x),
   floor: (x) => Math.floor(x),
   ceil: (x) => Math.ceil(x),
+  // Toward zero, unlike floor: trunc(-2.5) is -2, floor(-2.5) is -3.
+  trunc: (x) => Math.trunc(x),
+  sign: (x) => Math.sign(x),
+  /*
+   * The angle of the point (x, y), taking both signs into account.
+   *
+   * `atan(y/x)` cannot know which quadrant it is in — it gives the same answer
+   * for (1, 1) and (-1, -1) — which is the entire reason `atan2` exists and
+   * takes the arguments in the order it does.
+   */
+  atan2: (y, x) => Math.atan2(y, x),
+  // √(a² + b² + …), without overflowing on large values the way a naive
+  // `sqrt(sum of squares)` would.
+  hypot: (...xs) => Math.hypot(...xs),
+  min: (...xs) => Math.min(...xs),
+  max: (...xs) => Math.max(...xs),
+};
+
+/**
+ * How many arguments each function takes. Anything unlisted takes one.
+ *
+ * Declared rather than read from `fn.length`, which counts only the parameters
+ * before the first default or rest — so `hypot(...xs)` would report 0 and
+ * `min(...xs)` would be checked against a number that is not its arity.
+ */
+const ARITY = {
+  atan2: 2,
+  hypot: null,   // variadic
+  min: null,
+  max: null,
 };
 
 /** Functions that scale the exponent vector rather than requiring it to be zero. */
@@ -185,8 +235,11 @@ function factorial(n) {
  * so the check cannot be forgotten when a function is added: a name in
  * `FUNCTIONS` that is not in `ROOTS` gets the check by default.
  */
-function applyFunction(name, arg) {
+function applyFunction(name, args) {
+  const arg = args[0];
+
   if (name in ROOTS) {
+    if (args.length !== 1) fail('functionArity', { fn: name, got: args.length, want: 1 });
     const k = ROOTS[name];
     if (arg.value < 0) fail('functionDomain', { fn: name });
     return quantity(
@@ -198,12 +251,31 @@ function applyFunction(name, arg) {
     );
   }
 
-  if (!isDimensionless(arg.exp)) {
-    fail('functionNotDimensionless', { fn: name, unit: arg.unit ?? nameExponents(arg.exp) });
+  /*
+   * Arity is checked here rather than left to the implementation, because
+   * `Math.min()` with no arguments returns Infinity and `Math.hypot()` returns
+   * 0 — both are answers, and neither is what the user meant. A function called
+   * with the wrong number of arguments is an error, not a value.
+   *
+   * `null` means variadic: any count of one or more.
+   */
+  const want = name in ARITY ? ARITY[name] : 1;
+  if (want === null ? args.length < 1 : args.length !== want) {
+    fail('functionArity', { fn: name, got: args.length, want: want ?? '≥1' });
   }
+
+  // Every argument must be a plain number: the sine of 5 g is not a quantity
+  // this can report, and neither is the hypotenuse of a mass and a volume.
+  for (const a of args) {
+    if (!isDimensionless(a.exp)) {
+      fail('functionNotDimensionless', { fn: name, unit: a.unit ?? nameExponents(a.exp) });
+    }
+  }
+
   const domain = DOMAINS[name];
   if (domain && !domain(arg.value)) fail('functionDomain', { fn: name });
-  const out = FUNCTIONS[name](arg.value);
+
+  const out = FUNCTIONS[name](...args.map((a) => a.value));
   if (!Number.isFinite(out)) fail('functionDomain', { fn: name });
   return scalar(out);
 }
@@ -287,6 +359,15 @@ function tokenize(src) {
       continue;
     }
 
+    // The argument separator. It reaches the tokenizer only outside a number:
+    // `1,000` is matched by the number rule above and never gets here, so the
+    // two meanings of a comma cannot be confused for one another.
+    if (c === ',') {
+      tokens.push({ type: ',' });
+      i++;
+      continue;
+    }
+
     if ('+-*/^()!'.includes(c)) {
       tokens.push({ type: c });
       i++;
@@ -356,10 +437,24 @@ function parse(tokens, t) {
       // own is dimensionless, which is what makes `2 * 3 g` work.
       const next = peek();
       if (next?.type === 'ident') {
-        // A number followed by a *function* name is a syntax error rather than
-        // a unit: `2sin(3)` has no meaning, and silently reading `sin` as an
-        // unknown unit would report the wrong problem.
-        if (CALLABLE.has(next.value)) fail('expressionSyntax', { at: `${tk.value}${next.value}` });
+        /*
+         * A callable name is only a function when a `(` follows it.
+         *
+         * The bare check on the name was wrong, and `min` is what exposed it:
+         * it is both the minimum function and the minute. `1 min` was rejected
+         * as `1` followed by a function name, which broke every expression
+         * containing a minute — a unit this app uses in its own kinetics and
+         * centrifugation tabs.
+         *
+         * Requiring the parenthesis resolves it without ambiguity, because
+         * `min(3,1,2)` and `1 min` differ in exactly that character. The same
+         * rule keeps `2sin(3)` an error rather than reading `sin` as an unknown
+         * unit — `sin` is not a unit, so it still fails, with a better message.
+         */
+        const followedByParen = tokens[pos + 1]?.type === '(';
+        if (CALLABLE.has(next.value) && followedByParen) {
+          fail('expressionSyntax', { at: `${tk.value}${next.value}` });
+        }
         // A word operator after a number is an operator, not a unit: `10 mod 3`
         // must leave `mod` for `term()` to match. Without this the parser reads
         // "mod" as an unknown unit and reports the wrong problem entirely.
@@ -383,12 +478,40 @@ function parse(tokens, t) {
       // `e` is a constant before it could be an unknown unit, and `sin` needs
       // its argument parsed before anything is computed.
       if (tk.value in CONSTANTS) return scalar(CONSTANTS[tk.value]);
-      if (CALLABLE.has(tk.value)) {
+      /*
+       * A callable name is a function only when a `(` follows it — see the note
+       * in the number rule above. Without the same check here, a bare `min`
+       * would demand a parenthesis instead of being read as the minute, so
+       * `5 min` would fail while `1 min` worked.
+       */
+      /*
+       * A callable name with no `(` is only acceptable if it is also a unit.
+       *
+       * `min` is both — the minimum and the minute — and the parenthesis is
+       * what tells them apart. `sin` is only a function, so a bare one is an
+       * error, and saying "unknown unit sin" would be a worse message than
+       * saying it needs its parentheses.
+       */
+      if (CALLABLE.has(tk.value) && !(tk.value in UNITS) && peek()?.type !== '(') {
+        fail('expressionSyntax', { at: `${tk.value} needs (` });
+      }
+
+      if (CALLABLE.has(tk.value) && peek()?.type === '(') {
         const name = tk.value;
-        if (!eat('(')) fail('expressionSyntax', { at: `${name} needs (` });
-        const arg = expression();
+        eat('(');
+        /*
+         * A comma-separated argument list.
+         *
+         * Every function took exactly one argument until `atan2` and `hypot`
+         * arrived, and a general calculator needs both. Parsing the list here
+         * rather than special-casing the two-argument names keeps the arity
+         * check in one place — `applyFunction` decides how many it wants and
+         * says so when it gets a different number.
+         */
+        const args = [expression()];
+        while (eat(',')) args.push(expression());
         if (!eat(')')) fail('expressionSyntax', { at: 'missing )' });
-        return applyFunction(name, arg);
+        return applyFunction(name, args);
       }
       /*
        * A word operator is not a value: leave it for `term()` to match.
@@ -648,6 +771,48 @@ export function tryEvaluate(source) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether a fragment is a prefix of something the parser could accept.
+ *
+ * The calculator keypad types a character at a time, so almost every
+ * intermediate state is an incomplete expression — `sqrt(`, `2^`, `hypot(3,`.
+ * None of those evaluate, and asking whether they do would only ever answer no.
+ *
+ * What is worth knowing is whether the fragment is on a path to a valid
+ * expression, which is what this answers: it evaluates a few completions of the
+ * fragment and reports whether any succeeds. A key whose insertion is accepted
+ * by no completion is a key that types a character the tokenizer cannot read.
+ */
+export function isExpressionFragment(fragment) {
+  const raw = String(fragment ?? '');
+  /*
+   * Both the raw fragment and its trimmed form are probed, because the two
+   * carry different meaning. A word operator needs the spaces around it
+   * (`1 mod 1` parses, `1mod1` does not), while a symbol does not and a leading
+   * space would only make the probe ambiguous. Trimming one and not the other
+   * would let one class of key through and fail the other.
+   */
+  const forms = raw.trim() === raw ? [raw] : [raw, raw.trim()];
+  /*
+   * The completions cover both shapes a fragment can be: something that ends
+   * mid-token (`sqrt(`) and something that is a whole token needing an operand
+   * on each side (`^`, `mod`). Hence the bare form, the form with a literal
+   * before and after, and the forms wrapped in a call — `)` and `,` are legal
+   * only inside one, and a two-argument function needs both.
+   */
+  const probes = [
+    (t) => t,
+    (t) => `${t}1)`,
+    (t) => `1${t}`,
+    (t) => `1${t}1`,
+    (t) => `2${t}3`,
+    (t) => `(1${t}`,
+    (t) => `min(1${t}2)`,
+    (t) => `${t}1,2)`,
+  ];
+  return forms.some((f) => probes.some((probe) => tryEvaluate(probe(f)) !== null));
 }
 
 /**

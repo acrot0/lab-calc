@@ -1882,7 +1882,20 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   display: flex;
   flex-direction: column;
   width: min(420px, calc(100vw - var(--s5)));
-  max-height: min(660px, calc(100dvh - var(--s6)));
+  /*
+   * Tall enough for the whole keypad, and no taller.
+   *
+   * `max-height` only caps; the box is sized by its content, so the height
+   * below is the ceiling the keypad needs plus a small allowance for the
+   * density setting's padding. It is not a round number chosen by eye: the
+   * calculator opens with every key visible, because a keypad that opens
+   * scrolled — with the digits and `=` behind a scrollbar on a window whose
+   * whole purpose is to be pressed without looking — is worse than no keypad.
+   *
+   * A short viewport still wins: the `100dvh` term takes over and the body
+   * scrolls, which is correct when there is genuinely nowhere to put the keys.
+   */
+  max-height: min(800px, calc(100dvh - var(--s4)));
   background: var(--chrome, var(--surface));
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);
@@ -2119,10 +2132,48 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .calc-chip:hover { background: var(--surface-3); border-color: var(--accent); color: var(--text); }
 
+/* The function-page switch. It reads as a small tab rather than a button,
+   because it is not an action — pressing it changes what the keypad shows, and
+   the label names the page you would get, not the one you are on. */
+.calc-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+  width: 100%;
+  min-height: 30px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-xs);
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.calc-page:hover { color: var(--text); border-color: var(--accent); background: var(--surface-2); }
+
+.calc-page.is-on { border-style: solid; border-color: var(--accent); background: var(--surface-2); color: var(--accent); }
+
+/*
+ * The keypad does not follow the density setting.
+ *
+ * `--sN` scales with the reading-density preference, and everywhere else that
+ * is right: a user who wants more air between paragraphs wants it between
+ * buttons too. The keypad is the exception, because it is not text — it is an
+ * instrument. Its keys are already a fixed 40px tall, sized by a fingertip
+ * rather than by a type scale, and letting the gaps between them grow would
+ * push the window past the viewport on the spacious setting while making the
+ * keys no easier to hit. Nine rows of fixed keys plus fixed gaps is a height
+ * that does not depend on a preference, which is what lets the window's
+ * `max-height` be a number that always fits.
+ */
 .calc-keypad {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: 8px;
 }
 
 .calc-row {

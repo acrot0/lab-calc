@@ -48,7 +48,8 @@ function savePosition(store, pos) {
  * already knows where the digits and the operators are; a novel layout would
  * be a thing to learn for no gain.
  */
-const KEYS = [
+/** The four function rows shown on the first page. */
+export const COMMON_KEYS = [
   [
     { label: 'sin', insert: 'sin(', fn: true },
     { label: 'cos', insert: 'cos(', fn: true },
@@ -57,8 +58,11 @@ const KEYS = [
     { label: 'e', insert: 'e' },
   ],
   [
-    { label: 'ln', insert: 'ln(', fn: true },
-    { label: 'log', insert: 'log(', fn: true },
+    { label: 'ln', insert: 'ln(', fn: true, title: 'ln' },
+    { label: 'log', insert: 'log(', fn: true, title: 'log' },
+    { label: 'sin⁻¹', insert: 'asin(', fn: true, title: 'asin' },
+    { label: 'cos⁻¹', insert: 'acos(', fn: true, title: 'acos' },
+    { label: 'tan⁻¹', insert: 'atan(', fn: true, title: 'atan' },
   ],
   [
     { label: 'n!', insert: '!' },
@@ -68,12 +72,22 @@ const KEYS = [
     { label: ')', insert: ')' },
   ],
   [
-    { label: 'x^y', insert: '^', fn: true },
-    { label: 'x²', insert: '^2', fn: true },
-    { label: '√', insert: 'sqrt(', fn: true },
-    { label: '|x|', insert: 'abs(', fn: true },
-    { label: 'C', action: 'clear' },
+    { label: 'x^y', insert: '^', fn: true, title: 'power' },
+    { label: 'x²', insert: '^2', fn: true, title: 'square' },
+    { label: '√', insert: 'sqrt(', fn: true, title: 'sqrt' },
+    { label: '∛', insert: 'cbrt(', fn: true, title: 'cbrt' },
+    { label: '|x|', insert: 'abs(', fn: true, title: 'abs' },
   ],
+];
+
+/**
+ * The digit and operator block, below both function pages.
+ *
+ * It is shared rather than duplicated onto each page because swapping it out
+ * would take the digits away: a user on the function page who wants to type a
+ * `2` would have to switch back first. Only the function rows swap.
+ */
+export const PAD_KEYS = [
   [
     { label: '7', insert: '7' },
     { label: '8', insert: '8' },
@@ -86,27 +100,100 @@ const KEYS = [
     { label: '5', insert: '5' },
     { label: '6', insert: '6' },
     { label: '×', insert: '*' },
-    { label: 'eˣ', insert: 'exp(' },
+    { label: 'eˣ', insert: 'exp(', fn: true, title: 'exp' },
   ],
   [
     { label: '1', insert: '1' },
     { label: '2', insert: '2' },
     { label: '3', insert: '3' },
     { label: '−', insert: '-' },
-    { label: '1/x', insert: '1/' },
+    { label: 'C', action: 'clear' },
   ],
   [
     { label: '0', insert: '0' },
     { label: '.', insert: '.' },
+    { label: '(', insert: '(' },
+    { label: ')', insert: ')' },
+    { label: '1/x', insert: '1/' },
+  ],
+  [
     { label: '+', insert: '+' },
+    // Spans the four remaining columns: the output row holds one operator and
+    // the key that evaluates, and a two-column `=` beside three empty cells
+    // would look like a mistake.
     { label: '=',
       action: 'equals',
-      wide: true },
+      span: 4 },
   ],
 ];
 
 /** The unit symbols a user is most likely to type, as one-tap insertions. */
 const UNIT_KEYS = ['g', 'mL', 'L', 'mol', 'M', 'cm3'];
+
+/**
+ * A second function page, swapped in over the first by the switch above the
+ * keypad.
+ *
+ * A keypad has room for four function rows and the common functions fill them.
+ * Rather than dropping the rest — which is how a calculator ends up unable to
+ * do something a user expects — the less common ones live on a page of their
+ * own.
+ *
+ * Only the *functions* swap. The brackets, clear and backspace stay in the
+ * blocks around this one, because those are entry controls rather than
+ * functions, and a user reaching for clear should not have to know which page
+ * they are on to find it.
+ *
+ * These are the ones a general calculator has that the first page does not: the
+ * integer and sign functions, the multi-argument ones, and the log bases that
+ * make `log`'s meaning explicit rather than assumed.
+ *
+ * π and e repeat from the first page on purpose — they are reached for
+ * constantly, and leaving the page to get back to them would be a small tax on
+ * the most common thing a user does here. `eˣ` is not repeated, because it is
+ * already in the digit block, which does not swap.
+ */
+export const FN_KEYS = [
+  [
+    { label: 'x^y', insert: '^', fn: true, title: 'power' },
+    { label: 'x²', insert: '^2', fn: true, title: 'square' },
+    { label: '√', insert: 'sqrt(', fn: true, title: 'sqrt' },
+    { label: '∛', insert: 'cbrt(', fn: true, title: 'cbrt' },
+    { label: '|x|', insert: 'abs(', fn: true, title: 'abs' },
+  ],
+  [
+    { label: 'round', insert: 'round(', fn: true, title: 'round' },
+    { label: 'floor', insert: 'floor(', fn: true, title: 'floor' },
+    { label: 'ceil', insert: 'ceil(', fn: true, title: 'ceil' },
+    { label: 'trunc', insert: 'trunc(', fn: true, title: 'trunc' },
+    { label: 'sign', insert: 'sign(', fn: true, title: 'sign' },
+  ],
+  [
+    { label: 'min', insert: 'min(', fn: true, title: 'min' },
+    { label: 'max', insert: 'max(', fn: true, title: 'max' },
+    { label: 'hypot', insert: 'hypot(', fn: true, title: 'hypot' },
+    { label: 'atan2', insert: 'atan2(', fn: true, title: 'atan2' },
+    // The argument separator, on the same row as the functions that take more
+    // than one. Without it `hypot(`, `min(`, `max(` and `atan2(` are keys that
+    // open a call the on-screen keypad cannot finish — on a phone, where there
+    // is no comma on the keyboard, they would be dead ends.
+    { label: ',', insert: ',', title: 'comma' },
+  ],
+  [
+    { label: 'log₂', insert: 'log2(', fn: true, title: 'log2' },
+    { label: 'log₁₀', insert: 'log10(', fn: true, title: 'log10' },
+    /*
+     * `10ˣ` inserts the whole base rather than an operator, so it behaves like
+     * `√` or `π`: press it and you have started a value. A key that leaves the
+     * entry as a bare operator (`^`) is a key the next press can only follow,
+     * never precede — and off the keypad alone, `10^-7` is the single most
+     * common thing a chemist types here, so it has to work in that order.
+     */
+    { label: '10ˣ', insert: '10^', fn: true, title: 'pow10' },
+    { label: 'π', insert: 'pi', title: 'pi' },
+    { label: 'e', insert: 'e', title: 'e' },
+  ],
+];
 
 /**
  * A calculator available from every tab.
@@ -128,6 +215,8 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   // state so the button appears and disappears as focus moves.
   const [canFillHere, setCanFillHere] = useState(false);
   const [filled, setFilled] = useState(false);
+  // Which function page the keypad shows. See FN_KEYS.
+  const [fnPage, setFnPage] = useState(false);
   const inputRef = useRef(null);
 
   /*
@@ -306,6 +395,34 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   }, []);
 
   /*
+   * One key, drawn the same way on both blocks of the keypad.
+   *
+   * The function block and the digit block differ only in which rows they walk
+   * — the keys mean the same things — so they share this rather than each
+   * carrying its own copy that could drift in styling or in how a key with no
+   * `insert` is handled.
+   */
+  const renderKey = useCallback((k) => (
+    <button
+      key={k.label}
+      type="button"
+      className={`calc-key${k.fn ? ' is-fn' : ''}`}
+      // The wide `=` is the only spanning key, and a `span N` is a single
+      // property rather than a rule per width, so it is inline.
+      style={k.span ? { gridColumn: `span ${k.span}` } : undefined}
+      title={k.title ? t(`convert.calcKey_${k.title}`) : undefined}
+      onClick={() => {
+        if (k.action === 'clear') clear();
+        else if (k.action === 'back') back();
+        else if (k.action === 'equals') inputRef.current?.focus();
+        else insert(k.insert);
+      }}
+    >
+      {k.label}
+    </button>
+  ), [t, clear, back, insert]);
+
+  /*
    * Degrees are a conversion at the edge, not a parser mode.
    *
    * When the toggle is on, a bare number inside a trig call is converted to
@@ -474,25 +591,32 @@ export default function CalculatorDrawer({ open, onClose, store }) {
             ))}
           </div>
 
+          {/* The page switch. It sits above the keypad rather than among the
+              keys so it is never mistaken for a key that inserts something —
+              every other button here types a character. */}
+          <button
+            type="button"
+            className={`calc-page${fnPage ? ' is-on' : ''}`}
+            aria-pressed={fnPage}
+            onClick={() => setFnPage((v) => !v)}
+            title={t('convert.calcMore')}
+          >
+            <Icons.calc size={ICON_SIZE.inline} aria-hidden="true" />
+            {fnPage ? t('convert.calcPage1') : t('convert.calcPage2')}
+          </button>
+
           <div className="calc-keypad" role="group" aria-label={t('convert.calcKeypad')}>
-            {KEYS.map((row, ri) => (
+            {(fnPage ? FN_KEYS : COMMON_KEYS).map((row, ri) => (
               <div className="calc-row" key={ri}>
-                {row.map((k) => (
-                  <button
-                    key={k.label}
-                    type="button"
-                    className={`calc-key${k.fn ? ' is-fn' : ''}${k.wide ? ' is-wide' : ''}`}
-                    title={k.title ? t(`convert.calcKey_${k.title}`) : undefined}
-                    onClick={() => {
-                      if (k.action === 'clear') clear();
-                      else if (k.action === 'back') back();
-                      else if (k.action === 'equals') inputRef.current?.focus();
-                      else insert(k.insert);
-                    }}
-                  >
-                    {k.label}
-                  </button>
-                ))}
+                {row.map(renderKey)}
+              </div>
+            ))}
+            {/* The digits are not part of either page: they stay put while the
+                function rows above them swap, so a user on the second page can
+                still type a number. */}
+            {PAD_KEYS.map((row, ri) => (
+              <div className="calc-row" key={`pad-${ri}`}>
+                {row.map(renderKey)}
               </div>
             ))}
           </div>
