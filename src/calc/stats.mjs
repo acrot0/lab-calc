@@ -261,8 +261,15 @@ export function dixonCritical(n, alpha = 0.05, tail = 'two') {
 export function meanConfidenceInterval(xs, { confidence = 0.95 } = {}) {
   const d = describe(xs);
   if (d.n < 2) fail('statsTooFewForCI', { n: d.n, min: 2 });
-  requirePositive(confidence, 'confidence');
-  if (confidence >= 1 || confidence <= 0) {
+  /*
+   * Range-checked here rather than by `requirePositive`, because that helper
+   * reports a field NAME and the UI translates it through `fields.<name>` —
+   * and a confidence level is a fraction, not a field the user typed as such.
+   * Routing it through the helper produced "fields.confidence 必须大于 0" on
+   * screen: a raw i18n key, because no `fields.confidence` exists.
+   */
+  if (typeof confidence !== 'number' || !Number.isFinite(confidence)
+    || confidence <= 0 || confidence >= 1) {
     fail('statsBadConfidence', { confidence });
   }
   const alpha = 1 - confidence;

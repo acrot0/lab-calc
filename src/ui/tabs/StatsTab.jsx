@@ -90,18 +90,37 @@ export default function StatsTab({ onRecord, restored }) {
       const conf = n(confidence) / 100;
       const a = parsed.a.values;
       const b = parsed.b.values;
+      /*
+       * Each test is attempted independently, and one that cannot run is
+       * recorded as its reason rather than aborting the rest.
+       *
+       * The two comparison tests fail for different inputs: the F test is
+       * undefined when either sample is perfectly constant, while the t test
+       * has a defined answer in exactly that case — two constant samples that
+       * differ are definitely different. Running them in sequence and letting
+       * the first throw meant a user with constant replicates saw only the F
+       * test's refusal and never the t test's answer, which was the one they
+       * were after.
+       */
+      const attempt = (fn) => {
+        try { return { value: fn(), error: null }; } catch (e) { return { value: null, error: e }; }
+      };
+      const t = b.length >= 2 ? attempt(() => tTest(a, b)) : { value: null, error: null };
+      const f = b.length >= 2 ? attempt(() => fTest(a, b)) : { value: null, error: null };
       const result = {
         confidence: conf,
         describeA: describeStats(a),
         rsdA: rsd(a),
         interval: meanConfidenceInterval(a, { confidence: conf }),
-        grubbs: a.length >= 3 ? grubbs(a) : null,
-        dixon: a.length >= 3 && a.length <= 10 ? dixon(a) : null,
+        grubbs: a.length >= 3 ? attempt(() => grubbs(a)).value : null,
+        dixon: a.length >= 3 && a.length <= 10 ? attempt(() => dixon(a)).value : null,
         describeB: b.length >= 2 ? describeStats(b) : null,
         rsdB: b.length >= 2 ? rsd(b) : null,
         intervalB: b.length >= 2 ? meanConfidenceInterval(b, { confidence: conf }) : null,
-        tTest: b.length >= 2 ? tTest(a, b) : null,
-        fTest: b.length >= 2 ? fTest(a, b) : null,
+        tTest: t.value,
+        tTestError: t.error,
+        fTest: f.value,
+        fTestError: f.error,
       };
       setOut(result);
       setErr(null);
@@ -232,6 +251,20 @@ export default function StatsTab({ onRecord, restored }) {
         </div>
       )}
 
+      {/*
+        * A test that could not run says why, in its own block. Swallowing the
+        * reason left the panel silently missing a row the user expected.
+        */}
+      {out?.tTestError && (
+        <div className="msg">
+          <div>
+            <strong>{t('stats.tTest')}</strong>
+            {' — '}
+            {t('stats.testUnavailable', { reason: errorMessage(out.tTestError, t) })}
+          </div>
+        </div>
+      )}
+
       {out?.tTest && (
         <div className={`msg ${out.tTest.significant ? 'warn' : ''}`}>
           <div>
@@ -243,6 +276,16 @@ export default function StatsTab({ onRecord, restored }) {
               crit: fmt(out.tTest.critical, 4),
             })}
             {out.tTest.significant ? ` ${t('stats.tDiffers')}` : ` ${t('stats.tSame')}`}
+          </div>
+        </div>
+      )}
+
+      {out?.fTestError && (
+        <div className="msg">
+          <div>
+            <strong>{t('stats.fTest')}</strong>
+            {' — '}
+            {t('stats.testUnavailable', { reason: errorMessage(out.fTestError, t) })}
           </div>
         </div>
       )}
