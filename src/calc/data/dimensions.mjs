@@ -101,6 +101,28 @@ export const REGISTRY = [
       { sym: 'oz', factor: 0.028349523125, name: { zh: '盎司', en: 'ounce' } },
       { sym: 'gr', factor: 6.479891e-5, name: { zh: '格令', en: 'grain' } },
       { sym: 'Da', factor: 1.66053906660e-27, name: { zh: '道尔顿', en: 'dalton' }, aka: ['u', 'amu'] },
+      /*
+       * Chinese market units (市制).
+       *
+       * The mainland's statutory values, which are the metric ones rounded to a
+       * round decimal: 1 斤 = 500 g exactly, 1 两 = 50 g, 1 钱 = 5 g. These are
+       * NOT the Qing or Republican values (1 斤 ≈ 596.8 g, 1 两 ≈ 37.3 g) and
+       * not the Taiwanese 台斤 (600 g) — a conversion that silently used one of
+       * those would be wrong by 20% in a way nobody could see.
+       *
+       * They are labelled in Chinese only where the English is a transliteration
+       * (`jin`, `liang`) rather than a translation, because a reader of the
+       * English UI is more likely to recognise the romanisation than a gloss
+       * like "catty" — which is real but obscure.
+       *
+       * The factors are in **kg**, this dimension's `siBase`, not in grams —
+       * matching `lb` at 0.45359237 rather than the 500 the unit is defined as.
+       * Written as 0.5 and not 500: the first attempt used grams, and every
+       * conversion came out 1000× too large while looking entirely plausible.
+       */
+      { sym: 'jin', factor: 0.5, name: { zh: '斤', en: 'jin (500 g)' }, aka: ['市斤'] },
+      { sym: 'liang', factor: 0.05, name: { zh: '两', en: 'liang (50 g)' }, aka: ['市两'] },
+      { sym: 'qian', factor: 0.005, name: { zh: '钱', en: 'qian (5 g)' }, aka: ['市钱'] },
     ],
   },
 
@@ -281,6 +303,17 @@ export const REGISTRY = [
       { sym: 'yd', factor: 0.9144, name: { zh: '码', en: 'yard' } },
       { sym: 'mi', factor: 1609.344, name: { zh: '英里', en: 'mile' } },
       { sym: 'nmi', factor: 1852, name: { zh: '海里', en: 'nautical mile' } },
+      /*
+       * Chinese market units (市制), mainland statutory values.
+       *
+       * 1 尺 = 1/3 m exactly and 1 寸 = 1/30 m, so the two are consistent with
+       * each other and with 丈 (not listed — nothing in a lab measures in 丈).
+       * 1 里 = 500 m, which is also the mainland value and not the imperial
+       * mile it resembles in name only.
+       */
+      { sym: 'chi', factor: 1 / 3, name: { zh: '尺', en: 'chi (1/3 m)' }, aka: ['市尺'] },
+      { sym: 'cun', factor: 1 / 30, name: { zh: '寸', en: 'cun (1/30 m)' }, aka: ['市寸'] },
+      { sym: 'li', factor: 500, name: { zh: '里', en: 'li (500 m)' }, aka: ['市里'] },
     ],
   },
 
@@ -303,6 +336,15 @@ export const REGISTRY = [
       { sym: 'ha', factor: 1e4, name: { zh: '公顷', en: 'hectare' } },
       { sym: 'in2', factor: 6.4516e-4, name: { zh: '平方英寸', en: 'square inch' } },
       { sym: 'ft2', factor: 0.09290304, name: { zh: '平方英尺', en: 'square foot' } },
+      /*
+       * 1 亩 = 60 平方丈 = 666⅔ m² exactly, which is 10000/15.
+       *
+       * Written as the fraction rather than as 666.6666… so the value is exact:
+       * a lab converting a plot area is not a common case, but a rounded
+       * constant here would be a wrong number in the table forever, and the
+       * exact form costs nothing.
+       */
+      { sym: 'mu', factor: 10000 / 15, name: { zh: '亩', en: 'mu (666⅔ m²)' }, aka: ['市亩'] },
     ],
   },
 

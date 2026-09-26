@@ -309,3 +309,59 @@ describe('unitsOf', () => {
     }
   });
 });
+
+describe('Chinese market units', () => {
+  /*
+   * The mainland's statutory values, which are the metric ones rounded to a
+   * round decimal. Pinned against the definitions rather than against the
+   * factors in the table, so a typo in the table cannot make the test agree
+   * with it — which is exactly how a 1000× error survives.
+   *
+   * That error happened: the mass dimension's `siBase` is kg, and the first
+   * version of these entries used grams. Every conversion came out a thousand
+   * times too large and every number looked entirely plausible.
+   */
+  it('should convert the mass units to their statutory values', () => {
+    expect(convert(1, 'jin', 'g')).toBeCloseTo(500, 9);
+    expect(convert(1, 'liang', 'g')).toBeCloseTo(50, 9);
+    expect(convert(1, 'qian', 'g')).toBeCloseTo(5, 9);
+  });
+
+  it('should keep the mass units consistent with each other', () => {
+    // 1 斤 = 10 两 = 100 钱. Checked as a ratio, which is independent of the
+    // base unit and so catches a wrong factor even if all three are wrong
+    // together by the same amount.
+    expect(convert(1, 'jin', 'liang')).toBeCloseTo(10, 9);
+    expect(convert(1, 'liang', 'qian')).toBeCloseTo(10, 9);
+    expect(convert(1, 'jin', 'qian')).toBeCloseTo(100, 9);
+  });
+
+  it('should convert the length units to their statutory values', () => {
+    // 1 尺 = 1/3 m and 1 寸 = 1/30 m, so the two are consistent with each other.
+    expect(convert(1, 'chi', 'm')).toBeCloseTo(1 / 3, 9);
+    expect(convert(1, 'cun', 'm')).toBeCloseTo(1 / 30, 9);
+    expect(convert(1, 'chi', 'cun')).toBeCloseTo(10, 9);
+    expect(convert(1, 'li', 'm')).toBeCloseTo(500, 9);
+  });
+
+  it('should convert 亩 exactly, not to a rounded constant', () => {
+    // 1 亩 = 60 平方丈 = 10000/15 m². Asserted as the fraction: a table entry
+    // of 666.6667 would be a wrong number carried forever, and this catches it.
+    expect(convert(1, 'mu', 'm2')).toBeCloseTo(10000 / 15, 9);
+    // And it relates to the hectare the way the definition says: 1 ha = 15 亩.
+    expect(convert(1, 'ha', 'mu')).toBeCloseTo(15, 9);
+  });
+
+  it('should round-trip against the metric units', () => {
+    for (const [market, metric] of [['jin', 'g'], ['chi', 'm'], ['mu', 'm2']]) {
+      const there = convert(7, market, metric);
+      expect(convert(there, metric, market), market).toBeCloseTo(7, 9);
+    }
+  });
+
+  it('should accept the 市-prefixed aliases', () => {
+    for (const [alias, canonical] of [['市斤', 'jin'], ['市尺', 'chi'], ['市亩', 'mu']]) {
+      expect(convert(1, alias, canonical), alias).toBeCloseTo(1, 9);
+    }
+  });
+});
