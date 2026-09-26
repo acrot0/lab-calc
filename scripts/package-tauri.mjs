@@ -101,6 +101,41 @@ const childEnv = {
 
 // ------------------------------------------------------------- 2. build
 
+/*
+ * Sync the version before building.
+ *
+ * Tauri reads it from `src-tauri/tauri.conf.json` and `Cargo.toml`, neither of
+ * which is `package.json` — so a bump in one leaves the installer named and
+ * stamped with the previous release. Measured: 0.9.0 was built and produced
+ * `Lab Calc_0.8.0_x64-setup.exe`, which is the kind of thing that ships because
+ * the build succeeded and nobody reads the filename.
+ *
+ * Written here rather than committed, so `package.json` stays the single source
+ * and the other two cannot drift from it.
+ */
+step('同步版本号…');
+const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+for (const rel of ['src-tauri/tauri.conf.json']) {
+  const file = path.join(ROOT, rel);
+  const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (json.version !== version) {
+    json.version = version;
+    fs.writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
+    console.log(`  ${rel}: → ${version}`);
+  }
+}
+{
+  const file = path.join(ROOT, 'src-tauri/Cargo.toml');
+  const text = fs.readFileSync(file, 'utf8');
+  // Only the `[package]` version, which is the first one in the file; the
+  // dependency table below has many `version = "..."` lines.
+  const next = text.replace(/^(version\s*=\s*")[^"]*(")/m, `$1${version}$2`);
+  if (next !== text) {
+    fs.writeFileSync(file, next);
+    console.log(`  src-tauri/Cargo.toml: → ${version}`);
+  }
+}
+
 step('构建并打包（首次编译 Rust 依赖需数分钟）…');
 try {
   execFileSync('npx', ['tauri', 'build', '--bundles', 'nsis'], {
@@ -138,12 +173,22 @@ const exeName = fs.readdirSync(releaseDir)
   .find((f) => f.endsWith('.exe') && !f.startsWith('build-script'));
 const exe = exeName ? path.join(releaseDir, exeName) : null;
 
+/*
+ * The installer for *this* version, not the first one in the directory.
+ *
+ * Tauri leaves the previous version's installer beside the new one, so the
+ * directory accumulates them and `installers[0]` picks whichever sorts first —
+ * measured, a 0.9.0 build reported `Lab Calc_0.8.0_x64-setup.exe` as its
+ * output. The name is the version, so the version is what is matched.
+ */
 const installers = fs.existsSync(nsisDir)
-  ? fs.readdirSync(nsisDir).filter((f) => f.endsWith('.exe'))
+  ? fs.readdirSync(nsisDir).filter((f) => f.endsWith('.exe') && f.includes(version))
   : [];
 
 if (!exe) die('target/release 里没有可执行文件 —— 构建可能没跑完。');
-if (installers.length === 0) die('没有找到 NSIS 安装包。');
+if (installers.length === 0) {
+  die(`没有找到 ${version} 的 NSIS 安装包 —— 目录里是旧版本，或构建没跑完。`);
+}
 
 const mb = (p) => (fs.statSync(p).size / 1024 / 1024).toFixed(1);
 const installer = path.join(nsisDir, installers[0]);

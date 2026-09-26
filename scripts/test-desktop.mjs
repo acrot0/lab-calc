@@ -133,7 +133,16 @@ try {
   const dom = await evaluate(target.webSocketDebuggerUrl, `(() => ({
     title: document.title,
     rootChildren: document.getElementById('root')?.children.length ?? -1,
-    tabs: document.querySelectorAll('button.tab').length,
+    /*
+     * Destinations, not navigation buttons.
+     *
+     * The rail's expand toggle and the phone bar's "more" button share their
+     * classes with the destinations, and neither is a tab — counting them would
+     * make the total two more than the tab files and read as a missing tab.
+     * The rail is the one that shows at a desktop window size, so it is the one
+     * counted.
+     */
+    tabs: document.querySelectorAll('.rail-item:not(.rail-toggle)').length,
     hasStyles: getComputedStyle(document.body).backgroundColor !== 'rgba(0, 0, 0, 0)',
     bg: getComputedStyle(document.body).backgroundColor,
     bodyLen: document.body.innerText.length,

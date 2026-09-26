@@ -1,6 +1,6 @@
 [package]
 name = "lab-calc"
-version = "0.8.0"
+version = "0.9.0"
 description = "实验室溶液计算器：称量、稀释、缓冲液、pH、滴定曲线"
 authors = ["acrot0"]
 license = "MIT"
