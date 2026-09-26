@@ -3,13 +3,17 @@
 Where this project is going, and why in this order. Written down because the
 sequencing has dependencies that are not obvious from the feature list.
 
-## Where it stands (v0.5.0)
+## Where it stands (v0.8.0)
 
-15 calculation tabs, a 118-element periodic table with exam properties, an
-interactive titration curve, bilingual UI, six themes plus follow-the-system,
-PWA-installable, offline-capable, and a portable Windows build. 750 tests.
-637 KB of JS (188 KB gzipped), no charting dependency — the titration curve is
-hand-drawn SVG, and the .xlsx writer is hand-written too.
+16 calculation tabs, a 118-element periodic table with exam properties, six
+charts drawn from the calculations themselves, bilingual UI, six themes plus
+follow-the-system, PWA-installable, offline-capable, and a portable Windows
+build. 1,281 tests. 592 KB of JS (185 KB gzipped), no charting dependency — the
+charts are hand-drawn canvas, and the .xlsx writer is hand-written too.
+
+The calculator panel works on a phone: 44px touch targets, a bottom sheet that
+lifts clear of the software keyboard, and a two-column layout when the phone is
+held sideways.
 
 **Live: <https://acrot0.github.io/lab-calc/>**
 
