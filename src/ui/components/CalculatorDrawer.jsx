@@ -59,15 +59,19 @@ const KEYS = [
   [
     { label: 'ln', insert: 'ln(', fn: true },
     { label: 'log', insert: 'log(', fn: true },
-    { label: 'x²', insert: '^2' },
-    { label: 'x^y', insert: '^' },
-    { label: '√', insert: 'sqrt(' },
   ],
   [
     { label: 'n!', insert: '!' },
-    { label: '%', insert: '%' },
+    { label: '%', insert: '%', title: 'percent' },
+    { label: 'mod', insert: ' mod ', fn: true, title: 'modulo' },
     { label: '(', insert: '(' },
     { label: ')', insert: ')' },
+  ],
+  [
+    { label: 'x^y', insert: '^', fn: true },
+    { label: 'x²', insert: '^2', fn: true },
+    { label: '√', insert: 'sqrt(', fn: true },
+    { label: '|x|', insert: 'abs(', fn: true },
     { label: 'C', action: 'clear' },
   ],
   [
@@ -436,12 +440,24 @@ export default function CalculatorDrawer({ open, onClose, store }) {
               type="button"
               className="calc-fill"
               onClick={() => {
-                // The raw value, not the formatted one: the readout rounds to
-                // ten significant figures for reading, and writing the rounded
-                // text back would lose precision on every round trip.
-                if (fillField(String(result.value))) {
+                /*
+                 * Write the value at the precision a person can use.
+                 *
+                 * `String(result.value)` gives all seventeen digits a double
+                 * carries — `2.1389459274469544` for a perfectly ordinary
+                 * dilution — which is unreadable in a form field, and false
+                 * precision besides: the calculator's own readout shows ten
+                 * significant figures, so the rest is noise the user cannot
+                 * check. Twelve significant figures is more than any bench
+                 * measurement justifies and short enough to read at a glance.
+                 *
+                 * `Number(...)` at the end strips the trailing zeros that
+                 * `toPrecision` pads with, so 0.500000000000 comes back as 0.5.
+                 */
+                const text = Number(result.value.toPrecision(12)).toString();
+                if (fillField(text)) {
                   setFilled(true);
-                  window.setTimeout(() => setFilled(false), 1400);
+                  window.setTimeout(() => setFilled(false), 1600);
                 }
               }}
             >
@@ -466,6 +482,7 @@ export default function CalculatorDrawer({ open, onClose, store }) {
                     key={k.label}
                     type="button"
                     className={`calc-key${k.fn ? ' is-fn' : ''}${k.wide ? ' is-wide' : ''}`}
+                    title={k.title ? t(`convert.calcKey_${k.title}`) : undefined}
                     onClick={() => {
                       if (k.action === 'clear') clear();
                       else if (k.action === 'back') back();

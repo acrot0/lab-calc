@@ -139,6 +139,20 @@ const ROOTS = {
  */
 const CALLABLE = new Set([...Object.keys(FUNCTIONS), ...Object.keys(ROOTS)]);
 
+/**
+ * Operators spelled as words.
+ *
+ * Same problem as `CALLABLE` above and the same fix: `postfix()` treats a bare
+ * identifier as a unit — `g` means `1 g` — so `mod` was being read as an
+ * unknown unit before the parser's operator loop could ever see it. Listing the
+ * word operators here is what makes the parser stop and let `term()` match
+ * them.
+ *
+ * Kept separate from `CALLABLE` because these are not called: `mod` takes no
+ * parentheses and binds as an infix operator.
+ */
+const WORD_OPERATORS = new Set(['mod']);
+
 /** The domains each function is defined on, so a bad input is a clear error. */
 const DOMAINS = {
   ln: (x) => x > 0,
@@ -210,9 +224,26 @@ function tokenize(src) {
     if (c === ' ' || c === '\t' || c === '\n') { i++; continue; }
 
     if (/[0-9.]/.test(c)) {
-      const m = /^[0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?/.exec(src.slice(i));
+      /*
+       * Thousands separators are accepted and ignored.
+       *
+       * `1,000` is how a number is written on every bench sheet, in every paper
+       * and on every label, and a calculator that answers "cannot parse" is one
+       * that has to be worked around. The separators are stripped, never
+       * interpreted: `1,000` is one thousand, not two arguments.
+       *
+       * Only the strict grouping form is accepted — a comma must be followed by
+       * exactly three digits and then a non-digit. So `1,000` and `1,234,567`
+       * work, while `1,00` and `1,0000` remain syntax errors rather than being
+       * silently read as something the user did not write. The European form
+       * (`1.000,5`) is deliberately not guessed at: it is ambiguous against the
+       * decimal point, and guessing wrong is worse than refusing.
+       */
+      const plain = /^[0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?/.exec(src.slice(i));
+      const grouped = /^[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(src.slice(i));
+      const m = grouped && (!plain || grouped[0].length > plain[0].length) ? grouped : plain;
       if (!m) fail('expressionSyntax', { at: src.slice(i, i + 12) });
-      tokens.push({ type: 'number', value: Number.parseFloat(m[0]) });
+      tokens.push({ type: 'number', value: Number.parseFloat(m[0].replace(/,/g, '')) });
       i += m[0].length;
       continue;
     }
@@ -240,6 +271,22 @@ function tokenize(src) {
       continue;
     }
 
+    /*
+     * `**` is accepted as a synonym for `^`.
+     *
+     * Both are in wide use — `^` from calculator keypads, `**` from every
+     * programming language and spreadsheet formula — and a user who types the
+     * one this does not know gets a syntax error for arithmetic that is
+     * unambiguous. It is tokenised as a single `^` rather than added as a
+     * second operator, so the parser and its precedence have one power
+     * operator to reason about and the two spellings cannot drift apart.
+     */
+    if (c === '*' && src[i + 1] === '*') {
+      tokens.push({ type: '^' });
+      i += 2;
+      continue;
+    }
+
     if ('+-*/^()!'.includes(c)) {
       tokens.push({ type: c });
       i++;
@@ -264,6 +311,19 @@ function parse(tokens, t) {
 
   const peek = () => tokens[pos];
   const eat = (type) => (peek()?.type === type ? tokens[pos++] : null);
+
+  /**
+   * Consume an identifier token equal to `word`, or nothing.
+   *
+   * Used for operators spelled as words — `mod` — which arrive from the
+   * tokenizer as identifiers and would otherwise be read as a unit or an
+   * unknown function name. Returning null rather than throwing is what lets
+   * `term` fall through to its `else break`, so an ordinary identifier after a
+   * term is still an error rather than being swallowed here.
+   */
+  const eatWord = (word) => (
+    peek()?.type === 'ident' && peek().value === word ? tokens[pos++] : null
+  );
 
   /**
    * The exponent vector of a unit symbol, rejecting anything that is not one.
@@ -300,6 +360,10 @@ function parse(tokens, t) {
         // a unit: `2sin(3)` has no meaning, and silently reading `sin` as an
         // unknown unit would report the wrong problem.
         if (CALLABLE.has(next.value)) fail('expressionSyntax', { at: `${tk.value}${next.value}` });
+        // A word operator after a number is an operator, not a unit: `10 mod 3`
+        // must leave `mod` for `term()` to match. Without this the parser reads
+        // "mod" as an unknown unit and reports the wrong problem entirely.
+        if (WORD_OPERATORS.has(next.value)) return scalar(tk.value);
         // Any identifier here is meant as a unit — `2 + 3` has an operator
         // next, not an identifier — so an unrecognised one is reported as an
         // unknown unit rather than left for the caller to choke on as trailing
@@ -325,6 +389,16 @@ function parse(tokens, t) {
         const arg = expression();
         if (!eat(')')) fail('expressionSyntax', { at: 'missing )' });
         return applyFunction(name, arg);
+      }
+      /*
+       * A word operator is not a value: leave it for `term()` to match.
+       *
+       * Reached when `mod` appears where an operand was expected, which is
+       * `10 mod 3` — the token after `10` is the operator, and `percent()`
+       * would otherwise try to read it as a unit named "mod".
+       */
+      if (WORD_OPERATORS.has(tk.value)) {
+        fail('expressionSyntax', { at: `${tk.value} needs a value before it` });
       }
       // A bare unit is one of it: `g` means `1 g`, so `5 / mL` works.
       return quantity(1, exponentsOfUnit(tk.value), tk.value, factorOfUnit(tk.value));
@@ -431,6 +505,28 @@ function parse(tokens, t) {
           left.scale / right.scale,
           false,
         );
+      } else if (eatWord('mod')) {
+        /*
+         * Modulo, spelled as a word.
+         *
+         * `%` cannot be it: in a lab calculator a trailing percent means "per
+         * hundred" — `0.9%` is a concentration of 0.009 — and that reading is
+         * the one this app exists to serve. Making `%` mean modulo would break
+         * every percent entry to gain a remainder operation that is used far
+         * less. `mod` is unambiguous in both directions and is what several
+         * calculators and every spreadsheet function use.
+         *
+         * Both operands must be plain numbers: the remainder of 5 g divided by
+         * 3 mL is not a quantity this can report.
+         */
+        const right = percent();
+        if (!isDimensionless(left.exp) || !isDimensionless(right.exp)) {
+          fail('functionNotDimensionless', { fn: 'mod', unit: left.unit ?? right.unit ?? '' });
+        }
+        if (right.value === 0) fail('divideByZero', {});
+        // The sign follows the dividend, which is the convention in JS, C, Java
+        // and Python's math.fmod — so `-7 mod 3` is -1, not 2.
+        left = scalar(left.value % right.value);
       } else break;
     }
     return left;

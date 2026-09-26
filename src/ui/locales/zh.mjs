@@ -573,6 +573,8 @@ export const zh = {
     calcEmpty: '输入表达式即可看到结果',
     convertEmpty: '填入数值，并选择同一类量的两个单位',
     conversionFactor: '换算系数',
+    calcKey_percent: "百分号：除以 100（0.9% = 0.009）",
+    calcKey_modulo: "取模：余数（10 mod 3 = 1）",
   },
   history: {
     title: '计算记录',

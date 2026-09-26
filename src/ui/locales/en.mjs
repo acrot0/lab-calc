@@ -571,6 +571,8 @@ export const en = {
     calcEmpty: 'Type an expression to see the answer',
     convertEmpty: 'Pick a value and two units of the same kind',
     conversionFactor: 'Factor',
+    calcKey_percent: "Percent: divide by 100 (0.9% = 0.009)",
+    calcKey_modulo: "Modulo: the remainder (10 mod 3 = 1)",
   },
   history: {
     title: 'History',

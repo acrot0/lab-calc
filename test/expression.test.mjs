@@ -370,3 +370,77 @@ describe('evaluate — constants, factorial and percent', () => {
     expect(looksLikeExpression('sin(1)')).toBe(true);
   });
 });
+
+describe('calculator conventions', () => {
+  /*
+   * Syntax a general-purpose calculator is expected to accept, added after a
+   * user reported that ordinary arithmetic "could not be worked out". Each of
+   * these is unambiguous arithmetic that a person types without thinking about
+   * which calculator they are in front of.
+   */
+
+  it('should accept ** as a synonym for ^', () => {
+    // `**` is the power operator in every programming language and spreadsheet
+    // formula; `^` is the one on a keypad. Both are unambiguous.
+    expect(evaluate('2**10').value).toBe(1024);
+    expect(evaluate('2**10').value).toBe(evaluate('2^10').value);
+    expect(evaluate('2**3**2').value).toBe(evaluate('2^3^2').value);
+  });
+
+  it('should keep ** right-associative, like ^', () => {
+    // 2^(3^2) = 512, not (2^3)^2 = 64. The two spellings must not disagree.
+    expect(evaluate('2**3**2').value).toBe(512);
+  });
+
+  it('should allow a unary minus on a ** exponent', () => {
+    expect(evaluate('2**-2').value).toBe(0.25);
+  });
+
+  it('should accept thousands separators', () => {
+    expect(evaluate('1,000').value).toBe(1000);
+    expect(evaluate('1,234,567').value).toBe(1234567);
+    expect(evaluate('1,000.5').value).toBe(1000.5);
+  });
+
+  it('should read a separator inside arithmetic as one number', () => {
+    // The separator must never be read as an argument list or a second operand.
+    expect(evaluate('1,000/2').value).toBe(500);
+    expect(evaluate('2*1,000').value).toBe(2000);
+  });
+
+  it('should reject a malformed grouping rather than guessing', () => {
+    /*
+     * `1,00` and `1,0000` are not how any number is written. Reading them as
+     * 100 and 10000 would be inventing an interpretation the user did not
+     * write, and the mistake would be silent.
+     */
+    expect(code('1,00')).toBe('expressionSyntax');
+    expect(code('1,0000')).toBe('expressionSyntax');
+  });
+
+  it('should not guess at the European decimal comma', () => {
+    // `1.000,5` is ambiguous against the decimal point. Refusing is better
+    // than picking one reading and being wrong half the time.
+    expect(code('1.000,5')).toBe('expressionSyntax');
+  });
+
+  it('should still read a bare percent as percent, not modulo', () => {
+    /*
+     * The convention this app keeps, and the one a lab needs: `0.9%` is a
+     * concentration of 0.009, not the remainder of dividing 0.9 by anything.
+     * Modulo is available as the `mod` word for the cases that want it.
+     */
+    expect(evaluate('0.9%').value).toBeCloseTo(0.009, 12);
+    expect(evaluate('100*0.9%').value).toBeCloseTo(0.9, 12);
+  });
+
+  it('should provide modulo under a name that cannot be confused', () => {
+    expect(evaluate('10 mod 3').value).toBe(1);
+    expect(evaluate('7 mod 2').value).toBe(1);
+    expect(evaluate('10 mod 5').value).toBe(0);
+  });
+
+  it('should refuse a modulo by zero rather than returning NaN', () => {
+    expect(code('5 mod 0')).toBe('divideByZero');
+  });
+});
