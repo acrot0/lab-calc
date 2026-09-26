@@ -8,13 +8,19 @@ import { createRoot } from 'react-dom/client';
  * axis and `index.css` pulls in every axis the family has. Only weight is used
  * here, so the axes nobody asked for would be bytes on every load.
  *
- * Space Grotesk for the brand and headings, Geist for the interface, JetBrains
- * Mono for anything numeric. The split is not decoration — it is the same
- * division a technical document makes: a display face for the few words that
- * carry identity, a neutral face for the many that carry information, and a
- * monospaced face wherever digits must line up in a column.
+ * Instrument Serif for the brand and headings, Geist for the interface,
+ * JetBrains Mono for anything numeric. The split is not decoration — it is the
+ * same division a technical document makes: a display face for the few words
+ * that carry identity, a neutral face for the many that carry information, and
+ * a monospaced face wherever digits must line up in a column.
  *
- * All four are OFL-1.1, so the licence check passes unchanged. Chinese is
+ * Space Grotesk was the display face before Instrument Serif replaced it, and
+ * its import outlived the change: no rule referenced it any more, so the files
+ * were built and shipped for nothing. Removed rather than left, because a
+ * face that is loaded but unused is invisible in review and permanent in the
+ * bundle.
+ *
+ * All three are OFL-1.1, so the licence check passes unchanged. Chinese is
  * deliberately NOT loaded: a CJK webfont is several megabytes, and the system
  * fallbacks (PingFang SC, Microsoft YaHei) are already on every machine that
  * would read it.
@@ -27,7 +33,6 @@ import { createRoot } from 'react-dom/client';
  * which is the correct face for the script and costs nothing.
  */
 import '@fontsource/instrument-serif/400.css';
-import '@fontsource-variable/space-grotesk/wght.css';
 import '@fontsource-variable/geist/wght.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
 import './styles.css';

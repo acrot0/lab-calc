@@ -123,11 +123,13 @@
    * outline, which looks like a rendering fault. The rules below set 400 and
    * get their emphasis from size and letter-spacing instead.
    *
-   * `--font-display-cjk` is the Chinese counterpart. Noto Serif SC was
-   * measured and rejected: 500 KB of subset files for the fourteen characters
-   * in the drawer title, because a CJK face cannot be subset per-glyph. The
-   * system serifs are already on every machine that reads Chinese and are the
-   * right face for the script.
+   * The Chinese counterpart is not a separate variable: it is the tail of this
+   * one's own stack. Instrument Serif has no CJK glyphs, so a Chinese heading
+   * falls through to `Songti SC` / `SimSun` — which is the intended face, not a
+   * failure to load. A dedicated CJK webfont was measured and rejected: Noto
+   * Serif SC is 500 KB of subset files for the fourteen characters in the
+   * drawer title, because a CJK face cannot be subset per-glyph. The system
+   * serifs are already on every machine that reads Chinese.
    *
    * `--font` is the interface face. Geist is engineered for UI constraints —
    * tight grids, dark themes, small sizes — which is exactly this app.
