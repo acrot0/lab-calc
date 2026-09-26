@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   GRAB_MARGIN, DEFAULT_INSET,
-  clampPosition, defaultPosition, dragTo, isDragHandle, useSheetLayout,
+  clampPosition, defaultPosition, dragTo, isDragHandle, keyboardInset,
 } from '../src/ui/float-window.mjs';
 
 const VIEW = { width: 1440, height: 900 };
@@ -146,17 +146,41 @@ describe('isDragHandle', () => {
   });
 });
 
-describe('useSheetLayout', () => {
-  it('should use the sheet on a narrow viewport', () => {
-    // A phone has no pointer to drag with, and a floating window covers the
-    // thing the user opened it to read.
-    expect(useSheetLayout({ width: 390, height: 844 })).toBe(true);
-    expect(useSheetLayout({ width: 639, height: 900 })).toBe(true);
+describe('keyboardInset', () => {
+  const viewport = { width: 390, height: 844 };
+
+  it('should report zero when no keyboard is up', () => {
+    expect(keyboardInset(viewport, { height: 844, offsetTop: 0 })).toBe(0);
   });
 
-  it('should use the floating window on a wide one', () => {
-    expect(useSheetLayout({ width: 640, height: 900 })).toBe(false);
-    expect(useSheetLayout({ width: 1440, height: 900 })).toBe(false);
+  it('should report the height the keyboard covers', () => {
+    // A 336px keyboard over an 844px viewport: the sheet has to lift by 336.
+    expect(keyboardInset(viewport, { height: 508, offsetTop: 0 })).toBe(336);
+  });
+
+  it('should subtract a visual-viewport offset from the covered height', () => {
+    // Zoomed or scrolled, the visual viewport shifts down as well as shrinking.
+    // Counting only the height difference would overstate the inset by the
+    // shift, and lift the sheet further than the keyboard actually reaches.
+    expect(keyboardInset(viewport, { height: 508, offsetTop: 100 })).toBe(236);
+  });
+
+  it('should never report a negative inset', () => {
+    // A visual viewport taller than the layout one happens during a browser
+    // toolbar collapse. A negative inset would push the sheet below the bottom
+    // edge, so it is clamped rather than passed through.
+    expect(keyboardInset(viewport, { height: 900, offsetTop: 0 })).toBe(0);
+  });
+
+  it('should return zero when the API is missing', () => {
+    // Desktop, and browsers older than `visualViewport`. Neither has a software
+    // keyboard, so zero is the correct answer rather than an error.
+    expect(keyboardInset(viewport, undefined)).toBe(0);
+    expect(keyboardInset(undefined, { height: 508, offsetTop: 0 })).toBe(0);
+  });
+
+  it('should tolerate a missing offsetTop', () => {
+    expect(keyboardInset(viewport, { height: 508 })).toBe(336);
   });
 });
 
@@ -192,5 +216,46 @@ describe('mobile layout regressions', () => {
     // The icon carries the meaning once the row is tight; hiding a whole
     // control would hide a setting the user came to change.
     expect(block).toMatch(/\.topbar-actions\s+\.control-label\s*\{\s*display:\s*none/);
+  });
+});
+
+describe('calculator touch targets', () => {
+  /*
+   * Asserted against the stylesheet rather than by rendering, for the same
+   * reason as the topbar block above: the fix is a handful of declarations, and
+   * proving their absence needs a real layout engine plus a pointer emulation
+   * that jsdom does not have.
+   *
+   * The measured starting point, at 390x844 in Chromium: keys 40px, DEG/RAD
+   * 48x28, unit chips 28px, the function-page switch 30px. All under the 44px
+   * floor, on the surface a thumb is meant to hit without looking.
+   */
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+  const coarse = css.slice(css.indexOf('@media (pointer: coarse)'));
+  const block = coarse.slice(0, coarse.indexOf('/* ===='));
+
+  it('should size the keypad keys for a fingertip', () => {
+    expect(block).toMatch(/\.calc-key\s*\{[^}]*min-height:\s*44px/);
+  });
+
+  it('should size every other control in the panel to match', () => {
+    // A panel that mixes 28px and 44px targets makes the user calibrate per
+    // control, which is the opposite of what a keypad is for.
+    for (const sel of ['\\.calc-mode', '\\.calc-chip', '\\.calc-page', '\\.calc-fill']) {
+      expect(block, sel).toMatch(new RegExp(`${sel}\\s*\\{[^}]*44px`));
+    }
+  });
+
+  it('should key on the pointer rather than on a width', () => {
+    // The defect is the input device, not the screen size: a touch laptop at
+    // 1440px has the same fingertip as a phone. A width breakpoint would leave
+    // it unfixed.
+    expect(css).toMatch(/@media \(pointer: coarse\)/);
+  });
+
+  it('should lift the sheet clear of the software keyboard', () => {
+    // `dvh` does not know about the keyboard, so the sheet has to be told.
+    expect(css).toMatch(/\.calc-drawer\s*\{[^}]*bottom:\s*var\(--kb-inset/);
+    expect(css).toMatch(/max-height:\s*calc\(100dvh\s*-\s*var\(--kb-inset/);
   });
 });

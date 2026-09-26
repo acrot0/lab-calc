@@ -102,12 +102,24 @@ export function isDragHandle(target, handle) {
 }
 
 /**
- * Whether to use the sheet layout rather than the floating window.
+ * How much of the viewport the on-screen keyboard is covering, in CSS pixels.
  *
- * A phone has no pointer to drag with, and a floating window on a small screen
- * covers the thing the user opened it to read. The sheet is anchored to the
- * bottom, where a thumb reaches, and is not draggable.
+ * The sheet is anchored to `bottom: 0`, and neither `vh` nor `dvh` accounts for
+ * the software keyboard — it is not part of the layout viewport at all. So on a
+ * phone the keyboard slides up *over* the keypad, and the bottom rows of the
+ * one surface the user is trying to press end up behind it.
+ *
+ * `visualViewport` is the only thing that reports this. It is absent on desktop
+ * and in older browsers, which is why the missing case returns zero rather than
+ * throwing: everywhere the API does not exist there is no software keyboard to
+ * make room for, and the sheet keeps the rule it had before.
+ *
+ * `offsetTop` is subtracted because a page zoomed or scrolled under a
+ * visual-viewport model shifts the visible box down as well as shrinking it;
+ * counting only the height difference would overstate the inset by that shift.
  */
-export function useSheetLayout(viewport, breakpoint = 640) {
-  return viewport.width < breakpoint;
+export function keyboardInset(viewport, visualViewport) {
+  if (!viewport || !visualViewport) return 0;
+  const overlap = viewport.height - visualViewport.height - (visualViewport.offsetTop ?? 0);
+  return Math.max(0, overlap);
 }

@@ -1917,21 +1917,50 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
  * small screen covers the thing the user opened it to read. The position style
  * from React is overridden here rather than being conditional in JS, so the
  * breakpoint lives in one place and a resize needs no state change.
+ *
+ * The second condition catches a phone held sideways, which is 844px wide and
+ * so passes the width test above. Measured there: the floating window opened
+ * 374px tall at y=75 on a 390px viewport, putting its bottom 59px below the
+ * screen, and none of the 42 keys were reachable. That is the drag semantics
+ * working as designed — `clampPosition` only guarantees the grab margin stays
+ * on screen, which is right for a window a cursor can drag back and wrong for
+ * one a thumb cannot. A coarse pointer in a short viewport is a phone, whatever
+ * its width, and a phone gets the sheet.
+ *
+ * `max-height: 500px` is below any laptop window worth using and above a
+ * landscape phone's 390px, so it separates the two without naming a device.
  */
-@media (max-width: 639px) {
+@media (max-width: 639px), (pointer: coarse) and (max-height: 500px) {
   .calc-drawer {
     /* `!important` because a saved drag position is written as an inline style;
        on a phone the sheet is anchored and that position has no meaning. */
     left: 0 !important;
     top: auto !important;
     right: 0;
-    bottom: 0;
+    /*
+     * Lifted clear of the software keyboard.
+     *
+     * `--kb-inset` is written by the component from `visualViewport`; it is zero
+     * on any browser without that API and on any device without a software
+     * keyboard, so this rule degrades to `bottom: 0` on its own.
+     */
+    bottom: var(--kb-inset, 0px);
     width: 100%;
-    max-height: 82dvh;
+    /*
+     * `100dvh` minus the keyboard, rather than `82dvh`.
+     *
+     * `dvh` tracks a collapsing browser toolbar but knows nothing about the
+     * keyboard, which overlays the page instead of resizing it. Subtracting the
+     * inset is what keeps the keypad's last row above the keys rather than
+     * behind them.
+     */
+    max-height: calc(100dvh - var(--kb-inset, 0px) - var(--s4));
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     border-bottom: none;
     /* Pad past the home indicator / gesture bar, or the keypad's last row sits
-       under it and the bottom keys are hard to hit. */
+       under it and the bottom keys are hard to hit. Kept while the keyboard is
+       up too: it then reads as a little breathing room above the keys, which is
+       cheaper than a rule that tries to tell the two cases apart. */
     padding-bottom: var(--safe-bottom);
     animation: sheet-in var(--dur) var(--ease);
   }
@@ -2204,6 +2233,121 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .calc-key.is-wide { grid-column: span 2; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .calc-key.is-wide:hover { background: var(--accent-hover-solid, var(--accent-hover)); }
+
+/*
+ * Touch sizing for the calculator's controls.
+ *
+ * Keyed on `pointer: coarse` rather than on a width breakpoint, because the
+ * thing being fixed is the input device and not the screen. A 40px key is fine
+ * under a cursor, which lands on a pixel; it is not fine under a fingertip,
+ * whose contact patch is around 10mm — 44px is the floor at which a target
+ * stops being a coin toss, and it applies to a touch laptop at 1440px exactly
+ * as much as to a phone.
+ *
+ * This block has to sit after the base rules it overrides, not beside the
+ * sheet's media query above: `.calc-key` is declared at 40px further down, and
+ * at equal specificity the later rule wins, so an override placed earlier is
+ * silently discarded. Measured, not assumed — the first attempt sat at the top
+ * of the file and changed nothing.
+ *
+ * The keypad's 40px was documented as "sized by a fingertip", which was the
+ * wrong claim; this is the correction. Nine rows at 44px plus gaps comes to
+ * about 460px of keypad. The sheet's `max-height` allows for it, and where the
+ * viewport is too short the body scrolls — which is the honest outcome, rather
+ * than shrinking keys below the size that makes them pressable.
+ *
+ * `calc-mode`, `calc-chip` and `calc-page` are here because they were smaller
+ * still — 28px and 30px — and they share a panel with the keys. A thumb that
+ * has learned one target size should not have to learn three.
+ */
+@media (pointer: coarse) {
+  .calc-key { min-height: 44px; }
+  .calc-mode { height: 44px; min-width: 56px; }
+  .calc-chip { height: 44px; padding: 0 var(--s4); }
+  .calc-page { min-height: 44px; }
+  .calc-fill { min-height: 44px; }
+  /* The close button is already 44px; the DEG/RAD toggle beside it was not, and
+     two controls on one row should match. */
+  .calc-head-actions .icon-btn { min-width: 44px; min-height: 44px; }
+}
+
+/*
+ * A landscape phone: two columns rather than a taller stack.
+ *
+ * Held sideways the screen has width to spare and no height at all — 844x390.
+ * Stacked, the head, input, readout, chips and page switch take about 290px and
+ * leave nothing for a 460px keypad; measured, none of the 42 keys were on
+ * screen. Scrolling the keypad inside that remainder was tried and produced a
+ * 14px window onto it, which is not a keypad.
+ *
+ * So the layout turns: the readout and input take the left column, the keypad
+ * the right. Both fit at once — 460px of keys in 390px of height is still 70px
+ * short, so the keypad scrolls, but it now has roughly 340px of viewport to
+ * scroll within instead of 14, which is seven rows of keys visible at a time
+ * against none.
+ *
+ * This is the only breakpoint that changes the panel's arrangement rather than
+ * its spacing, and it applies only to a coarse pointer in a short viewport, so
+ * no desktop window is ever laid out this way.
+ */
+@media (pointer: coarse) and (max-height: 500px) and (min-width: 640px) {
+  .calc-drawer {
+    /* Full width would give the keypad 160px keys — wide rectangles that read
+       worse than squares and travel further under a thumb. */
+    left: 0 !important;
+    right: 0;
+    width: min(560px, calc(100% - var(--s4)));
+    margin-inline: auto;
+  }
+
+  /*
+   * `grid-template-rows` is the load-bearing line.
+   *
+   * The keypad is 460px of keys in a 286px body. Left implicit, that row is
+   * sized to its content, so the grid overflows its own box: the left column's
+   * chips and page switch were pushed to y=428 and y=532 on a 390px screen —
+   * present, measured, and off the bottom. Naming the row height as `1fr` gives
+   * the keypad exactly the body's height and lets it scroll inside that, and
+   * `align-content: start` keeps the left column's rows packed at the top
+   * rather than stretched to match.
+   */
+  .calc-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    grid-template-rows: repeat(4, auto) 1fr;
+    grid-template-areas:
+      'input   keypad'
+      'readout keypad'
+      'fill    keypad'
+      'units   keypad'
+      'page    keypad';
+    gap: var(--s2) var(--s3);
+    padding: var(--s3);
+    align-content: start;
+    /* Bounded so the grid has a shortfall to resolve; see the note on the
+       keypad's own scroll below. */
+    max-height: calc(100dvh - var(--s4) - 5.5rem);
+    overflow: hidden;
+  }
+
+  .calc-input { grid-area: input; }
+  .calc-readout { grid-area: readout; min-height: 0; }
+  .calc-fill { grid-area: fill; }
+  .calc-units { grid-area: units; }
+  .calc-page { grid-area: page; }
+
+  /* The keypad owns the right column and the full height, and scrolls inside
+     it. `min-height: 0` is what allows that: a grid item defaults to a minimum
+     of its content size, and clearing it is the difference between scrolling
+     and overflowing the panel. */
+  .calc-keypad {
+    grid-area: keypad;
+    min-height: 0;
+    overflow-y: auto;
+    /* Reclaim the rows the left column is not using. */
+    align-self: stretch;
+  }
+}
 
 .scrim {
   position: fixed;

@@ -9,7 +9,7 @@ import { errorMessage } from '../errors.mjs';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { canFill, fillField, onFieldChange } from '../field-bridge.mjs';
 import {
-  clampPosition, defaultPosition, dragTo, isDragHandle,
+  clampPosition, defaultPosition, dragTo, isDragHandle, keyboardInset,
 } from '../float-window.mjs';
 
 /** Where the window was last left, so it reopens where the user put it. */
@@ -229,6 +229,17 @@ export default function CalculatorDrawer({ open, onClose, store }) {
    */
   const [pos, setPos] = useState(() => loadPosition(store) ?? { x: 0, y: 0 });
   const [placed, setPlaced] = useState(false);
+  /*
+   * How far the software keyboard reaches up the viewport.
+   *
+   * The sheet is anchored to `bottom: 0`, and no viewport unit accounts for the
+   * on-screen keyboard — it overlays the page rather than resizing it. Left at
+   * zero on a phone, the keyboard covers the bottom rows of the keypad, which
+   * is the one thing the sheet exists to show. Published as a custom property
+   * so the sheet's own rule consumes it and the breakpoint stays in the
+   * stylesheet.
+   */
+  const [kbInset, setKbInset] = useState(0);
   const winRef = useRef(null);
   const headRef = useRef(null);
   const drag = useRef(null);
@@ -269,6 +280,32 @@ export default function CalculatorDrawer({ open, onClose, store }) {
     };
     globalThis.addEventListener?.('resize', onResize);
     return () => globalThis.removeEventListener?.('resize', onResize);
+  }, [open]);
+
+  /*
+   * Track the software keyboard.
+   *
+   * Bound only while the window is open, and to `visualViewport` rather than
+   * `window` — a keyboard opening does not fire a window resize on either
+   * platform, so the `resize` handler above never sees it. `scroll` is bound
+   * too because iOS reports the inset through a viewport scroll as the keyboard
+   * animates in, and a handler on `resize` alone would catch only the end state.
+   *
+   * Nothing is bound on a browser without `visualViewport`; `keyboardInset`
+   * returns zero and the sheet keeps its unshifted rule.
+   */
+  useEffect(() => {
+    if (!open) return undefined;
+    const vv = globalThis.visualViewport;
+    if (!vv) return undefined;
+    const read = () => setKbInset(keyboardInset(viewport(), vv));
+    read();
+    vv.addEventListener('resize', read);
+    vv.addEventListener('scroll', read);
+    return () => {
+      vv.removeEventListener('resize', read);
+      vv.removeEventListener('scroll', read);
+    };
   }, [open]);
 
   useEffect(() => { if (placed) savePosition(store, pos); }, [store, pos, placed]);
@@ -372,11 +409,23 @@ export default function CalculatorDrawer({ open, onClose, store }) {
     };
   }, [open, onPointerMove, onPointerUp]);
 
-  // Focus the field when the window opens, so the keyboard is usable without a
-  // click. Restoring focus on close is left to the browser: the window is
-  // opened by a shortcut or a button, and both keep their own focus.
+  /*
+   * Focus the field when the window opens — on a device with a pointer.
+   *
+   * The focus exists so a hardware keyboard can be typed into without a click.
+   * On a touch device it does the opposite of help: focusing summons the
+   * software keyboard immediately, which on a phone covers the bottom half of
+   * the keypad the user just opened. Someone who opened this window came to
+   * press its keys, and the keys should be what is on screen.
+   *
+   * The field is still reachable by tapping it, which is how a touch user would
+   * have got to it anyway. Restoring focus on close is left to the browser: the
+   * window is opened by a shortcut or a button, and both keep their own focus.
+   */
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (!open) return;
+    if (globalThis.matchMedia?.('(pointer: coarse)')?.matches) return;
+    inputRef.current?.focus();
   }, [open]);
 
   const insert = useCallback((text) => {
@@ -489,7 +538,7 @@ export default function CalculatorDrawer({ open, onClose, store }) {
         role="dialog"
         aria-modal="false"
         aria-label={t('convert.calcTitle')}
-        style={{ left: pos.x, top: pos.y }}
+        style={{ left: pos.x, top: pos.y, '--kb-inset': `${kbInset}px` }}
       >
         {/* Only `pointerdown` is bound here; the move and up handlers live on
             the window, because that is where a captured pointer's events are
