@@ -1065,6 +1065,7 @@ export const zh = {
     bioKineticsTooFewPoints: '酶动力学拟合至少需要 2 个有效数据点（底物浓度和速率都为正）。',
     bioKineticsIdenticalSubstrate: '所有数据点的底物浓度相同，斜率无定义，无法拟合。',
     bioKineticsNoFit: '数据拟合不出正的 Vmax——速率随底物浓度下降，不符合米氏方程。',
+    temperatureBelowAbsoluteZero: '温度低于绝对零度（{tempC} °C），物理上不存在。',
     functionArity: "{fn} 需要 {want} 个参数，收到 {got} 个。",
   },
 };

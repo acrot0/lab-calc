@@ -1060,6 +1060,7 @@ export const en = {
     bioKineticsTooFewPoints: 'Fitting enzyme kinetics needs at least two usable points (both substrate and rate positive).',
     bioKineticsIdenticalSubstrate: 'Every point is at the same substrate concentration, so the slope is undefined and no fit exists.',
     bioKineticsNoFit: 'The data fit no positive Vmax — the rate falls as substrate rises, which Michaelis–Menten does not describe.',
+    temperatureBelowAbsoluteZero: 'Temperature is below absolute zero ({tempC} C), which does not exist.',
     functionArity: "{fn} takes {want} argument(s); {got} given.",
   },
 };
