@@ -93,3 +93,23 @@ describe('web app manifest', () => {
     expect(html).toContain('name="apple-mobile-web-app-capable"');
   });
 });
+
+describe('launch handling', () => {
+  it('should reuse the open window rather than stacking a second one', () => {
+    // Without this an installed app opens a new window per launch, so three
+    // taps on the icon leave three copies of the app running.
+    expect(manifest.launch_handler?.client_mode).toBe('navigate-existing');
+  });
+
+  it('should navigate rather than merely focus, because shortcuts carry an intent', () => {
+    /*
+     * The distinction that is easy to get wrong: `focus-existing` reuses the
+     * window but ignores the launch URL, so a "称量配制" shortcut would focus
+     * whatever tab was already open and silently drop the request. Only
+     * `navigate-existing` passes the `?tab=` through, which is the whole point
+     * of having shortcuts.
+     */
+    expect(manifest.launch_handler?.client_mode).not.toBe('focus-existing');
+    expect(manifest.shortcuts?.length).toBeGreaterThan(0);
+  });
+});
