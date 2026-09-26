@@ -354,3 +354,58 @@ describe('translation keys', () => {
     expect(lookup(zh, 'convert.calcTitle')).toBe('计算器');
   });
 });
+
+/*
+ * Every field name that can reach the screen must be translatable.
+ *
+ * `errorMessage` renders a validator error's `name` through `fields.<name>`, so
+ * a name with no entry shows the raw key — the user read
+ * "fields.confidence 必须大于 0" on screen. The error-code test above scans for
+ * codes but not for the names that travel inside them, which is how this got
+ * through.
+ *
+ * The scan is over the calc sources rather than a hand-kept list, so a new
+ * validator call is covered the moment it is written.
+ *
+ * Only names whose error message actually interpolates `{name}` are checked. A
+ * `name` passed to an error that does not use it is bookkeeping for the
+ * developer; flagging those would mean inventing translations for labels no
+ * user ever sees, and that list grows with every new validator.
+ */
+describe('validator field names', () => {
+  /** Codes whose zh translation interpolates {name}. */
+  const nameRenderingCodes = new Set(
+    Object.entries(zh.errors)
+      .filter(([, msg]) => typeof msg === 'string' && msg.includes('{name}'))
+      .map(([code]) => code),
+  );
+
+  it('should have at least one name-rendering error, or this test is vacuous', () => {
+    // Guards against the pattern below silently matching nothing.
+    expect(nameRenderingCodes.size).toBeGreaterThan(0);
+  });
+
+  it('should translate every field name a user can see', () => {
+    const dir = new URL('../src/calc/', import.meta.url);
+    const names = new Set();
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.mjs'))) {
+      const src = readFileSync(new URL(file, dir), 'utf8');
+      // requirePositive(x, 'name') — these always render, since the helper's
+      // errors interpolate {name}.
+      const req = /require(?:Positive|NonNegative|Finite)\([^,]+,\s*'([a-zA-Z][a-zA-Z0-9]*)'/g;
+      for (const m of src.matchAll(req)) names.add(m[1]);
+      // fail('code', { name: 'x' }) — only when that code renders {name}.
+      const fails = /fail\(\s*'([a-zA-Z]+)',\s*\{([^}]*)\}/g;
+      for (const m of src.matchAll(fails)) {
+        if (!nameRenderingCodes.has(m[1])) continue;
+        const nm = m[2].match(/name:\s*'([a-zA-Z][a-zA-Z0-9]*)'/);
+        if (nm) names.add(nm[1]);
+      }
+    }
+    expect(names.size).toBeGreaterThan(5);
+    const missingZh = [...names].filter((n) => !zh.fields[n]).sort();
+    expect(missingZh, `fields.* missing in zh: ${missingZh.join(', ')}`).toEqual([]);
+    const missingEn = [...names].filter((n) => !en.fields[n]).sort();
+    expect(missingEn, `fields.* missing in en: ${missingEn.join(', ')}`).toEqual([]);
+  });
+});
