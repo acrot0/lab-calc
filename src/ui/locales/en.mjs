@@ -956,6 +956,10 @@ export const en = {
     summaryDoubling: "{n} doublings, doubling time {td} h",
     summaryCentrifuge: "{rpm} rpm (r = {r} cm) = {rcf} x g",
     summaryKinetics: "Vmax = {vmax}, Km = {km} (R2 = {r2})",
+    axisSubstrate: "Substrate [S]",
+    axisRate: "Rate v",
+    kineticsChartLabel: "Michaelis-Menten curve: Vmax {vmax}, Km {km}, {n} data points",
+    kineticsCaption: "The curve is the Michaelis-Menten fit by Hanes-Woolf; the vertical line from each point to the curve is that point's residual. The dashed lines mark Km and Vmax — if Km falls outside the measured range, this experiment did not really measure it.",
   },
   errors: {
     formulaEmpty: 'Formula is empty',

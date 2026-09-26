@@ -1675,6 +1675,36 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   background: var(--surface-2);
 }
 
+/*
+ * A chart with its caption.
+ *
+ * The canvas keeps the same chrome as the titration curve so two charts in one
+ * app do not look like two different products. `width: 100%` with the canvas's
+ * own intrinsic size as a cap lets it shrink on a phone without the drawn
+ * coordinates distorting — the bitmap is scaled, not re-laid-out.
+ */
+.chart-figure {
+  margin: var(--s5) 0 0;
+}
+
+.kinetics-canvas {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.chart-figure figcaption {
+  max-width: 520px;
+  margin: var(--s3) auto 0;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+}
+
 /* ==========================================================================
    Concentrated-reagent presets and the ion list
    ========================================================================== */

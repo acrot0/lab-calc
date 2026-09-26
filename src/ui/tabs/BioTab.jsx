@@ -10,6 +10,7 @@ import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import KineticsPlot from '../components/KineticsPlot.jsx';
 
 /**
  * Molecular biology: the nine calculations a wet lab does every day.
@@ -30,7 +31,7 @@ const MODES = [
 /** Which nucleic acid types offer a coefficient, in the order a menu should list them. */
 const NA_TYPES = ['dsDNA', 'rna', 'ssDNA', 'oligo'];
 
-export default function BioTab({ onRecord, restored }) {
+export default function BioTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [mode, setMode] = useState(restored?.mode ?? 'nucleic');
 
@@ -453,6 +454,14 @@ export default function BioTab({ onRecord, restored }) {
             [t('bio.r2'), fmt(shown.r2, 4)],
           ]}
           worked={worked} workedLabel={t('common.worked')}
+        />
+      )}
+
+      {shown?.mode === 'kinetics' && (
+        <KineticsPlot
+          points={parsePoints(pointsText)}
+          fit={shown}
+          theme={theme}
         />
       )}
 

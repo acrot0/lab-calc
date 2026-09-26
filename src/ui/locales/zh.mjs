@@ -961,6 +961,10 @@ export const zh = {
     summaryDoubling: "倍增 {n} 次，倍增时间 {td} h",
     summaryCentrifuge: "{rpm} rpm（r = {r} cm）= {rcf} × g",
     summaryKinetics: "Vmax = {vmax}、Km = {km}（R² = {r2}）",
+    axisSubstrate: "底物浓度 [S]",
+    axisRate: "反应速率 v",
+    kineticsChartLabel: "米氏曲线：Vmax {vmax}、Km {km}，{n} 个数据点",
+    kineticsCaption: "曲线是按 Hanes–Woolf 拟合的米氏方程；每个点到位线的竖线就是该点的残差。虚线标出 Km 与 Vmax——若 Km 落在数据范围之外，说明这次实验其实没测到它。",
   },
   errors: {
     formulaEmpty: '化学式不能为空',
