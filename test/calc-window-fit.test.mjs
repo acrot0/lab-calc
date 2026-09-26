@@ -6,10 +6,11 @@ import fs from 'node:fs';
  *
  * This is a regression guard on a number, which is usually a bad test. It earns
  * its place because the number is a *contract between two files*: the keypad's
- * rendered height lives in the JSX (nine rows of keys at `min-height: 40px`) and
- * the cap lives in the CSS `max-height`. Neither file knows about the other, so
- * a tenth row added to the keypad would silently push the `=` key behind a
- * scrollbar — the window would still open, still work, and still be wrong.
+ * rendered height lives in the key tables (nine rows of keys at
+ * `min-height: 40px`) and the cap lives in the CSS `max-height`. Neither file
+ * knows about the other, so a tenth row added to the keypad would silently push
+ * the `=` key behind a scrollbar — the window would still open, still work, and
+ * still be wrong.
  *
  * The arithmetic below mirrors the real layout: 9 key rows, plus the readout,
  * the fill button, the unit chips and the page switch, plus the body's padding
@@ -31,19 +32,19 @@ function spaceScale(css) {
 
 describe('calculator window fit', () => {
   const css = read('src/ui/styles.css');
-  const drawer = read('src/ui/components/CalculatorDrawer.jsx');
 
-  it('should count nine key rows on each function page', () => {
-    // Four function rows plus five digit rows — the same on both pages, which
-    // is the point of keeping the digit block out of the swap.
-    const rows = (name) => {
-      const start = drawer.indexOf(`export const ${name} = [`);
-      const end = drawer.indexOf('\n];', start);
-      return (drawer.slice(start, end).match(/^  \[/gm) ?? []).length;
-    };
-    expect(rows('COMMON_KEYS')).toBe(4);
-    expect(rows('FN_KEYS')).toBe(4);
-    expect(rows('PAD_KEYS')).toBe(5);
+  it('should count nine key rows on each function page', async () => {
+    // Four function rows, one memory row and four digit rows — the same on both
+    // pages, which is the point of keeping the memory and digit blocks out of
+    // the swap. Read from the tables rather than from the source text, so a row
+    // added to either page is counted wherever it was declared.
+    const { DIGIT_KEYS, FN_PAGES, MEMORY_KEYS } = await import(
+      '../src/ui/components/calculator-keys.mjs'
+    );
+    for (const page of FN_PAGES) expect(page).toHaveLength(4);
+    expect(MEMORY_KEYS).toHaveLength(1);
+    expect(DIGIT_KEYS).toHaveLength(5);
+    expect(FN_PAGES[0].length + MEMORY_KEYS.length + DIGIT_KEYS.length).toBe(10);
   });
 
   it('should cap the window above the height the keypad needs', () => {

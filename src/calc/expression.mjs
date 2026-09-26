@@ -1062,8 +1062,44 @@ export function isExpressionFragment(fragment) {
     (t) => `min(1${t}2)`,
     (t) => `${t}1,2)`,
   ];
-  return forms.some((f) => probes.some((probe) => tryEvaluate(probe(f)) !== null));
+  return forms.some((f) => probes.some((probe) => parseable(probe(f))));
 }
+
+/**
+ * Whether the parser could read this, ignoring whether the arithmetic works.
+ *
+ * The distinction matters here and nowhere else. `isExpressionFragment` asks
+ * whether a key types something the tokenizer and grammar can accept, and the
+ * probe values it invents are arbitrary — `atanh(1)` is a *domain* error (the
+ * result is infinite) while `atanh(` is a *syntax* error, and only the second
+ * says anything about whether the key is readable. Treating the first as a
+ * failure rejected `atanh(`, `asinh(` and `acosh(` — three keys that work
+ * perfectly — because the probe happened to land on a value outside the
+ * function's domain.
+ *
+ * `ans` is the other case, and it is why the probe passes variables: a key that
+ * inserts `ans` is readable, and the only reason the bare probe rejected it is
+ * that nothing had supplied the variable. The same map the drawer uses is
+ * supplied here.
+ *
+ * An unknown unit stays a failure. A key that types `grm` is a typo, not a
+ * variable, and letting every unreadable identifier through to make `ans` work
+ * would give up the check that catches exactly that.
+ */
+function parseable(source) {
+  try {
+    evaluate(source, { ans: PROBE_QUANTITY });
+    return true;
+  } catch (e) {
+    // `expressionSyntax` and `expressionEmpty` mean "the parser could not read
+    // this". A domain error, a dimension mismatch or a bad arity mean it read
+    // it fine and the arithmetic did not work out.
+    return e?.code !== 'expressionSyntax' && e?.code !== 'expressionEmpty';
+  }
+}
+
+/** A stand-in for the previous answer, so `ans` can be probed. */
+const PROBE_QUANTITY = { value: 1, unit: null, exponents: [0, 0, 0, 0, 0, 0] };
 
 /**
  * Whether a string contains an operator, and so is worth evaluating.

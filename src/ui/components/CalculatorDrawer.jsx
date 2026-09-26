@@ -11,9 +11,23 @@ import { canFill, fillField, onFieldChange } from '../field-bridge.mjs';
 import {
   clampPosition, defaultPosition, dragTo, isDragHandle, keyboardInset,
 } from '../float-window.mjs';
+import {
+  DIGIT_KEYS, FN_PAGES, MEMORY_KEYS, UNIT_KEYS,
+} from './calculator-keys.mjs';
+import { ACTIONS, asQuantity } from './calculator-actions.mjs';
 
 /** Where the window was last left, so it reopens where the user put it. */
 const POSITION_KEY = 'lab-calc.calcPos.v1';
+
+/**
+ * How many past expressions to keep.
+ *
+ * Session-scoped and never persisted. The history is there to save re-typing
+ * within one sitting; writing it to storage would put a student's working on
+ * disk with no way to clear it, which is not a thing this app should do without
+ * being asked.
+ */
+const HISTORY_LIMIT = 12;
 
 function loadPosition(store) {
   try {
@@ -36,176 +50,22 @@ function savePosition(store, pos) {
 }
 
 /**
- * The keypad, as rows of [label, insertion].
- *
- * The insertion is separate from the label because several keys type more than
- * they show: `x²` inserts `^2`, `√` inserts `sqrt(`, and `π` inserts `pi`. A
- * keypad that inserted its own glyph would produce an expression the parser
- * cannot read.
- *
- * The layout is the standard four-function arrangement with the scientific
- * functions in a strip above it. Someone who has used any calculator app
- * already knows where the digits and the operators are; a novel layout would
- * be a thing to learn for no gain.
- */
-/** The four function rows shown on the first page. */
-export const COMMON_KEYS = [
-  [
-    { label: 'sin', insert: 'sin(', fn: true },
-    { label: 'cos', insert: 'cos(', fn: true },
-    { label: 'tan', insert: 'tan(', fn: true },
-    { label: 'π', insert: 'pi' },
-    { label: 'e', insert: 'e' },
-  ],
-  [
-    { label: 'ln', insert: 'ln(', fn: true, title: 'ln' },
-    { label: 'log', insert: 'log(', fn: true, title: 'log' },
-    { label: 'sin⁻¹', insert: 'asin(', fn: true, title: 'asin' },
-    { label: 'cos⁻¹', insert: 'acos(', fn: true, title: 'acos' },
-    { label: 'tan⁻¹', insert: 'atan(', fn: true, title: 'atan' },
-  ],
-  [
-    { label: 'n!', insert: '!' },
-    { label: '%', insert: '%', title: 'percent' },
-    { label: 'mod', insert: ' mod ', fn: true, title: 'modulo' },
-    { label: '(', insert: '(' },
-    { label: ')', insert: ')' },
-  ],
-  [
-    { label: 'x^y', insert: '^', fn: true, title: 'power' },
-    { label: 'x²', insert: '^2', fn: true, title: 'square' },
-    { label: '√', insert: 'sqrt(', fn: true, title: 'sqrt' },
-    { label: '∛', insert: 'cbrt(', fn: true, title: 'cbrt' },
-    { label: '|x|', insert: 'abs(', fn: true, title: 'abs' },
-  ],
-];
-
-/**
- * The digit and operator block, below both function pages.
- *
- * It is shared rather than duplicated onto each page because swapping it out
- * would take the digits away: a user on the function page who wants to type a
- * `2` would have to switch back first. Only the function rows swap.
- */
-export const PAD_KEYS = [
-  [
-    { label: '7', insert: '7' },
-    { label: '8', insert: '8' },
-    { label: '9', insert: '9' },
-    { label: '÷', insert: '/' },
-    { label: '⌫', action: 'back' },
-  ],
-  [
-    { label: '4', insert: '4' },
-    { label: '5', insert: '5' },
-    { label: '6', insert: '6' },
-    { label: '×', insert: '*' },
-    { label: 'eˣ', insert: 'exp(', fn: true, title: 'exp' },
-  ],
-  [
-    { label: '1', insert: '1' },
-    { label: '2', insert: '2' },
-    { label: '3', insert: '3' },
-    { label: '−', insert: '-' },
-    { label: 'C', action: 'clear' },
-  ],
-  [
-    { label: '0', insert: '0' },
-    { label: '.', insert: '.' },
-    { label: '(', insert: '(' },
-    { label: ')', insert: ')' },
-    { label: '1/x', insert: '1/' },
-  ],
-  [
-    { label: '+', insert: '+' },
-    // Spans the four remaining columns: the output row holds one operator and
-    // the key that evaluates, and a two-column `=` beside three empty cells
-    // would look like a mistake.
-    { label: '=',
-      action: 'equals',
-      span: 4 },
-  ],
-];
-
-/** The unit symbols a user is most likely to type, as one-tap insertions. */
-const UNIT_KEYS = ['g', 'mL', 'L', 'mol', 'M', 'cm3'];
-
-/**
- * A second function page, swapped in over the first by the switch above the
- * keypad.
- *
- * A keypad has room for four function rows and the common functions fill them.
- * Rather than dropping the rest — which is how a calculator ends up unable to
- * do something a user expects — the less common ones live on a page of their
- * own.
- *
- * Only the *functions* swap. The brackets, clear and backspace stay in the
- * blocks around this one, because those are entry controls rather than
- * functions, and a user reaching for clear should not have to know which page
- * they are on to find it.
- *
- * These are the ones a general calculator has that the first page does not: the
- * integer and sign functions, the multi-argument ones, and the log bases that
- * make `log`'s meaning explicit rather than assumed.
- *
- * π and e repeat from the first page on purpose — they are reached for
- * constantly, and leaving the page to get back to them would be a small tax on
- * the most common thing a user does here. `eˣ` is not repeated, because it is
- * already in the digit block, which does not swap.
- */
-export const FN_KEYS = [
-  [
-    { label: 'x^y', insert: '^', fn: true, title: 'power' },
-    { label: 'x²', insert: '^2', fn: true, title: 'square' },
-    { label: '√', insert: 'sqrt(', fn: true, title: 'sqrt' },
-    { label: '∛', insert: 'cbrt(', fn: true, title: 'cbrt' },
-    { label: '|x|', insert: 'abs(', fn: true, title: 'abs' },
-  ],
-  [
-    { label: 'round', insert: 'round(', fn: true, title: 'round' },
-    { label: 'floor', insert: 'floor(', fn: true, title: 'floor' },
-    { label: 'ceil', insert: 'ceil(', fn: true, title: 'ceil' },
-    { label: 'trunc', insert: 'trunc(', fn: true, title: 'trunc' },
-    { label: 'sign', insert: 'sign(', fn: true, title: 'sign' },
-  ],
-  [
-    { label: 'min', insert: 'min(', fn: true, title: 'min' },
-    { label: 'max', insert: 'max(', fn: true, title: 'max' },
-    { label: 'hypot', insert: 'hypot(', fn: true, title: 'hypot' },
-    { label: 'atan2', insert: 'atan2(', fn: true, title: 'atan2' },
-    // The argument separator, on the same row as the functions that take more
-    // than one. Without it `hypot(`, `min(`, `max(` and `atan2(` are keys that
-    // open a call the on-screen keypad cannot finish — on a phone, where there
-    // is no comma on the keyboard, they would be dead ends.
-    { label: ',', insert: ',', title: 'comma' },
-  ],
-  [
-    { label: 'log₂', insert: 'log2(', fn: true, title: 'log2' },
-    { label: 'log₁₀', insert: 'log10(', fn: true, title: 'log10' },
-    /*
-     * `10ˣ` inserts the whole base rather than an operator, so it behaves like
-     * `√` or `π`: press it and you have started a value. A key that leaves the
-     * entry as a bare operator (`^`) is a key the next press can only follow,
-     * never precede — and off the keypad alone, `10^-7` is the single most
-     * common thing a chemist types here, so it has to work in that order.
-     */
-    { label: '10ˣ', insert: '10^', fn: true, title: 'pow10' },
-    { label: 'π', insert: 'pi', title: 'pi' },
-    { label: 'e', insert: 'e', title: 'e' },
-  ],
-];
-
-/**
  * A calculator available from every tab.
  *
  * A drawer rather than a tab, because a calculation is a detour: a student
  * working out a dilution needs an intermediate molar mass without losing the
- * form they are filling in. A tab would replace the work; a drawer sits over
- * it and closes again.
+ * form they are filling in. A tab would replace the work; a drawer sits over it
+ * and closes again.
  *
  * It shares the expression engine with the converter tab, which is the point —
- * the same `5 g / 250 mL` works in both, and there is one implementation of
- * what a unit means rather than two that drift.
+ * the same `5 g / 250 mL` works in both, and there is one implementation of what
+ * a unit means rather than two that drift.
+ *
+ * ## The keypad is declared in `calculator-keys.mjs`
+ *
+ * The tables moved out when this file passed 600 lines. What is left here is the
+ * behaviour: where the window sits, what the software keyboard is doing, how a
+ * key changes the entry, and what the memory holds.
  */
 export default function CalculatorDrawer({ open, onClose, store }) {
   const { t } = useI18n();
@@ -215,8 +75,23 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   // state so the button appears and disappears as focus moves.
   const [canFillHere, setCanFillHere] = useState(false);
   const [filled, setFilled] = useState(false);
-  // Which function page the keypad shows. See FN_KEYS.
-  const [fnPage, setFnPage] = useState(false);
+  // Which function page the keypad shows. An index rather than a boolean, so a
+  // third page would be a change to the data and not to this component.
+  const [fnPage, setFnPage] = useState(0);
+  /*
+   * Memory, the previous answer, and the recent expressions.
+   *
+   * All three are session-scoped: they live here and are never written to
+   * storage. The previous answer is held as the whole result rather than as a
+   * number so its unit survives — see `asQuantity`.
+   */
+  const [memory, setMemory] = useState(null);
+  const [last, setLast] = useState(null);
+  const [history, setHistory] = useState([]);
+  // Closed by default: the window opens with the whole keypad visible, and the
+  // history is the one thing in it that is not part of a calculation. See the
+  // note on `.calc-history`.
+  const [historyOpen, setHistoryOpen] = useState(false);
   const inputRef = useRef(null);
 
   /*
@@ -428,49 +303,6 @@ export default function CalculatorDrawer({ open, onClose, store }) {
     inputRef.current?.focus();
   }, [open]);
 
-  const insert = useCallback((text) => {
-    setSrc((s) => s + text);
-    inputRef.current?.focus();
-  }, []);
-
-  const back = useCallback(() => {
-    setSrc((s) => s.slice(0, -1));
-    inputRef.current?.focus();
-  }, []);
-
-  const clear = useCallback(() => {
-    setSrc('');
-    inputRef.current?.focus();
-  }, []);
-
-  /*
-   * One key, drawn the same way on both blocks of the keypad.
-   *
-   * The function block and the digit block differ only in which rows they walk
-   * — the keys mean the same things — so they share this rather than each
-   * carrying its own copy that could drift in styling or in how a key with no
-   * `insert` is handled.
-   */
-  const renderKey = useCallback((k) => (
-    <button
-      key={k.label}
-      type="button"
-      className={`calc-key${k.fn ? ' is-fn' : ''}`}
-      // The wide `=` is the only spanning key, and a `span N` is a single
-      // property rather than a rule per width, so it is inline.
-      style={k.span ? { gridColumn: `span ${k.span}` } : undefined}
-      title={k.title ? t(`convert.calcKey_${k.title}`) : undefined}
-      onClick={() => {
-        if (k.action === 'clear') clear();
-        else if (k.action === 'back') back();
-        else if (k.action === 'equals') inputRef.current?.focus();
-        else insert(k.insert);
-      }}
-    >
-      {k.label}
-    </button>
-  ), [t, clear, back, insert]);
-
   /*
    * Degrees are a conversion at the edge, not a parser mode.
    *
@@ -487,16 +319,142 @@ export default function CalculatorDrawer({ open, onClose, store }) {
     );
   }, [src, degrees]);
 
-  const result = useMemo(() => {
+  /*
+   * The memory and the previous answer, as the engine's variable map.
+   *
+   * `ans` is the more recently useful of the two when they disagree, and it is
+   * the one a user types without thinking, so it is always the last result.
+   */
+  const vars = useMemo(() => {
+    const out = {};
+    const a = asQuantity(last);
+    if (a) out.ans = a;
+    const m = asQuantity(memory);
+    if (m) out.mem = m;
+    return out;
+  }, [last, memory]);
+
+  const live = useMemo(() => {
     const text = source.trim();
     if (text === '') return null;
     try {
-      const r = evaluate(text);
-      return { value: r.value, unit: r.unit, dimension: r.dimension, error: null };
+      const r = evaluate(text, vars);
+      return {
+        value: r.value, unit: r.unit, dimension: r.dimension, exponents: r.exponents, error: null,
+      };
     } catch (e) {
       return { value: null, error: errorMessage(e, t) };
     }
-  }, [source, t]);
+  }, [source, vars, t]);
+
+  /*
+   * A committed answer, held against the entry that produced it.
+   *
+   * ## Why the readout freezes on `=`
+   *
+   * `ans` is the previous answer, and `=` is what updates it. That makes the
+   * live evaluation self-referential: with `ans * 2` in the entry, pressing `=`
+   * sets `ans` to 40 — and the entry, still reading `ans * 2`, immediately
+   * re-evaluates against the *new* `ans` and shows 80. The number under the
+   * user's finger changes the moment they ask for it, and `M+` then stores the
+   * wrong one. Measured: `5 g / 250 mL`, `=`, `ans × 2`, `=`, `M+` put 80 g/L
+   * in the memory where the answer on screen was 40.
+   *
+   * The fix is the behaviour every physical calculator already has: press `=`
+   * and the answer is the answer. It stays put until the entry is edited, at
+   * which point it goes live again. The frozen value is keyed on the entry text
+   * that produced it, so an edit of any kind — a key, a backspace, a paste —
+   * releases it without anything having to remember to.
+   */
+  const [committed, setCommitted] = useState(null);
+
+  const result = useMemo(
+    () => (committed && committed.src === src ? committed.result : live),
+    [committed, src, live],
+  );
+
+  /*
+   * The last good result, and the recent expressions.
+   *
+   * Recorded on `=` rather than on every keystroke: a history of every
+   * intermediate state of one expression is not a history. `=` also moves the
+   * result into `ans`, which is what makes a chained calculation work without
+   * retyping — `5 g / 250 mL`, `=`, then `ans * 2`.
+   */
+  const evaluateNow = useCallback(() => {
+    const text = src.trim();
+    if (text === '' || result?.error || result?.value == null) return;
+    const next = {
+      value: result.value,
+      unit: result.unit ?? null,
+      exponents: result.exponents ?? [0, 0, 0, 0, 0, 0],
+      dimension: result.dimension ?? null,
+    };
+    setCommitted({ src, result: next });
+    setLast(next);
+    setHistory((h) => {
+      // A repeated expression is moved to the front rather than duplicated:
+      // pressing `=` twice on the same sum is a common accident, and two
+      // identical rows make the list look broken.
+      const without = h.filter((x) => x.text !== text);
+      return [{ text, ...next }, ...without].slice(0, HISTORY_LIMIT);
+    });
+  }, [src, result]);
+
+  /*
+   * What the actions need in order to run.
+   *
+   * Built once per render and handed to whichever action a key names. The
+   * registry itself lives in `calculator-actions.mjs` so the key tables can be
+   * checked against it without rendering anything — see `test/keypad.test.mjs`.
+   */
+  const actionCtx = useMemo(() => ({
+    setSrc,
+    setMemory,
+    result,
+    last,
+    memory,
+    commit: evaluateNow,
+    // Twelve significant figures, which is more than any bench measurement
+    // justifies and short enough that a recalled value does not push the rest
+    // of the entry out of the box.
+    formatNumber: (v) => Number(v.toPrecision(12)).toString(),
+  }), [result, last, memory, evaluateNow]);
+
+  const press = useCallback((k) => {
+    if (k.action) {
+      ACTIONS[k.action]?.(actionCtx);
+      // The entry keeps focus so a hardware keyboard can carry on typing after
+      // an on-screen key is pressed, which is how a hybrid device is used.
+      inputRef.current?.focus();
+      return;
+    }
+    setSrc((s) => s + k.insert);
+    inputRef.current?.focus();
+  }, [actionCtx]);
+
+  /*
+   * One key, drawn the same way on every row.
+   *
+   * The zones differ only in which class they carry — the keys mean the same
+   * things — so they share this rather than each carrying its own copy that
+   * could drift in styling or in how a key with no `insert` is handled.
+   */
+  const renderKey = useCallback((k) => (
+    <button
+      key={k.label}
+      type="button"
+      className={`calc-key is-${k.zone}${k.span ? ' is-wide' : ''}`}
+      // A spanning key is a single property rather than a rule per width, so it
+      // is inline. `gridColumn` is the one place the layout is data.
+      style={k.span ? { gridColumn: `span ${k.span}` } : undefined}
+      title={k.title ? t(`convert.calcKey_${k.title}`) : undefined}
+      aria-label={k.title ? t(`convert.calcKey_${k.title}`) : k.label}
+      onClick={() => press(k)}
+    >
+      {k.label}
+    </button>
+  ), [t, press]);
 
   // Escape closes, which is what every overlay in this app does.
   useEffect(() => {
@@ -556,6 +514,7 @@ export default function CalculatorDrawer({ open, onClose, store }) {
               className={`calc-mode${degrees ? ' is-on' : ''}`}
               aria-pressed={degrees}
               onClick={() => setDegrees((v) => !v)}
+              title={t('convert.calcAngleMode')}
             >
               {degrees ? 'DEG' : 'RAD'}
             </button>
@@ -582,6 +541,7 @@ export default function CalculatorDrawer({ open, onClose, store }) {
             value={src}
             placeholder={t('convert.calcPlaceholder')}
             onChange={(e) => setSrc(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') evaluateNow(); }}
             aria-label={t('convert.calcLabel')}
           />
 
@@ -596,6 +556,22 @@ export default function CalculatorDrawer({ open, onClose, store }) {
               </>
             )}
           </div>
+
+          {/*
+            The memory indicator.
+
+            It only appears once something has been stored, and it shows the
+            value rather than a bare "M" — a memory that says only that it is
+            occupied leaves the user to recall what is in it, which on a
+            calculator with an `M+` is the whole question.
+          */}
+          {memory && (
+            <div className="calc-mem" role="status">
+              <span className="calc-mem-tag">M</span>
+              <span className="calc-mem-value">{fmt(memory.value, 8)}</span>
+              {memory.unit && <span className="calc-mem-unit">{memory.unit}</span>}
+            </div>
+          )}
 
           {/* Filling the field behind the window is the reason the window can
               stay open at all. It appears only when a numeric field has been
@@ -634,41 +610,111 @@ export default function CalculatorDrawer({ open, onClose, store }) {
 
           <div className="calc-units" role="group" aria-label={t('convert.calcUnits')}>
             {UNIT_KEYS.map((u) => (
-              <button key={u} type="button" className="calc-chip" onClick={() => insert(` ${u}`)}>
+              <button key={u} type="button" className="calc-chip" onClick={() => setSrc((s) => `${s} ${u}`)}>
                 {u}
               </button>
             ))}
           </div>
 
-          {/* The page switch. It sits above the keypad rather than among the
-              keys so it is never mistaken for a key that inserts something —
-              every other button here types a character. */}
-          <button
-            type="button"
-            className={`calc-page${fnPage ? ' is-on' : ''}`}
-            aria-pressed={fnPage}
-            onClick={() => setFnPage((v) => !v)}
-            title={t('convert.calcMore')}
-          >
-            <Icons.calc size={ICON_SIZE.inline} aria-hidden="true" />
-            {fnPage ? t('convert.calcPage1') : t('convert.calcPage2')}
-          </button>
+          {/*
+            The page switch.
+
+            A two-segment control rather than a toggle, because there are two
+            pages and a toggle can only say "the other one" — with the page
+            count written on each segment, the user can see where they are
+            without pressing anything. It sits above the keypad rather than
+            among the keys so it is never mistaken for a key that inserts
+            something; every other button here types a character.
+          */}
+          <div className="calc-pages" role="group" aria-label={t('convert.calcMore')}>
+            {FN_PAGES.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`calc-page${fnPage === i ? ' is-on' : ''}`}
+                aria-pressed={fnPage === i}
+                onClick={() => setFnPage(i)}
+              >
+                <Icons.calc size={ICON_SIZE.inline} aria-hidden="true" />
+                {t(`convert.calcPage${i + 1}`)}
+              </button>
+            ))}
+          </div>
 
           <div className="calc-keypad" role="group" aria-label={t('convert.calcKeypad')}>
-            {(fnPage ? FN_KEYS : COMMON_KEYS).map((row, ri) => (
-              <div className="calc-row" key={ri}>
+            {/* Only the function rows swap. The memory row and the digits stay
+                put, so a user on either page can still type a number, recall
+                the answer and clear the entry. */}
+            {FN_PAGES[fnPage].map((row, ri) => (
+              <div className="calc-row" key={`fn-${ri}`}>
                 {row.map(renderKey)}
               </div>
             ))}
-            {/* The digits are not part of either page: they stay put while the
-                function rows above them swap, so a user on the second page can
-                still type a number. */}
-            {PAD_KEYS.map((row, ri) => (
-              <div className="calc-row" key={`pad-${ri}`}>
+            {MEMORY_KEYS.map((row, ri) => (
+              <div className="calc-row is-memory" key={`mem-${ri}`}>
+                {row.map(renderKey)}
+              </div>
+            ))}
+            {DIGIT_KEYS.map((row, ri) => (
+              <div className="calc-row" key={`dig-${ri}`}>
                 {row.map(renderKey)}
               </div>
             ))}
           </div>
+
+          {/*
+            The recent expressions, behind a disclosure.
+
+            Below the keypad rather than above it, and closed until asked for.
+            Both halves of that are about the same thing: the window's cap is
+            sized so the whole keypad is on screen when it opens, and a list
+            that grew under the keys as the user worked would push the keypad
+            up the window and move the digits under the thumb — the exact
+            failure the readout's `min-height` exists to prevent. Closed, it
+            takes no height at all; opened, it is capped and scrolls inside
+            itself, so the keypad moves once and then never again.
+
+            Tapping a row puts the expression back in the entry rather than
+            replaying it, so it can be edited before it is evaluated again —
+            which is what "that sum again with a different number" needs.
+          */}
+          {history.length > 0 && (
+            <div className={`calc-history${historyOpen ? ' is-open' : ''}`}>
+              <button
+                type="button"
+                className="calc-history-toggle"
+                aria-expanded={historyOpen}
+                onClick={() => setHistoryOpen((v) => !v)}
+              >
+                <Icons.history size={ICON_SIZE.inline} aria-hidden="true" />
+                {t('convert.calcHistory')}
+                <span className="calc-history-count">{history.length}</span>
+              </button>
+              {historyOpen && (
+                <>
+                  <ul>
+                    {history.map((h) => (
+                      <li key={h.text}>
+                        <button type="button" onClick={() => setSrc(h.text)} title={h.text}>
+                          <span className="calc-history-src">{h.text}</span>
+                          <span className="calc-history-out">
+                            {fmt(h.value, 8)}{h.unit ? ` ${h.unit}` : ''}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    className="calc-history-clear"
+                    onClick={() => setHistory([])}
+                  >
+                    {t('convert.calcHistoryClear')}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </aside>
     </>

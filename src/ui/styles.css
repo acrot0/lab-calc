@@ -2178,30 +2178,160 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .calc-chip:hover { background: var(--surface-3); border-color: var(--accent); color: var(--text); }
 
-/* The function-page switch. It reads as a small tab rather than a button,
-   because it is not an action — pressing it changes what the keypad shows, and
-   the label names the page you would get, not the one you are on. */
+/*
+ * The function-page switch, as a segmented control.
+ *
+ * Two segments rather than one toggle, because there are two pages and a toggle
+ * can only say "the other one" — a user cannot see from a single button whether
+ * they are on the first page or the second. Two segments, with the current one
+ * filled, answer that without a press.
+ *
+ * It reads as a tab strip rather than as a button because it is not an action:
+ * pressing it changes what the keypad shows, and nothing is inserted.
+ */
+.calc-pages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s1);
+  padding: var(--s1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
 .calc-page {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--s1);
-  width: 100%;
-  min-height: 30px;
-  padding: 0 var(--s3);
+  min-height: 28px;
+  padding: 0 var(--s2);
   background: transparent;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  border-radius: calc(var(--r-sm) - 1px);
   color: var(--text-dim);
   cursor: pointer;
   font: inherit;
   font-size: var(--t-xs);
-  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 
-.calc-page:hover { color: var(--text); border-color: var(--accent); background: var(--surface-2); }
+.calc-page:hover { color: var(--text); }
 
-.calc-page.is-on { border-style: solid; border-color: var(--accent); background: var(--surface-2); color: var(--accent); }
+.calc-page.is-on {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--accent);
+  font-weight: 550;
+}
+
+/*
+ * The recent calculations, as a disclosure.
+ *
+ * Closed, the toggle is one line and the list takes no height, so the window
+ * still opens with the whole keypad visible. Open, the list is capped and
+ * scrolls inside itself, so the keypad moves once — when the user asked for the
+ * list — and never again as they work. A list that grew under the keys would
+ * push the digits up the window mid-calculation, which is the exact failure the
+ * readout's `min-height` exists to prevent.
+ */
+.calc-history {
+  border-top: 1px solid var(--border);
+  padding-top: var(--s2);
+}
+
+.calc-history-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s2) 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.calc-history-toggle:hover { color: var(--text); }
+
+/* The count, so the toggle says whether opening it is worth the press. */
+.calc-history-count {
+  margin-left: auto;
+  padding: 1px var(--s2);
+  background: var(--surface-2);
+  border-radius: var(--r-full);
+  color: var(--text-mid);
+  font-family: var(--font-num);
+  letter-spacing: 0;
+}
+
+.calc-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Bounded so the keypad above it never moves by more than this. */
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calc-history li button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s2);
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.calc-history li button:hover { background: var(--surface-2); }
+
+/* The expression is the label, so it takes the space; the answer is the
+   annotation, and it must not wrap — a result split over two lines reads as
+   two results. */
+.calc-history-src {
+  font-family: var(--font-num);
+  font-size: var(--t-xs);
+  color: var(--text-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calc-history-out {
+  flex: none;
+  font-family: var(--font-num);
+  font-size: var(--t-xs);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.calc-history-clear {
+  width: 100%;
+  padding: var(--s2) 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-xs);
+  text-decoration: underline;
+}
+
+.calc-history-clear:hover { color: var(--accent); }
 
 /*
  * The keypad does not follow the density setting.
@@ -2228,6 +2358,30 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   gap: var(--s2);
 }
 
+/*
+ * The memory row is set apart by a little more air above it.
+ *
+ * It is the one row that does not swap when the function pages change, and the
+ * gap is what says so: without it the row reads as the fifth function row, and
+ * a user looking for `M+` on the second page would hunt for it among the
+ * functions rather than looking below them.
+ */
+.calc-row.is-memory { margin-top: var(--s2); }
+
+/*
+ * The keys, by zone.
+ *
+ * Colour is the whole mechanism. Four zones that differ only in position make
+ * the user read every label; four zones that differ in colour let the eye find
+ * the digits without reading anything, which is what a keypad is for. The
+ * distinction is carried on the *background and text colour* rather than on
+ * size, because a keypad with differently sized keys is harder to hit, not
+ * easier.
+ *
+ * The tints are low-chroma mixes against the surface rather than fixed colours,
+ * so the whole thing follows the theme and the material — a hardcoded blue
+ * would be wrong in the dark theme and wrong again under a different accent.
+ */
 .calc-key {
   min-height: 40px;
   padding: 0 var(--s2);
@@ -2244,12 +2398,84 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .calc-key:hover { background: var(--surface-3); border-color: var(--border-strong); }
 .calc-key:active { transform: translateY(1px); }
 
-/* Function keys are dimmer than digits: they are reached for less often, and
-   the visual weight should say so rather than the layout having to. */
+/*
+ * Digits: the brightest keys, because they are pressed most.
+ *
+ * A touch of the accent in the background and full-strength text — the eye
+ * lands here first, which is the correct order for a keypad.
+ */
+.calc-key.is-digit {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+  color: var(--text);
+  font-family: var(--font-num);
+  font-size: var(--t-md);
+}
+
+.calc-key.is-digit:hover { background: color-mix(in srgb, var(--accent) 13%, var(--surface-2)); }
+
+/* Operators: accent-tinted text, no fill. They are pressed almost as often as
+   digits, and a second filled zone would flatten the distinction. */
+.calc-key.is-op {
+  color: var(--accent);
+  font-size: var(--t-md);
+  font-weight: 550;
+}
+
+/* Functions: dimmer and smaller than digits, because they are reached for
+   deliberately rather than reflexively. The visual weight says so rather than
+   the layout having to. */
 .calc-key.is-fn { color: var(--text-mid); font-size: var(--t-xs); }
 
-.calc-key.is-wide { grid-column: span 2; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+/* Controls: the entry controls — clear, backspace, memory, brackets. Neutral
+   and slightly recessed, so they read as chrome rather than as content. */
+.calc-key.is-ctrl {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+}
+
+.calc-key.is-ctrl:hover { background: var(--surface-3); color: var(--text); }
+
+/* `=` is the exception: the one key every calculation ends with, so it wears
+   the accent in full and spans the row. */
+.calc-key.is-wide {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
 .calc-key.is-wide:hover { background: var(--accent-hover-solid, var(--accent-hover)); }
+
+/*
+ * The memory indicator.
+ *
+ * A single line, above the fill button, showing what is in the memory. It
+ * appears only once something has been stored: an always-present "M" that is
+ * empty most of the time is a control the user learns to ignore.
+ */
+.calc-mem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-num);
+  font-size: var(--t-sm);
+}
+
+.calc-mem-tag {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: var(--t-xs);
+  letter-spacing: 0.06em;
+}
+
+.calc-mem-value { color: var(--text); }
+.calc-mem-unit { color: var(--text-dim); font-size: var(--t-xs); }
 
 /*
  * Touch sizing for the calculator's controls.
@@ -2281,8 +2507,15 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   .calc-key { min-height: 44px; }
   .calc-mode { height: 44px; min-width: 56px; }
   .calc-chip { height: 44px; padding: 0 var(--s4); }
+  /* The segments of the page switch. The container's own padding is on top of
+     this, so the group is taller than 44px — but the target the thumb lands on
+     is the segment, and that is what has to clear the floor. */
   .calc-page { min-height: 44px; }
   .calc-fill { min-height: 44px; }
+  /* The history rows are targets too, and they were 30px. */
+  .calc-history-toggle { min-height: 44px; }
+  .calc-history li button { min-height: 44px; }
+  .calc-history-clear { min-height: 44px; }
   /* The close button is already 44px; the DEG/RAD toggle beside it was not, and
      two controls on one row should match. */
   .calc-head-actions .icon-btn { min-width: 44px; min-height: 44px; }
@@ -2337,7 +2570,7 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
       'readout keypad'
       'fill    keypad'
       'units   keypad'
-      'page    keypad';
+      'pages   keypad';
     gap: var(--s2) var(--s3);
     padding: var(--s3);
     align-content: start;
@@ -2351,7 +2584,12 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   .calc-readout { grid-area: readout; min-height: 0; }
   .calc-fill { grid-area: fill; }
   .calc-units { grid-area: units; }
-  .calc-page { grid-area: page; }
+  .calc-pages { grid-area: page; }
+  /* The memory indicator and the history are not placed: there is no room for
+     them in a 390px-tall layout, and the grid's explicit rows would leave them
+     unplaced and overflowing. The memory value is visible in the entry anyway
+     the moment `MR` is pressed, which is when it matters. */
+  .calc-mem, .calc-history { display: none; }
 
   /* The keypad owns the right column and the full height, and scrolls inside
      it. `min-height: 0` is what allows that: a grid item defaults to a minimum
