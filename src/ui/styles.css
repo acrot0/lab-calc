@@ -1210,9 +1210,15 @@ select.control {
  * 270px) and for a result table, and narrow enough that a button is a button.
  * Only the single-column case: a card with a results column is already two
  * ~460px columns at this width, and capping those would waste the layout.
+ *
+ * `:not(.is-elements)` for the same reason the two rules above carry it: the
+ * periodic table is not a form. Its `.card-main` holds an 18-column grid that
+ * needs the whole card, and the cap squeezed it to 201px against the 764px it
+ * wanted — every cell clipped, with the wrapper scrolling sideways to reach
+ * them. Measured before and after: 201px to 974px.
  */
 @container card (min-width: 620px) {
-  .card:not(:has(> .card-results)) > .card-main { max-width: 560px; }
+  .card:not(:has(> .card-results)):not(.is-elements) > .card-main { max-width: 560px; }
 }
 
 .row .field { max-width: none; }

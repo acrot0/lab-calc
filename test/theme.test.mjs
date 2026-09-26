@@ -205,3 +205,36 @@ describe('reduced motion', () => {
     expect(block).toMatch(/transform:\s*none/);
   });
 });
+
+/*
+ * The periodic table must not be capped like a form.
+ *
+ * `.card-main` is capped at 560px so a lone button is not a metre wide. That
+ * cap has to exempt the elements card — its main column holds an 18-column
+ * grid that needs the whole card — and the exemption was missing from the rule
+ * that applies the cap, so the table was squeezed to 201px against the 764px
+ * it wanted and every cell was clipped behind a horizontal scrollbar.
+ *
+ * The other two rules that lay out a card both carry `:not(.is-elements)`.
+ * This asserts the third one does too, so the next person to add a card-level
+ * rule sees the pattern rather than rediscovering it from a bug report.
+ */
+describe('card layout exceptions', () => {
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+
+  it('should exempt the elements card from the main-column cap', () => {
+    const rule = css.match(/@container card[^{]*\{[^}]*max-width:\s*560px[^}]*\}/);
+    expect(rule, 'the 560px cap rule was not found').not.toBeNull();
+    expect(rule[0]).toContain('.is-elements');
+    expect(rule[0]).toMatch(/:not\(\.is-elements\)/);
+  });
+
+  it('should exempt the elements card from the results-column grid', () => {
+    // The same exemption the cap needs, on the rule that splits a card in two.
+    expect(css).toMatch(/\.card:has\(> \.card-results\):not\(\.is-elements\)/);
+  });
+
+  it('should lay the elements card out as a block, not a grid', () => {
+    expect(css).toMatch(/\.card\.is-elements\s*\{\s*display:\s*block/);
+  });
+});
