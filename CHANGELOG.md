@@ -4,12 +4,56 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] — 2026-09-25
+## [0.6.0] — 2026-09-26
 
-Installable, and correct on a phone.
+Installable, correct on a phone, and able to do the arithmetic.
 
 ### Added
 
+- **Molecular biology — the first non-chemistry calculations in the app.** Every
+  one of the fifteen tabs was chemistry, so a biology lab's daily arithmetic was
+  not in the app at all, and it is the arithmetic most likely to be done wrong
+  at 6pm with a pipette in one hand. Nine calculations, each one a ratio:
+  nucleic-acid concentration by A260 with the coefficient as a *parameter*
+  (50/40/33 µg/mL for dsDNA, RNA and ssDNA — using 50 on an oligo overstates the
+  yield by half), path length and dilution corrected, which is what a NanoDrop's
+  short path needs; purity ratios 260/280 and 260/230 with a deliberately coarse
+  verdict, because a ratio cannot tell a little phenol from a lot and a number
+  presented as a diagnosis is worse than a number presented as a number;
+  dilution to a target returned as **volumes** rather than a fold factor, since
+  the fold is not what gets pipetted; oligo molarity, which refuses without a
+  sequence because an oligo's absorbance depends on its sequence; seeding
+  volume; doubling time, which throws on a decline rather than returning a
+  negative doubling time; RPM↔RCF; and the k-factor, the radius-independent way
+  to specify a centrifugation and therefore the only one that transfers between
+  rotors.
+  - **Michaelis–Menten by Hanes–Woolf, not Lineweaver–Burk.** The latter divides
+    by v, so the noisiest measurement — the smallest rate — gets the largest
+    weight. The fit is checked against data generated from known parameters and
+    r² is reported, so a fit that does not describe the data is visible.
+- **The enzyme kinetics curve, with the residual visible.** A table of Vmax, Km
+  and r² cannot show the thing that matters most about an assay: whether the
+  substrate range actually brackets Km. A fit from five points all far below Km
+  produces confident-looking parameters from data containing almost no
+  information about Vmax. Each measurement is drawn with a vertical tie to the
+  fitted curve — that segment *is* the residual — and Km and Vmax are dashed
+  guides, so whether Km falls inside the measured range is checkable rather than
+  inferable.
+- **A calculator that can actually do the arithmetic.** The keypad could not
+  reach most of what the parser understood. Now: two function pages with the
+  digits, brackets, clear and backspace on a block that does not swap; a comma
+  key, without which `hypot(`, `min(`, `max(` and `atan2(` open calls the keypad
+  cannot finish — a dead end on a phone, where the on-screen keypad is the only
+  keyboard there is; `mod` and `|x|`, with tooltips saying what `%` and `mod`
+  each do. The window was capped 100px shorter than the keypad it holds and
+  opened with its last two rows behind a scrollbar.
+- **Four more palettes** — Gruvbox and Solarized, dark and light, six to ten.
+  Both read from their own packages rather than transcribed. Three packages were
+  checked and rejected with reasons in the file: Nord, whose
+  `(Apache-2.0 AND CC-BY-SA-4.0)` would attach share-alike to this MIT
+  distribution; `solarized-colors`'s `index.js`, which is a verbatim copy of
+  gruvbox's hex values under a Solarized filename; and `base16` on npm, the same
+  stale gruvbox copy under a third name.
 - **An install offer, with the right instructions per platform.** An
   installable PWA says nothing about being installable — Chrome buries the
   entry in a menu, and iOS Safari has no menu item at all (Share → Add to Home
@@ -30,8 +74,145 @@ Installable, and correct on a phone.
   like a different app; the second lets a Chromium browser that understands it
   go a step beyond `standalone`.
 
+### Changed
+
+- **`2**10`, `1,000` and `mod` are accepted.** Three inputs that are unambiguous
+  arithmetic to a person but were parse errors here. `**` is tokenised as a
+  single `^` rather than added as a second operator, so precedence has one power
+  operator to reason about and the two spellings cannot drift apart. The
+  separators in `1,000` are stripped, never interpreted, and only the strict
+  grouping form is accepted — `1,00` stays a syntax error rather than being
+  silently read as 100, and the European form is deliberately not guessed at,
+  because guessing wrong is worse than refusing. `%` stays percent: in a lab
+  calculator a trailing percent means per hundred, so `0.9%` is a concentration
+  of 0.009, which is the reading this app exists to serve.
+- **The model now corrects for activity, ionic strength and temperature.** The
+  educational notice had said since the first release that all three were
+  ignored. Temperature moves pKa by the integrated van 't Hoff relation, and the
+  movement varies by two orders of magnitude across the buffers offered —
+  acetate drifts 0.002 units over 25 → 20 °C while Tris drifts 0.12 and 0.63
+  over 25 → 4 °C, so a buffer table with one number per buffer is wrong about
+  Tris by more than its useful range. Ionic strength is derived from the recipe
+  rather than asked for: a solution is neutral, so the counter-ion is whatever
+  balances the buffer's own charged species, and for phosphate that counter-ion
+  is the largest single contributor to I — counting only the buffer's own ions
+  understates it by a factor of 1.6. Activity by Davies, in both the weak-acid
+  solve and Henderson–Hasselbalch.
+  - **For a neutral weak acid the correction cancels**, and the module returns
+    that answer rather than manufacturing a shift: γ_H = γ_A, so acetic acid
+    moves 0.0008 units between I = 0 and I = 0.1. A calculator that "corrected"
+    acetic acid by 0.05 would teach a wrong mechanism. What it does fix is the
+    charged acids — phosphate's pKa2 solution moves 0.38 units at bench
+    concentration.
+- **The limitations notice is now split in two.** A notice that understates the
+  tool is its own kind of untruth: it teaches the user to distrust a number that
+  is better than they think. One column is what is corrected and where the
+  correction is valid; the other is what no tab models at all — CO₂ dissolution,
+  volume contraction, impurities and complexation, and non-buffered pH and every
+  titration curve, which still solve for an ideal solution. The README grows the
+  same split into a table with the numbers the correction produces (Tris at 4 °C
+  moves 7.37 → 8.08; phosphate at I = 0.2 moves −0.38).
+- **The first screen stopped carrying every tab.** Measured before: 236 KB
+  gzipped to draw the default tab; after, 186 KB. The whole app was in one
+  bundle, so opening it downloaded and parsed all sixteen tabs — the periodic
+  table with its SMILES renderer, two canvas-chart tabs, the print report, and a
+  hand-rolled ZIP-of-XML spreadsheet writer — before the first field appeared.
+  Sixteen chunks now, 0.9–12.6 KB each. The print report loads when the panel
+  mounts rather than at print time, because a print dialog does not wait for a
+  network fetch. `lucide-react` (33.7 MB on disk, referenced nowhere) is gone.
+- **The material toggle is gone.** On a machine with "reduce transparency"
+  switched on it was permanently disabled — correctly, because a user who asked
+  for less transparency must not be given more of it. But a control that is
+  always greyed out is indistinguishable from a broken button, and it was
+  reported as one. The honest fix is to stop offering a choice the OS has
+  already made: the preference is read and applied, and there is no button to be
+  confused by.
+- **The layout no longer jumps when a result appears, and the calculator stops
+  closing itself.** The card was a single grid with results placed into column 2
+  by `grid-column`, and CSS Grid *shares row heights across columns* — so a
+  282px result stretched row 1 for both columns and the primary button, which
+  belongs directly under the fields, was pushed down by the full height of the
+  result. Measured: the button moved 212px on every calculation. No grid tuning
+  fixes it; the shared row is what a grid is. The split is now two flow
+  contexts, so neither column can push the other, and the button moves 0px. The
+  calculator sat behind a full-screen scrim whose only job was to dismiss it —
+  the behaviour of a modal, for a window that is deliberately not one. It exists
+  so a number can be worked out *while* filling in the form behind it, and a
+  scrim that dismissed it on the first click into a field made it useless for
+  exactly that.
+- **Motion.** Three named durations and three curves, so a rule that wants
+  "something arrives" reaches for `--dur-enter` rather than a number. The tab
+  underline scales in from the centre rather than jumping, and the live
+  expression value slides in as it appears — the movement is how a user
+  discovers that a box labelled "volume" accepts `250*0.1/2`.
+  - Reduced motion keeps the meaning and drops the movement: the underline
+    fades instead of scaling, and the keyed reveals fall back to opacity only.
+
 ### Fixed
 
+- **A pasted expression was arithmetic, not a parse error.** Reported twice as
+  "the calculator still cannot paste". The paste always worked — the characters
+  arrived, the field showed them — and then the parser rejected them, which
+  reads as a refusal to accept a paste at all. Five separate causes, all
+  reachable by copy-paste, which is how a number actually gets into this app:
+  typographic operators (`×`, `÷`, U+2212 and the whole dash family — en, em,
+  figure, horizontal bar — each reported as "cannot parse"), because nobody
+  types `×`; fullwidth characters, which a Chinese IME produces by default and
+  which are indistinguishable from ASCII in the input box; superscripts
+  (`cm²`, `10⁻³` — rewritten to `cm^2` and `10^-3` deliberately *not* via
+  `String.normalize('NFKC')`, which maps `²` to a plain `2` and would turn `2²`
+  into twenty-two); and units the converter offers and the calculator could not
+  spell, because the identifier rule was ASCII-only and `µg`, `µm`, `Å`, `Ω`,
+  `kΩ` were all unreadable in an expression while working perfectly in the
+  converter.
+  - **`readNumberField` silently truncated.** It asked `looksLikeExpression`
+    first and fell back to `Number.parseFloat`, which stops at the first
+    non-digit: `1,234.5` pasted out of a spreadsheet became **1**, with no error
+    and a field that looked filled in. The evaluator now gets the first say and
+    the fallback is a strict numeric-literal test, because `parseFloat('1,00')`
+    is 1 and `parseFloat('0x10')` is 0 — a partial parse of something the
+    evaluator rejected is the worst failure this app can have.
+  - **`1 °C` was accepted as a factor-1 unit.** The refusal tested symbols
+    against a table keyed by the ASCII forms (`K`, `C`, `F`, `R`) while the unit
+    registry also holds the typographic `°C` and `°F`. A silent wrong answer is
+    worse than the parse error it replaced; the test is now by dimension.
+  - **`1 deg` and `1 turn` threw a raw TypeError** — `ratio` and `angle` have no
+    exponent vector by design, so the first arithmetic on it threw "Cannot read
+    properties of undefined", an English message with no error code and
+    therefore untranslatable.
+  - **`10^-3 M` was rejected** as "an exponent must be a plain number", because
+    the exponent parse swallowed the unit — the exact sequence the `10ˣ` keypad
+    key was added for.
+  - Measured before writing any of it: mathjs rejects all five paste cases too
+    and costs 654 KB minified. The problem was never the grammar.
+- **The calculator window stuck to the cursor, and could be stranded
+  off-screen.** Three defects in the drag, all found by driving a real mouse
+  rather than synthetic events. `setPointerCapture` was called on the window
+  while the move and up handlers were bound to the title bar; capture retargets
+  every subsequent event to the window, so the `pointerup` never reached it,
+  `drag.current` was never cleared, and the window kept following the cursor on
+  plain hover. Separately, the grab margin was 48px and the title bar's right end
+  holds the DEG/RAD toggle and the close button — at the left edge the entire
+  visible strip was the close button, on screen, apparently reachable, and
+  completely immovable. The margin is now 120px, and the margin test checks it
+  against the width of the controls it has to clear rather than asserting the
+  number.
+- **Every theme draws its own chart colours, not the dark ones.** Every canvas
+  chart took a `theme` prop and looked it up in a map with exactly two entries,
+  `dark` and `light` — but the prop is the palette *key*, so eight of the ten
+  palettes matched neither and fell through to the dark defaults. A chart on
+  Catppuccin Latte drew a white grid on a cream card. It went unnoticed because
+  the two themes the map happened to contain are the two everyone checks by
+  hand. Colours are now derived from the palette's own tokens, so there is no
+  list to forget to update. The equivalence marker also stops using the warning
+  colour: it is not a warning, it is a second reading of the same quantity, and
+  a correct titration that looked like something had gone wrong was the wrong
+  signal to send.
+- **The empty right column is back, and now has a test.** Moving the split into
+  `Card.jsx` reintroduced the defect the container query had been fixed for: the
+  results column rendered whenever a tab *had* `Result` elements, and a `Result`
+  with no value renders nothing — so ten of the fifteen tabs had a permanently
+  empty right half.
 - **The back gesture closed the app instead of the layer.** Installed, there is
   no browser back button, so the system gesture is the only way back — and with
   no history entries of our own it exited the app, taking whatever was typed
@@ -259,6 +440,7 @@ Installable, and correct on a phone.
 - 3-OS × 2-Node CI, plus a smoke test asserting known answers and a check for
   unused imports.
 
+[0.6.0]: https://github.com/acrot0/lab-calc/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/acrot0/lab-calc/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/acrot0/lab-calc/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/acrot0/lab-calc/compare/v0.2.0...v0.3.0
