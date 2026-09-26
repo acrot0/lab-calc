@@ -4,6 +4,53 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-09-26
+
+Two more charts on calculate.
+
+### Added
+
+- **The distribution over protonation states, on the pH tab.** The tab rests on
+  `[H⁺] ≈ √(Ka·C)`, and that approximation has a domain: it assumes the acid is
+  barely dissociated. A reader who has seen the distribution knows when the
+  formula applies without being told. Two things it shows that the formula
+  hides — the curves cross at exactly pH = pKa, and by pKa + 2 the acid form is
+  99% gone, which is where the approximation has already failed. The tab's own
+  warning says the same thing; this is that claim made checkable.
+  - Species are coloured by rank rather than by identity: a palette has a
+    handful of distinguishable hues and phosphoric acid has four states, so
+    identity colouring would need a generator and would produce two greens
+    nobody can tell apart. The order is the information, so the ramp follows it
+    and a markup legend carries the names — readable at any zoom, and reachable
+    by a screen reader.
+- **The Nernst line, on the electrochemistry tab.** E depends on Q
+  logarithmically, so the question that usually matters is not "what is E now"
+  but "how much can Q move before the cell stops driving the reaction". Drawn,
+  that distance is visible; tabulated it is a number the reader solves for. The
+  slope is RT·ln10/nF, so the line's steepness *is* the n and the temperature
+  the tab is set to.
+  - **The x range brackets the operating point by one decade and does not
+    stretch to reach E = 0.** The first version did stretch, on the argument
+    that the crossing is the point of the plot. It is not, for most cells:
+    log₁₀K is nE°/0.05916, so a Daniell cell reaches equilibrium at log Q ≈ 37.
+    Drawing 38 decades to reach it squashed the line into a sliver with 95% of
+    the canvas empty. The crossing is drawn when it falls inside the window and
+    the caption changes when it does not — two captions, because promising a
+    crossing the axis cannot reach is a caption describing a picture the reader
+    is not looking at. The marker's presence therefore means "within a decade of
+    equilibrium", which is a fact about the cell rather than an accident of the
+    axis.
+
+### Changed
+
+- **`niceTicks` moved to `chart-axis.mjs` and learned a non-zero minimum.** A
+  second chart needed it, and the alternative was importing an axis helper from
+  one plot component into another — which would make the second depend on the
+  first's file for a reason that has nothing to do with either chart. The
+  non-zero case is what the Nernst y axis needs: over a one-decade window the
+  potential moves by hundredths of a volt, and the old zero-based sequence put
+  every tick outside the plotted range.
+
 ## [0.6.0] — 2026-09-26
 
 Installable, correct on a phone, and able to do the arithmetic.
@@ -440,6 +487,7 @@ Installable, correct on a phone, and able to do the arithmetic.
 - 3-OS × 2-Node CI, plus a smoke test asserting known answers and a check for
   unused imports.
 
+[0.7.0]: https://github.com/acrot0/lab-calc/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/acrot0/lab-calc/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/acrot0/lab-calc/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/acrot0/lab-calc/compare/v0.3.0...v0.4.0
