@@ -1196,6 +1196,10 @@ export const en = {
 
     // Physical chemistry
     kineticsOrderUnsupported: 'Only reaction orders 0, 1 and 2 are supported ({order} given). Higher integer orders have different integrated rate laws and cannot be substituted.',
+    lodTooFewBlanks: 'A detection limit needs at least {min} blank replicates ({n} given). One blank has no standard deviation, and the 3.3 constant is calibrated for seven or more.',
+    chromatographySameRetention: 'Both peaks have the same retention time, so there is no resolution to compute — they are one peak.',
+    chromatographyUnretained: 'The retention time ({retention}) is not longer than the void time ({voidTime}), so the analyte is not retained by the stationary phase and has no meaningful capacity factor.',
+    chromatographyUnknownWidthBasis: 'Unknown peak width basis "{basis}". Half-height width uses 5.54 and baseline width uses 16 — the wrong constant overstates the plate count by nearly 3x.',
     arrheniusTooFewPoints: 'An Arrhenius fit needs at least 3 temperatures ({n} given). Two points lie exactly on a line, so the activation energy comes back with no uncertainty at all — the most misleading answer available.',
     alphaOutOfRange: 'The degree of dissociation must be between 0 and 1 ({alpha} given). At 1 the electrolyte is fully dissociated and the denominator of Ostwald’s dilution law is zero.',
     crossoverUndefinedEntropy: 'With ΔS at zero there is no crossover temperature. The entropy term of ΔG = ΔH − TΔS vanishes entirely, so ΔG stops depending on temperature.',

@@ -1201,6 +1201,10 @@ export const zh = {
 
     // 物理化学
     kineticsOrderUnsupported: '动力学级数只支持 0、1、2 级（当前为 {order}）。更高整数级数的积分速率方程形式不同，不能套用。',
+    lodTooFewBlanks: '检出限至少需要 {min} 个空白重复读数（当前 {n} 个）。单个空白没有标准差，而 3.3 这个常数正是按至少 7 次重复标定的。',
+    chromatographySameRetention: '两个峰的保留时间相同，无法计算分离度——它们本来就是同一个峰。',
+    chromatographyUnretained: '保留时间（{retention}）不长于死时间（{voidTime}），说明该组分完全不被固定相保留，容量因子无意义。',
+    chromatographyUnknownWidthBasis: '未知的峰宽类型 "{basis}"。半高峰宽用 5.54，基线峰宽用 16——用错常数会把塔板数夸大近 3 倍。',
     arrheniusTooFewPoints: 'Arrhenius 拟合至少需要 3 个温度点（当前 {n} 个）。两点能精确连成一条直线，算出的活化能没有任何不确定度——那是最容易误导人的答案。',
     alphaOutOfRange: '解离度必须在 0 与 1 之间（当前为 {alpha}）。1 表示完全解离，此时 Ostwald 稀释定律的分母为 0。',
     crossoverUndefinedEntropy: 'ΔS 为 0 时没有转变温度。ΔG = ΔH − TΔS 里的熵项整个消失，ΔG 不再随温度变化。',
