@@ -141,7 +141,18 @@ try {
 
   check('页面标题正确', dom.title.includes('Lab Calc'), dom.title);
   check('React 已挂载', dom.rootChildren > 0, `#root 子节点 ${dom.rootChildren}`);
-  check('15 个标签页都在', dom.tabs === 15, `${dom.tabs} 个`);
+  /*
+   * Read from the source rather than hardcoded.
+   *
+   * The count was written as 15 and went stale the moment a tab was added — a
+   * passing build then reported a failure, which trains the reader to ignore
+   * the check. Counting the tab files keeps the assertion about the thing that
+   * matters (every tab reached the package) instead of about a number that has
+   * to be maintained by hand.
+   */
+  const tabFiles = fs.readdirSync(path.join(ROOT, 'src', 'ui', 'tabs'))
+    .filter((f) => f.endsWith('.jsx')).length;
+  check(`${tabFiles} 个标签页都在`, dom.tabs === tabFiles, `${dom.tabs} 个`);
   check('样式已加载', dom.hasStyles, dom.bg);
   check('页面有内容', dom.bodyLen > 100, `${dom.bodyLen} 字符`);
 

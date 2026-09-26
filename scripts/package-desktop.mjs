@@ -20,6 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -46,8 +47,13 @@ const die = (msg) => {
 // ---------------------------------------------------------------- 1. build
 
 if (!NO_BUILD) {
-  step('构建前端 …');
-  execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit', shell: true });
+  /*
+   * `--mode desktop` disables code splitting, which `file://` cannot use: a
+   * dynamic `import()` is refused there, so a split build renders a blank
+   * window. See the note in vite.config.js.
+   */
+  step('构建前端（desktop 模式，单文件）…');
+  execFileSync('npm', ['run', 'build', '--', '--mode', 'desktop'], { cwd: ROOT, stdio: 'inherit', shell: true });
 }
 
 const distDir = path.join(ROOT, 'dist');
@@ -215,9 +221,12 @@ fs.writeFileSync(
  *
  * 1. `type="module"` is refused under the file protocol — module scripts are
  *    subject to CORS, and a file:// origin is opaque, so the app loads a blank
- *    page with a console error. The bundle is a single self-contained file with
- *    no import statements, so dropping the attribute changes nothing about how
- *    it executes.
+ *    page with a console error. What replaces it must therefore be valid
+ *    classic script, which is what the desktop build is: `--mode desktop` emits
+ *    an IIFE, with neither `import.meta` nor dynamic `import()`. That is not a
+ *    detail this rewrite can assume — a module build left the attribute
+ *    stripped and the bundle unparseable, and the window stayed blank. The
+ *    check below the rewrite is what holds the two ends together.
  *
  * 2. `defer` must replace what `type="module"` was silently providing. Module
  *    scripts are deferred by definition, so the bundle ran after the document
@@ -330,6 +339,97 @@ function trimLocales(dir) {
 const trimmed = trimLocales(outDir);
 if (trimmed) step(`精简语言包（删 ${trimmed.removed} 个，省 ${trimmed.mb} MB）`);
 
+// ------------------------------------------------------ 8b. trim graphics stack
+
+/**
+ * Drop the GPU translation layers this app cannot reach.
+ *
+ * Electron ships Chromium's whole graphics stack, and this app draws with the
+ * 2D canvas API and the DOM — no WebGL, no WebGPU, no video. That leaves four
+ * binaries with no caller:
+ *
+ *   dxcompiler.dll / dxil.dll   the DirectX shader compiler and its output
+ *                               container; only WebGPU/D3D shader compilation
+ *                               reaches these
+ *   d3dcompiler_47.dll          the older HLSL compiler, for the same reason
+ *   vk_swiftshader.dll          a software Vulkan implementation, used as a
+ *                               fallback when no GPU driver answers
+ *   vulkan-1.dll                the Vulkan loader those two go through
+ *
+ * 36 MB of the 322 MB build, which is a sixth of it, for code that never runs.
+ *
+ * ## Why this is allowed to be wrong
+ *
+ * Removing a DLL Chromium does want is not a subtle failure — the process dies
+ * at startup with a missing-import error, which is loud and immediate. So the
+ * list is short, every entry has no caller in a 2D-only app, and the packaged
+ * build is smoke-tested before it is shipped (`scripts/test-desktop.mjs` drives
+ * the real executable and asserts the app renders and computes). A build that
+ * survives that test has loaded everything it needs.
+ *
+ * It is still a size optimisation and not a correctness one, so a missing file
+ * is skipped rather than failing the build, and the count is reported so a run
+ * that removed nothing is visible instead of silent.
+ */
+function trimGraphics(dir) {
+  const removable = [
+    'dxcompiler.dll', 'dxil.dll', 'd3dcompiler_47.dll',
+    'vk_swiftshader.dll', 'vulkan-1.dll',
+    // The SwiftShader ICD manifest, which describes a Vulkan driver that is no
+    // longer present once the DLL above is gone.
+    'vk_swiftshader_icd.json',
+  ];
+  let removed = 0;
+  let bytes = 0;
+  for (const file of removable) {
+    const p = path.join(dir, file);
+    if (!fs.existsSync(p)) continue;
+    bytes += fs.statSync(p).size;
+    fs.rmSync(p);
+    removed++;
+  }
+  return removed === 0 ? null : { removed, mb: (bytes / 1024 / 1024).toFixed(0) };
+}
+
+const gfx = trimGraphics(outDir);
+if (gfx) step(`精简图形层（删 ${gfx.removed} 个，省 ${gfx.mb} MB）`);
+
+/**
+ * Shrink the Chromium licence file.
+ *
+ * Electron ships `LICENSES.chromium.html`, 19.5 MB of every licence in the
+ * Chromium tree, and MIT requires the notices to travel with the binary. The
+ * obligation is to *include* them, not to ship them uncompressed in a form
+ * nobody opens — so the file is replaced by a gzipped copy beside a short
+ * pointer, and the notices are still present and still readable.
+ *
+ * Nothing is deleted and nothing is summarised: a licence text that has been
+ * edited is no longer the licence, so the whole file is kept, just compressed.
+ */
+function compressLicences(dir) {
+  const src = path.join(dir, 'LICENSES.chromium.html');
+  if (!fs.existsSync(src)) return null;
+  const before = fs.statSync(src).size;
+  const gz = zlib.gzipSync(fs.readFileSync(src), { level: 9 });
+  fs.writeFileSync(`${src}.gz`, gz);
+  fs.rmSync(src);
+  fs.writeFileSync(
+    path.join(dir, 'LICENSES.chromium.html.txt'),
+    'Chromium 及其依赖的开源许可全文见同目录的 LICENSES.chromium.html.gz。\n'
+    + '解压方式：7z x LICENSES.chromium.html.gz，或任何 gzip 工具。\n\n'
+    + 'The full text of every open-source licence in Chromium and its\n'
+    + 'dependencies is in LICENSES.chromium.html.gz beside this file.\n'
+    + 'Decompress with: 7z x LICENSES.chromium.html.gz, or any gzip tool.\n',
+    'utf8',
+  );
+  return { before, after: gz.length };
+}
+
+const lic = compressLicences(outDir);
+if (lic) {
+  step(`压缩许可全文（${(lic.before / 1048576).toFixed(1)} → ${(lic.after / 1048576).toFixed(1)} MB）`);
+}
+
 // ------------------------------------------------------------- 9. readme
 
 const readme = `Lab Calc ${pkg.version} — 实验室溶液计算器（免安装版）
@@ -344,7 +444,14 @@ ${'='.repeat(52)}
 ----------
 · 完全离线：所有计算在本机完成，不联网、不上传任何数据
 · 计算记录自动保存在本机（localStorage），关掉再开还在
-· 中英双语，可导出 CSV / Markdown
+· 中英双语，可导出 Excel / CSV / Markdown / PDF 报告
+· 16 个计算页签、118 元素周期表、6 张计算图表
+
+体积说明
+--------
+本版本已删除运行时用不到的图形层（DirectX 着色器编译器、软件 Vulkan
+回退），并把 Chromium 的许可全文压缩存放——共省约 55 MB。应用只用
+2D 绘图，不触碰这些组件；打包后已跑过启动与计算冒烟测试。
 
 计算记录存在哪
 --------------
@@ -362,7 +469,9 @@ Windows 用户数据目录下，Electron 的 profile 文件夹内。删掉那个
 
 许可
 ----
-MIT · 界面图标来自 Lucide (ISC) · 字体 Inter (OFL-1.1)
+MIT · 界面图标 Phosphor Icons (MIT) · 字体 Geist / Space Grotesk /
+JetBrains Mono (OFL-1.1) · Instrument Serif (OFL-1.1)
+Chromium 及其依赖的许可全文见 LICENSES.chromium.html.gz
 `;
 
 fs.writeFileSync(path.join(outDir, 'README.txt'), readme, 'utf8');
@@ -385,7 +494,66 @@ if (missing.length > 0) {
 // the bundle is confirmed to have come along too.
 const assets = fs.readdirSync(path.join(appDir, 'app', 'assets'));
 if (!assets.some((f) => f.endsWith('.js'))) die('app/assets 里没有 JS bundle。');
-if (!assets.some((f) => f.endsWith('.css'))) die('app/assets 里没有 CSS。');
+
+/** The entry bundle, which every check below reads. */
+const entry = assets.find((f) => /^index-.*\.js$/.test(f));
+if (!entry) die('app/assets 里没有 index-*.js 入口。');
+const entrySrc = fs.readFileSync(path.join(appDir, 'app', 'assets', entry), 'utf8');
+
+/*
+ * The stylesheet may be its own file or inlined in the bundle.
+ *
+ * An ES build extracts CSS to `assets/index-*.css` and links it from the HTML.
+ * An IIFE build has no chunk system to extract into, so Vite injects the rules
+ * at run time with `document.createElement('style')` and emits no `.css` file
+ * at all — which is the format the desktop build uses. Requiring a `.css` file
+ * therefore failed a build whose styles were present, just not where the check
+ * was looking.
+ *
+ * The real question is whether the styles made it, so that is what is asked:
+ * either a stylesheet beside the bundle, or style injection inside it.
+ */
+const hasCssFile = assets.some((f) => f.endsWith('.css'));
+const hasInlineCss = /createElement\(\s*[`'"]style[`'"]\s*\)/.test(entrySrc);
+if (!hasCssFile && !hasInlineCss) die('既没有 CSS 文件，bundle 里也没有内联样式。');
+
+/**
+ * Refuse to package a bundle that cannot run as a plain script.
+ *
+ * The HTML rewrite below strips `type="module"`, because `file://` refuses
+ * module scripts. Whatever is left has to be valid *classic* script — and two
+ * things a module build emits are not:
+ *
+ *   `import.meta`  a syntax error outside a module; the whole script fails to
+ *                  parse and the window stays blank. This shipped: the bundle
+ *                  was single-file and still dead, because Vite's preload
+ *                  helper uses `import.meta.url` and is injected whether or not
+ *                  code splitting is on.
+ *   `import(`      resolves relative to the document, which `file://` refuses.
+ *
+ * Both are checked on the emitted code rather than on the build mode, because
+ * the mode is a request and this is the result: if a future Vite changes what
+ * `format: 'iife'` does, this still catches it. `scripts/test-desktop.mjs`
+ * remains the real proof — it drives the executable — but it needs a running
+ * app to say so, and this costs a string search.
+ */
+if (/import\.meta/.test(entrySrc)) {
+  die(
+    '入口 bundle 含 import.meta —— 非模块脚本里是语法错误，file:// 下白屏。\n'
+    + '  构建时应带 --mode desktop（见 vite.config.js 的 format: iife）。',
+  );
+}
+if (/\bimport\s*\(/.test(entrySrc)) {
+  die(
+    '入口 bundle 含动态 import() —— file:// 下会被拒绝。\n'
+    + '  构建时应带 --mode desktop（见 vite.config.js 的 codeSplitting: false）。',
+  );
+}
+const chunkCount = assets.filter((f) => f.endsWith('.js')).length;
+if (chunkCount > 1) {
+  die(`app/assets 里有 ${chunkCount} 个 JS 文件 —— 桌面版必须是单文件，见上。`);
+}
+step(`入口 bundle 可作普通脚本运行（${entry}，无 import.meta / 动态 import）`);
 
 const sizeMb = (dir) => {
   let total = 0;
