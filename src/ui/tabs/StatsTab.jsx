@@ -105,8 +105,14 @@ export default function StatsTab({ onRecord, restored }) {
       const attempt = (fn) => {
         try { return { value: fn(), error: null }; } catch (e) { return { value: null, error: e }; }
       };
-      const t = b.length >= 2 ? attempt(() => tTest(a, b)) : { value: null, error: null };
-      const f = b.length >= 2 ? attempt(() => fTest(a, b)) : { value: null, error: null };
+      // NOT `t` and `f`: `t` is the translator from useI18n, and binding it to
+      // the t-test result shadowed it for the rest of this function — so the
+      // recordSummary call below passed a result object where a translator was
+      // expected, and the tab reported "t is not a function" instead of
+      // recording anything. The minified build renamed the binding, which is
+      // why the same defect read "n is not a function" in production.
+      const tResult = b.length >= 2 ? attempt(() => tTest(a, b)) : { value: null, error: null };
+      const fResult = b.length >= 2 ? attempt(() => fTest(a, b)) : { value: null, error: null };
       const result = {
         confidence: conf,
         describeA: describeStats(a),
@@ -117,10 +123,10 @@ export default function StatsTab({ onRecord, restored }) {
         describeB: b.length >= 2 ? describeStats(b) : null,
         rsdB: b.length >= 2 ? rsd(b) : null,
         intervalB: b.length >= 2 ? meanConfidenceInterval(b, { confidence: conf }) : null,
-        tTest: t.value,
-        tTestError: t.error,
-        fTest: f.value,
-        fTestError: f.error,
+        tTest: tResult.value,
+        tTestError: tResult.error,
+        fTest: fResult.value,
+        fTestError: fResult.error,
       };
       setOut(result);
       setErr(null);
