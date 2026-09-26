@@ -15,6 +15,7 @@ import {
   DIGIT_KEYS, FN_PAGES, MEMORY_KEYS, UNIT_KEYS,
 } from './calculator-keys.mjs';
 import { ACTIONS, asQuantity } from './calculator-actions.mjs';
+import UnitConverter from './UnitConverter.jsx';
 
 /** Where the window was last left, so it reopens where the user put it. */
 const POSITION_KEY = 'lab-calc.calcPos.v1';
@@ -78,6 +79,9 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   // Which function page the keypad shows. An index rather than a boolean, so a
   // third page would be a change to the data and not to this component.
   const [fnPage, setFnPage] = useState(0);
+  // Which of the window's two panels is showing: the calculator or the unit
+  // converter. See the note on `.calc-tabs`.
+  const [panel, setPanel] = useState('calc');
   /*
    * Memory, the previous answer, and the recent expressions.
    *
@@ -530,6 +534,58 @@ export default function CalculatorDrawer({ open, onClose, store }) {
           </div>
         </header>
 
+        {/*
+          The panel switch.
+
+          A calculator and a unit converter answer the same question at two
+          levels — "what is 5 g over 250 mL" and "what is 25 °C in K" — and
+          keeping them in one window means neither needs the other's screen.
+          The tab strip is above the body so it reads as a property of the
+          window rather than of the entry, which is what it is.
+
+          The keypad is not rendered while the converter is showing: the digits
+          and `=` would be dead keys there, and a key that does nothing reads as
+          a broken window rather than as a different panel.
+        */}
+        <div className="calc-tabs" role="tablist" aria-label={t('convert.calcTitle')}>
+          <button
+            type="button"
+            role="tab"
+            className={`calc-tab${panel === 'calc' ? ' is-on' : ''}`}
+            aria-selected={panel === 'calc'}
+            onClick={() => setPanel('calc')}
+          >
+            <Icons.calc size={ICON_SIZE.inline} aria-hidden="true" />
+            {t('convert.mode_calc')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`calc-tab${panel === 'units' ? ' is-on' : ''}`}
+            aria-selected={panel === 'units'}
+            onClick={() => setPanel('units')}
+          >
+            <Icons.convert size={ICON_SIZE.inline} aria-hidden="true" />
+            {t('convert.mode_convert')}
+          </button>
+        </div>
+
+        {panel === 'units' && (
+          <div className="calc-body">
+            <UnitConverter
+              compact
+              onFill={canFillHere ? (v) => {
+                if (fillField(Number(v.toPrecision(12)).toString())) {
+                  setFilled(true);
+                  window.setTimeout(() => setFilled(false), 1600);
+                }
+              } : null}
+            />
+            {filled && <p className="calc-filled-note">{t('convert.calcFilled')}</p>}
+          </div>
+        )}
+
+        {panel === 'calc' && (
         <div className="calc-body">
           <input
             ref={inputRef}
@@ -716,6 +772,7 @@ export default function CalculatorDrawer({ open, onClose, store }) {
             </div>
           )}
         </div>
+        )}
       </aside>
     </>
   );

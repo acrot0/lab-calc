@@ -49,9 +49,25 @@ describe('clampPosition', () => {
     expect(clampPosition({ x: 0, y: -500 }, SIZE, VIEW).y).toBe(0);
   });
 
-  it('should keep the title bar on screen when dragged below', () => {
+  it('should land the whole window on screen when it fits', () => {
+    // A window that fits must fit entirely. The earlier rule kept only the grab
+    // margin, which parked a 560px window at y=780 on a 900px viewport — the
+    // bottom 440px, including the `=` key, below the screen with no way to
+    // scroll to it.
+    expect(SIZE.height + GRAB_MARGIN).toBeLessThanOrEqual(VIEW.height);
     const p = clampPosition({ x: 0, y: 99999 }, SIZE, VIEW);
+    expect(p.y).toBe(VIEW.height - SIZE.height);
+    expect(p.y + SIZE.height).toBe(VIEW.height);
+  });
+
+  it('should keep the title bar on screen when the window is taller than the viewport', () => {
+    // The other case, and the one the margin exists for: a window that cannot
+    // fit has to overflow somewhere, and it must be the bottom rather than the
+    // top, because the title bar is what the user grabs.
+    const tall = { width: 420, height: VIEW.height + 200 };
+    const p = clampPosition({ x: 0, y: 99999 }, tall, VIEW);
     expect(p.y).toBe(VIEW.height - GRAB_MARGIN);
+    expect(p.y).toBeGreaterThanOrEqual(0);
   });
 
   it('should produce a position inside the viewport for any input', () => {

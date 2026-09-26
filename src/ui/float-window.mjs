@@ -60,14 +60,28 @@ export function defaultPosition(size, viewport, inset = DEFAULT_INSET) {
  * `min` is `GRAB_MARGIN - width`, not zero: the window may hang off the left
  * edge until only the margin is left. `max` is `viewport.width - GRAB_MARGIN`,
  * for the mirror reason.
+ *
+ * ## The vertical ceiling is the window's own bottom, not the grab margin
+ *
+ * A window taller than the viewport has to overflow somewhere, and the only
+ * useful place is the bottom: the title bar is what the user grabs, so the
+ * floor is zero and the overflow goes below. But a window that *fits* must fit
+ * entirely — the first version used `viewport.height - margin` for both cases,
+ * which on a 900px viewport parked a 669px window at y=334 and put its last
+ * 104px, including the `=` key, permanently below the screen with no way to
+ * scroll to it.
+ *
+ * So the ceiling is the smaller of the two: either the window's bottom edge
+ * lands on the viewport's, or the grab margin is kept when there is not enough
+ * room for both.
  */
 export function clampPosition(pos, size, viewport, margin = GRAB_MARGIN) {
   const minX = margin - size.width;
   const maxX = viewport.width - margin;
   const minY = 0;
-  // Vertically the title bar must stay on screen, so the floor is zero and the
-  // ceiling leaves the bar visible rather than the window's full height.
-  const maxY = viewport.height - margin;
+  const maxY = size.height + margin <= viewport.height
+    ? viewport.height - size.height
+    : viewport.height - margin;
   return {
     x: Math.min(maxX, Math.max(minX, pos.x)),
     y: Math.min(maxY, Math.max(minY, pos.y)),

@@ -2203,12 +2203,62 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .calc-mode.is-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 
+/*
+ * The window's panel switch: calculator, or unit converter.
+ *
+ * A tab strip rather than a segmented control, and attached to the window
+ * rather than sitting in the body: it changes what the whole window is, and a
+ * control that swaps the panel belongs with the title, not inside the panel it
+ * is about to replace.
+ */
+.calc-tabs {
+  display: flex;
+  gap: var(--s1);
+  padding: 0 var(--s5);
+  border-bottom: 1px solid var(--border);
+}
+
+.calc-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: none;
+  border: none;
+  /* The underline is drawn on the bottom edge, which the border-bottom of the
+     strip above already occupies — so it is a box-shadow rather than a border,
+     which would add a pixel and shift the row. */
+  box-shadow: inset 0 -2px 0 transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  transition: color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.calc-tab:hover { color: var(--text-mid); }
+
+.calc-tab.is-on {
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
 .calc-body {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
   padding: var(--s5);
   overflow-y: auto;
+}
+
+/* Confirmation after a value is written into the field behind the window, in
+   the converter panel — the calculator's own confirmation is on its button. */
+.calc-filled-note {
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--t-sm);
 }
 
 .calc-input {
