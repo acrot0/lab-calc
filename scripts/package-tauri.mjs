@@ -123,19 +123,26 @@ try {
 /**
  * Locate the artefacts.
  *
- * Tauri writes the executable and the installer under `target/release`, and the
- * installer's name carries the version — so the directory is searched rather
- * than a filename composed, which would break on the next version bump.
+ * The executable is named after the **crate**, not after `productName`: the
+ * Cargo package is `lab-calc`, so the binary is `lab-calc.exe` even though the
+ * window title and the installer say "Lab Calc". Composing the path from
+ * `productName` finds nothing and reports a build that succeeded as incomplete.
+ *
+ * The installer's name carries the version, so the directory is searched rather
+ * than a filename composed — that one would break on the next version bump.
  */
 const releaseDir = path.join(ROOT, 'src-tauri', 'target', 'release');
-const exe = path.join(releaseDir, 'Lab Calc.exe');
 const nsisDir = path.join(releaseDir, 'bundle', 'nsis');
+
+const exeName = fs.readdirSync(releaseDir)
+  .find((f) => f.endsWith('.exe') && !f.startsWith('build-script'));
+const exe = exeName ? path.join(releaseDir, exeName) : null;
 
 const installers = fs.existsSync(nsisDir)
   ? fs.readdirSync(nsisDir).filter((f) => f.endsWith('.exe'))
   : [];
 
-if (!fs.existsSync(exe)) die('没有找到 target/release/Lab Calc.exe —— 构建可能没跑完。');
+if (!exe) die('target/release 里没有可执行文件 —— 构建可能没跑完。');
 if (installers.length === 0) die('没有找到 NSIS 安装包。');
 
 const mb = (p) => (fs.statSync(p).size / 1024 / 1024).toFixed(1);
@@ -151,7 +158,7 @@ const installer = path.join(nsisDir, installers[0]);
  */
 const exeMb = Number(mb(exe));
 if (exeMb < 1) {
-  die(`Lab Calc.exe 只有 ${exeMb} MB —— 前端资源可能没打进去，会白屏。`);
+  die(`${path.basename(exe)} 只有 ${exeMb} MB —— 前端资源可能没打进去，会白屏。`);
 }
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));

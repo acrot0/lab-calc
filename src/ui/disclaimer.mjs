@@ -42,8 +42,19 @@ export const DISCLAIMER_POINTS = [
   {
     titleZh: '模型是简化的',
     titleEn: 'The model is simplified',
-    zh: '缓冲体系已校正活度系数、温度对 pKa 的影响与离子强度（Davies 方程，在 I ≤ 0.5 mol/L 内可靠）；其余页面仍按理想溶液处理。所有页面都不考虑 CO₂ 溶解、溶剂体积收缩、杂质与络合平衡。非缓冲体系的 pH 与滴定曲线在等当点附近均为近似值。',
-    en: 'Buffer systems correct for activity coefficients, the temperature dependence of pKa, and ionic strength (Davies equation, reliable to I ≤ 0.5 mol/L); the other tabs still treat solutions as ideal. No tab models dissolved CO₂, volume contraction on mixing, impurities, or complexation equilibria. Non-buffered pH values and titration curves are approximate near an equivalence point.',
+    /*
+     * Which tabs correct for activity, stated as a list rather than as "the
+     * buffer tab and not the others".
+     *
+     * The earlier wording was true when only the buffer tab corrected, and
+     * became false the moment the pH tab did — in the one place a user is most
+     * likely to read carefully, and the one place the README's equivalent claim
+     * was already being corrected. A list of tabs goes stale the same way, so
+     * it names the criterion too: a preparation answers "how much do I weigh
+     * out", and activity does not change a mass.
+     */
+    zh: '缓冲液、pH 计算与浓试剂三页已校正活度系数、温度对 pKa 的影响与离子强度（Davies 方程，在 I ≤ 0.5 mol/L 内可靠；超出范围时页面会标注）。溶液配制、稀释等按配制量回答的页面仍按理想溶液处理——活度不影响称多少克。所有页面都不考虑 CO₂ 溶解、溶剂体积收缩、杂质与络合平衡。滴定曲线在等当点附近为近似值。',
+    en: 'The buffer, pH and concentrated-reagent tabs correct for activity coefficients, the temperature dependence of pKa, and ionic strength (Davies equation, reliable to I ≤ 0.5 mol/L; the tab says so when it is exceeded). Tabs that answer with a preparation amount — weighing, dilution — still treat solutions as ideal, because activity does not change a mass. No tab models dissolved CO₂, volume contraction on mixing, impurities, or complexation equilibria. Titration curves are approximate near an equivalence point.',
   },
   {
     titleZh: '请自行核对结果',
