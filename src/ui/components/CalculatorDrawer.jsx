@@ -187,19 +187,61 @@ export default function CalculatorDrawer({ open, onClose, store }) {
    * `setPointerCapture` keeps the drag alive when the cursor outruns the title
    * bar — with mouse events the window stops following the moment the pointer
    * leaves the handle, which happens on any fast drag.
+   *
+   * ## Why the move and up handlers are on the window, not the title bar
+   *
+   * `setPointerCapture` on the window retargets every subsequent pointer event
+   * for that pointer to the window — so a `pointerup` delivered over the title
+   * bar never reaches the title bar. With the handlers bound there, the up was
+   * never seen, `drag.current` was never cleared, and the window kept following
+   * the cursor on plain hover afterwards. That is the "it sticks to the mouse
+   * as soon as you touch the top" report.
+   *
+   * Bound on the window, the handlers sit exactly where the captured events are
+   * delivered, so the release is always seen.
+   *
+   * The `buttons` check is the second half of the same fix. A `pointermove`
+   * with no button held is a hover, not a drag, and must be ignored even if
+   * some path left the drag state set. Belt and braces, because the failure it
+   * prevents — a window that follows the pointer with nothing pressed — looks
+   * like the app is possessed.
    */
   const onPointerDown = useCallback((e) => {
     if (!isDragHandle(e.target, headRef.current)) return;
+    // Primary button only: a right-click on the title bar must not start a drag
+    // and swallow the context menu.
+    if (e.button !== 0) return;
     const el = winRef.current;
     if (!el) return;
     e.preventDefault();
-    el.setPointerCapture?.(e.pointerId);
-    drag.current = { from: { x: e.clientX, y: e.clientY }, start: pos };
+    /*
+     * Capture is best-effort, and the drag must not depend on it.
+     *
+     * `setPointerCapture` throws `NotFoundError` when the pointer id is not one
+     * the browser is tracking — which happens with a synthetic event, and can
+     * happen for real when the pointer is released between the event firing and
+     * this line running. Unguarded, that exception aborts the handler before
+     * `drag.current` is set, so the window simply refuses to move and the cause
+     * is invisible.
+     *
+     * Without capture the drag still works for a slow move; it only stops
+     * following if the cursor outruns the title bar, which is the lesser
+     * failure.
+     */
+    try {
+      el.setPointerCapture?.(e.pointerId);
+    } catch {
+      // Not fatal: the drag proceeds uncaptured.
+    }
+    drag.current = { id: e.pointerId, from: { x: e.clientX, y: e.clientY }, start: pos };
   }, [pos]);
 
   const onPointerMove = useCallback((e) => {
     const d = drag.current;
     if (!d) return;
+    // Ignore a move for a different pointer, and any move with nothing held.
+    if (e.pointerId !== d.id) return;
+    if (e.buttons === 0) { drag.current = null; return; }
     const el = winRef.current;
     const size = { width: el?.offsetWidth ?? 420, height: el?.offsetHeight ?? 560 };
     setPos(clampPosition(
@@ -208,10 +250,34 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   }, []);
 
   const onPointerUp = useCallback((e) => {
-    if (!drag.current) return;
+    const d = drag.current;
+    if (!d || e.pointerId !== d.id) return;
     drag.current = null;
-    winRef.current?.releasePointerCapture?.(e.pointerId);
+    try {
+      winRef.current?.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Already released, or never captured. Either way the drag is over.
+    }
   }, []);
+
+  /*
+   * Bind the move and up handlers for the duration of a drag.
+   *
+   * On the window rather than on the title bar, for the capture reason above.
+   * Mounted only while dragging, so a pointermove anywhere on the page costs
+   * nothing when the window is not being moved.
+   */
+  useEffect(() => {
+    if (!open) return undefined;
+    globalThis.addEventListener?.('pointermove', onPointerMove);
+    globalThis.addEventListener?.('pointerup', onPointerUp);
+    globalThis.addEventListener?.('pointercancel', onPointerUp);
+    return () => {
+      globalThis.removeEventListener?.('pointermove', onPointerMove);
+      globalThis.removeEventListener?.('pointerup', onPointerUp);
+      globalThis.removeEventListener?.('pointercancel', onPointerUp);
+    };
+  }, [open, onPointerMove, onPointerUp]);
 
   // Focus the field when the window opens, so the keyboard is usable without a
   // click. Restoring focus on close is left to the browser: the window is
@@ -304,13 +370,13 @@ export default function CalculatorDrawer({ open, onClose, store }) {
         aria-label={t('convert.calcTitle')}
         style={{ left: pos.x, top: pos.y }}
       >
+        {/* Only `pointerdown` is bound here; the move and up handlers live on
+            the window, because that is where a captured pointer's events are
+            delivered. See the note on `onPointerMove`. */}
         <header
           className="calc-head"
           ref={headRef}
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
           style={{ cursor: 'grab' }}
         >
           <h2>{t('convert.calcTitle')}</h2>

@@ -162,6 +162,44 @@ const reaction = byMode({
   balance: (i, o, t) => t('summaries.reactionBalance', { equation: o.equation ?? i.equation }),
 }, 'balance');
 
+/*
+ * Biology.
+ *
+ * The verdict is translated rather than stored, so a history entry recorded in
+ * Chinese reads in English after a language switch — the same reason the whole
+ * summary is derived rather than persisted.
+ */
+const bio = byMode({
+  nucleic: (i, o, t) => t('summaries.bioNucleic', {
+    type: t(`bio.na_${i.naType}`), conc: fmt(o.concNgPerUl, 4), a: i.a260,
+  }),
+  purity: (i, o, t) => t('summaries.bioPurity', {
+    r: o.ratio260280 === null ? '—' : fmt(o.ratio260280, 3),
+    verdict: t(`bio.verdict_${o.verdict}`),
+  }),
+  dilution: (i, o, t) => t('summaries.bioDilution', {
+    v: fmt(o.sampleUl, 4), total: fmt(o.totalUl, 1), fold: fmt(o.fold, 3),
+  }),
+  oligo: (i, o, t) => t('summaries.bioOligo', {
+    conc: fmt(o.nmolPerUl, 4), n: (i.sequence ?? '').replace(/[^A-Za-z]/g, '').length,
+  }),
+  seeding: (i, o, t) => t('summaries.bioSeeding', {
+    v: fmt(o.volumeUl, 3), vol: i.cultureVol,
+  }),
+  doubling: (i, o, t) => t('summaries.bioDoubling', {
+    n: fmt(o.doublings, 3),
+    // "Never doubled" is Infinity, which would print as "∞ h" in a history
+    // line; an em dash says the value does not exist, which is the truth.
+    td: o.doublingTimeH === Infinity ? '—' : fmt(o.doublingTimeH, 3),
+  }),
+  centrifuge: (i, o, t) => t('summaries.bioCentrifuge', {
+    rpm: fmt(i.rpm, 0), r: i.radius, rcf: fmtSci(o.rcf, 4),
+  }),
+  kinetics: (i, o, t) => t('summaries.bioKinetics', {
+    vmax: fmt(o.vmax, 4), km: fmt(o.km, 4), r2: fmt(o.r2, 4),
+  }),
+}, 'nucleic');
+
 /**
  * Both directions report a potential; only the cell mode knows which electrode
  * is which, so the summary names them when they are present.
@@ -192,6 +230,7 @@ const BY_KIND = {
   colligative,
   reaction,
   electro,
+  bio,
 };
 
 export function recordSummary(record, t) {

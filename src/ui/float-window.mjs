@@ -20,8 +20,22 @@
  * margin remains. Clamping to `>= 0` would fight them for no reason.
  */
 
-/** How much of the window must remain on screen, in CSS pixels. */
-export const GRAB_MARGIN = 48;
+/**
+ * How much of the window must remain on screen, in CSS pixels.
+ *
+ * 48 is not arbitrary and not merely "enough to see". The title bar's right end
+ * holds the close button and the DEG/RAD toggle, and `isDragHandle` refuses to
+ * start a drag on a button — correctly, since dragging a control would make it
+ * unusable. So a window clamped to show exactly its rightmost 48px leaves the
+ * user with a strip they can see and cannot grab: the window is stranded, and
+ * the only way back is to clear the stored position.
+ *
+ * The margin therefore has to clear the controls. The title bar is padded by
+ * `--s3` and the two buttons plus the gap come to roughly 90px, so 120 leaves a
+ * real stretch of bare title bar — enough to grab with a finger, not just with
+ * a precise cursor.
+ */
+export const GRAB_MARGIN = 120;
 
 /** The gap left between the window and the viewport edge on first open. */
 export const DEFAULT_INSET = 16;

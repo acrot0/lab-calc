@@ -22,6 +22,7 @@ import ReagentTab from './tabs/ReagentTab.jsx';
 import SpectroTab from './tabs/SpectroTab.jsx';
 import LabTab from './tabs/LabTab.jsx';
 import ColligativeTab from './tabs/ColligativeTab.jsx';
+import BioTab from './tabs/BioTab.jsx';
 import ReactionTab from './tabs/ReactionTab.jsx';
 import ElectroTab from './tabs/ElectroTab.jsx';
 import ElementsTab from './tabs/ElementsTab.jsx';
@@ -50,6 +51,7 @@ const TABS = [
   { id: 'spectro', icon: Icons.spectro, Component: SpectroTab },
   { id: 'lab', icon: Icons.lab, Component: LabTab },
   { id: 'colligative', icon: Icons.colligative, Component: ColligativeTab },
+  { id: 'bio', icon: Icons.dna, Component: BioTab },
   { id: 'reaction', icon: Icons.reaction, Component: ReactionTab },
   { id: 'electro', icon: Icons.electro, Component: ElectroTab },
   { id: 'elements', icon: Icons.elements, Component: ElementsTab },

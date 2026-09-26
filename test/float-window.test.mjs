@@ -67,6 +67,25 @@ describe('clampPosition', () => {
       }
     }
   });
+
+  it('should leave a grabbable strip, not just a visible one', () => {
+    /*
+     * The margin has to clear the title bar's controls, and this is the bug
+     * that proved it.
+     *
+     * `isDragHandle` refuses to start a drag on a button — correctly, since
+     * dragging a control makes it unusable. At a 48px margin the entire visible
+     * strip of title bar was the close button, so a window dragged to the left
+     * edge was on screen, looked reachable, and could not be moved at all. The
+     * only way back was to clear the stored position by hand.
+     *
+     * Measured against the real controls: the title bar's right end holds a
+     * DEG/RAD toggle and a close button, which come to about 90px including
+     * their padding and gap.
+     */
+    const CONTROLS_AT_RIGHT_END = 90;
+    expect(GRAB_MARGIN).toBeGreaterThan(CONTROLS_AT_RIGHT_END);
+  });
 });
 
 describe('dragTo', () => {
