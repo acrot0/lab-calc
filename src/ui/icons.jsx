@@ -58,6 +58,10 @@ import { CaretDoubleLeft } from '@phosphor-icons/react/dist/csr/CaretDoubleLeft'
 import { GearSix } from '@phosphor-icons/react/dist/csr/GearSix';
 import { Keyboard } from '@phosphor-icons/react/dist/csr/Keyboard';
 import { CaretDown } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { Sigma } from '@phosphor-icons/react/dist/csr/Sigma';
+import { ChartScatter } from '@phosphor-icons/react/dist/csr/ChartScatter';
+import { WaveSine } from '@phosphor-icons/react/dist/csr/WaveSine';
+import { Ruler } from '@phosphor-icons/react/dist/csr/Ruler';
 
 /*
  * React is imported explicitly, not left to the JSX transform.
@@ -231,6 +235,21 @@ export const Icons = {
   check: styled(Check, 'check'),
   close: styled(X, 'close'),
   language: styled(Translate, 'language'),
+
+  /*
+   * The four added with the analysis tabs.
+   *
+   * `Sigma` for the statistics tab because a summation sign is what a
+   * descriptive statistic is; `ChartScatter` for the instrumental tab because
+   * a calibration is a scatter with a line through it; `WaveSine` for physical
+   * chemistry, where the recurring shape is a curve against a variable rather
+   * than a molecule; `Ruler` for measurement uncertainty, which is what the
+   * whole tab is about.
+   */
+  stats: styled(Sigma, 'stats'),
+  analytical: styled(ChartScatter, 'analytical'),
+  physical: styled(WaveSine, 'physical'),
+  uncertainty: styled(Ruler, 'uncertainty'),
 
   // --- Reserved for the visualisation phases ---
   // Declared here so the set stays the one place an icon is chosen.

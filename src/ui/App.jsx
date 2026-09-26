@@ -49,6 +49,10 @@ const BioTab = lazy(() => import('./tabs/BioTab.jsx'));
 const ReactionTab = lazy(() => import('./tabs/ReactionTab.jsx'));
 const ElectroTab = lazy(() => import('./tabs/ElectroTab.jsx'));
 const ElementsTab = lazy(() => import('./tabs/ElementsTab.jsx'));
+const AnalyticalTab = lazy(() => import('./tabs/AnalyticalTab.jsx'));
+const PhysicalTab = lazy(() => import('./tabs/PhysicalTab.jsx'));
+const StatsTab = lazy(() => import('./tabs/StatsTab.jsx'));
+const UncertaintyTab = lazy(() => import('./tabs/UncertaintyTab.jsx'));
 
 /**
  * What shows while a tab's chunk is in flight.
@@ -94,6 +98,17 @@ const TABS = [
   { id: 'electro', icon: Icons.electro, Component: ElectroTab },
   { id: 'elements', icon: Icons.elements, Component: ElementsTab },
   { id: 'convert', icon: Icons.convert, Component: ConvertTab },
+  /*
+   * The four analysis tabs, in the order a study moves through them: measure
+   * something and know how well you measured it, run the statistics on the
+   * replicates, then the two branches of chemistry the earlier tabs did not
+   * cover. Placed after the preparation tabs rather than before them, because
+   * the bench order is prepare, measure, analyse.
+   */
+  { id: 'uncertainty', icon: Icons.uncertainty, Component: UncertaintyTab },
+  { id: 'stats', icon: Icons.stats, Component: StatsTab },
+  { id: 'analytical', icon: Icons.analytical, Component: AnalyticalTab },
+  { id: 'physical', icon: Icons.physical, Component: PhysicalTab },
 ];
 
 /** The tab ids, in order — what the arrow shortcuts cycle through. */

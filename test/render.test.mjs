@@ -38,6 +38,10 @@ async function tabs() {
     reaction: () => import('../src/ui/tabs/ReactionTab.jsx'),
     electro: () => import('../src/ui/tabs/ElectroTab.jsx'),
     elements: () => import('../src/ui/tabs/ElementsTab.jsx'),
+    uncertainty: () => import('../src/ui/tabs/UncertaintyTab.jsx'),
+    stats: () => import('../src/ui/tabs/StatsTab.jsx'),
+    analytical: () => import('../src/ui/tabs/AnalyticalTab.jsx'),
+    physical: () => import('../src/ui/tabs/PhysicalTab.jsx'),
   };
   const out = [];
   for (const [name, load] of Object.entries(mods)) {

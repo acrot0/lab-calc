@@ -213,6 +213,67 @@ const electro = byMode({
   }),
 }, 'nernst');
 
+/*
+ * The four analysis tabs.
+ *
+ * Each records only the figures that identify the calculation — a history line
+ * is a reminder of what was done, not a transcript. The uncertainty and stats
+ * tabs report the headline number with its uncertainty, because that pairing is
+ * the whole point of both.
+ */
+const uncertainty = byMode({
+  molarMass: (i, o, t) => t('summaries.uncertaintyMolarMass', {
+    formula: i.formula, mass: fmt(o.molarMass, 5), unc: fmt(o.unc, 4),
+  }),
+  propagate: (i, o, t) => t('summaries.uncertaintyPropagate', {
+    value: fmt(o.value, 5), unc: fmt(o.unc, 4),
+  }),
+  weigh: (i, o, t) => t('summaries.uncertaintyWeigh', {
+    conc: fmt(o.conc, 5), unc: fmt(o.unc, 4),
+  }),
+}, 'propagate');
+
+const stats = (i, o, t) => t('summaries.stats', {
+  n: o.n, mean: fmt(o.mean, 5), sd: fmt(o.sd, 5),
+});
+
+const analytical = byMode({
+  edta: (i, o, t) => t('summaries.analyticalEdta', {
+    logK: fmt(o.conditionalLogK, 3), conc: fmt(o.sampleConc, 5),
+  }),
+  redox: (i, o, t) => t('summaries.analyticalRedox', { potential: fmt(o.potential, 4) }),
+  gravimetric: (i, o, t) => t('summaries.analyticalGravimetric', {
+    percent: fmt(o.percent, 4), factor: fmt(o.factor, 5),
+  }),
+  recovery: (i, o, t) => t('summaries.analyticalRecovery', {
+    recovery: fmt(o.recovery, 4), mean: fmt(o.mean, 4),
+  }),
+  lod: (i, o, t) => t('summaries.analyticalLod', {
+    lod: fmt(o.lod, 4), loq: fmt(o.loq, 4),
+  }),
+  chromatography: (i, o, t) => t('summaries.analyticalChromatography', {
+    resolution: fmt(o.resolution, 3), plates: fmt(o.plates, 0),
+  }),
+}, 'edta');
+
+const physical = byMode({
+  kinetics: (i, o, t) => t('summaries.physicalKinetics', {
+    order: o.order, k: fmt(o.k, 4), r2: fmt(o.r2, 4),
+  }),
+  arrhenius: (i, o, t) => t('summaries.physicalArrhenius', {
+    ea: fmt(o.EaKJ, 4), r2: fmt(o.r2, 4),
+  }),
+  conductivity: (i, o, t) => t('summaries.physicalConductivity', {
+    lambda: fmt(o.lambda, 4), alpha: fmt(o.alpha, 4),
+  }),
+  thermo: (i, o, t) => t('summaries.physicalThermo', {
+    g: fmt(o.deltaG, 4), k: fmt(o.K, 4),
+  }),
+  phase: (i, o, t) => t('summaries.physicalPhase', {
+    temp: fmt(o.eutecticC, 4), x: fmt(o.xA, 3),
+  }),
+}, 'kinetics');
+
 /** Every kind the history can hold. Two share one summary: the weigh tab
  *  records a solid as either kind depending on which direction was used. */
 const BY_KIND = {
@@ -231,6 +292,10 @@ const BY_KIND = {
   reaction,
   electro,
   bio,
+  uncertainty,
+  stats,
+  analytical,
+  physical,
 };
 
 export function recordSummary(record, t) {
