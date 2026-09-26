@@ -22,39 +22,20 @@
  * actually reads as depth — panels floating over the content they navigate.
  */
 
-/** The two materials, in the order a toggle should cycle them. */
+/**
+ * The two materials.
+ *
+ * There is no chooser: the OS decides. The names are still here because the CSS
+ * matches on them and `applyMaterial` validates against the list, so a typo in
+ * the provider fails at the boundary rather than silently styling nothing.
+ */
 export const MATERIALS = ['frosted', 'solid'];
 
 export const DEFAULT_MATERIAL = 'frosted';
 
-export const MATERIAL_KEY = 'lab-calc.material.v1';
-
 /** Anything unrecognised resolves to the default rather than to no material. */
-export function detectMaterial(stored) {
-  return MATERIALS.includes(stored) ? stored : DEFAULT_MATERIAL;
-}
-
-export function loadMaterial(store) {
-  try {
-    return detectMaterial(store?.getItem(MATERIAL_KEY) ?? null);
-  } catch {
-    return DEFAULT_MATERIAL;
-  }
-}
-
-export function saveMaterial(store, material) {
-  try {
-    store?.setItem(MATERIAL_KEY, material);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** The material a toggle click should move to. */
-export function nextMaterial(current) {
-  const i = MATERIALS.indexOf(detectMaterial(current));
-  return MATERIALS[(i + 1) % MATERIALS.length];
+export function detectMaterial(value) {
+  return MATERIALS.includes(value) ? value : DEFAULT_MATERIAL;
 }
 
 /**

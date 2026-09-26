@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_MATERIAL, MATERIALS, MATERIAL_KEY,
-  applyMaterial, detectMaterial, loadMaterial, nextMaterial, prefersSolid, saveMaterial,
+  DEFAULT_MATERIAL, MATERIALS,
+  applyMaterial, detectMaterial, prefersSolid,
 } from '../src/ui/material.mjs';
 
 /** A localStorage stand-in, matching the shape history.mjs and theme.mjs use. */
@@ -34,43 +34,6 @@ describe('material choice', () => {
     }
   });
 
-  it('should cycle between the two and wrap around', () => {
-    expect(nextMaterial('frosted')).toBe('solid');
-    expect(nextMaterial('solid')).toBe('frosted');
-    // Two clicks must return to the start, or the toggle drifts.
-    expect(nextMaterial(nextMaterial('frosted'))).toBe('frosted');
-  });
-
-  it('should cycle from an unrecognised value rather than getting stuck', () => {
-    expect(MATERIALS).toContain(nextMaterial('nonsense'));
-  });
-});
-
-describe('material persistence', () => {
-  it('should round-trip a choice', () => {
-    const s = store();
-    saveMaterial(s, 'solid');
-    expect(s.getItem(MATERIAL_KEY)).toBe('solid');
-    expect(loadMaterial(s)).toBe('solid');
-  });
-
-  it('should survive a store that throws', () => {
-    // Private-mode Safari throws on setItem, and a missing store throws on
-    // getItem. Neither may break the app: the material is a preference, and a
-    // preference that cannot be saved still has to render.
-    const throwing = {
-      getItem: () => { throw new Error('denied'); },
-      setItem: () => { throw new Error('quota'); },
-    };
-    expect(loadMaterial(throwing)).toBe(DEFAULT_MATERIAL);
-    expect(saveMaterial(throwing, 'solid')).toBe(false);
-  });
-
-  it('should use a key distinct from the theme and locale keys', () => {
-    // Sharing a key with the theme would make the two preferences overwrite
-    // each other on every change.
-    expect(MATERIAL_KEY).not.toBe('lab-calc.theme.v2');
-  });
 });
 
 describe('applyMaterial', () => {

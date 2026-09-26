@@ -39,12 +39,6 @@ export const zh = {
     duotone: '双色',
     switch: '切换图标风格',
   },
-  material: {
-    frosted: '磨砂',
-    solid: '纯色',
-    switch: '在磨砂玻璃与纯色材质之间切换',
-    osForced: '系统已开启「减少透明」，已强制使用纯色',
-  },
   tabs: {
     weigh: '称量配制',
     dilute: '稀释',
@@ -552,6 +546,8 @@ export const zh = {
     calcTitle: '计算器',
     calcClose: '关闭计算器',
     calcOpen: '计算器',
+    calcFill: '填入字段',
+    calcFilled: '已填入',
     calcUnits: '插入单位',
     calcDegrees: '以角度而非弧度计算',
     baseUnit: '基准单位',

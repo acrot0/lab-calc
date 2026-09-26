@@ -37,14 +37,6 @@ export const en = {
     duotone: 'Duotone',
     switch: 'Cycle the icon style',
   },
-  material: {
-    // The label names the material in effect, not the one a click selects —
-    // the convention the theme toggle beside it already set.
-    frosted: 'Frosted',
-    solid: 'Solid',
-    switch: 'Switch between frosted glass and solid surfaces',
-    osForced: 'Your system asks for reduced transparency, so solid is forced',
-  },
   tabs: {
     weigh: 'Weigh out',
     dilute: 'Dilute',
@@ -552,6 +544,8 @@ export const en = {
     calcTitle: 'Calculator',
     calcClose: 'Close the calculator',
     calcOpen: 'Calculator',
+    calcFill: 'Use this value',
+    calcFilled: 'Filled in',
     calcUnits: 'Insert a unit',
     calcDegrees: 'Work in degrees rather than radians',
     baseUnit: 'Base unit',

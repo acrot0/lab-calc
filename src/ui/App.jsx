@@ -7,7 +7,6 @@ import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
 import { useTheme, ThemeToggle } from './ThemeContext.jsx';
-import { MaterialToggle } from './MaterialContext.jsx';
 import { IconStyleToggle } from './IconStyleContext.jsx';
 import { DensityToggle } from './DensityContext.jsx';
 import { LOCALES } from './i18n.mjs';
@@ -226,7 +225,6 @@ export default function App() {
           <LocaleSelect />
           <IconStyleToggle />
           <DensityToggle />
-          <MaterialToggle />
           <ThemeToggle />
         </div>
       </header>

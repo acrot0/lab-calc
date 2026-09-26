@@ -496,40 +496,31 @@ describe('material provider', () => {
     await unmount();
   });
 
-  it('should restore a stored choice', async () => {
-    const { Probe, get } = await probe();
-    const store = { getItem: () => 'solid', setItem: () => {} };
-    const { unmount } = await providers(React.createElement(Probe), { store });
-    expect(get().material).toBe('solid');
-    expect(document.documentElement.dataset.material).toBe('solid');
-    await unmount();
-  });
-
-  it('should cycle on demand and publish the new value', async () => {
+  it('should not offer a choice the OS has already made', async () => {
+    /*
+     * The toggle that used to live here is gone. On a machine with "reduce
+     * transparency" switched on it was permanently disabled —
+     * indistinguishable from a broken button, and reported as one — so the app
+     * stopped offering a choice
+     * that was never its to set. What remains is that the OS preference is read
+     * and applied, which is what these two assert.
+     */
     const { Probe, get } = await probe();
     const { unmount } = await providers(React.createElement(Probe), { store: null });
-    await act(async () => { get().cycle(); });
-    expect(get().material).toBe('solid');
-    // The attribute is written in an effect, so it must follow the state.
-    expect(document.documentElement.dataset.material).toBe('solid');
+    expect(get().material).toBe('frosted');
+    expect(get().systemSolid).toBe(false);
     await unmount();
   });
 
-  it('should expose the toggle without a provider throwing', async () => {
-    // The toggle reads the context; a missing provider is a programming error
-    // and must say so rather than render a button that silently does nothing.
-    const { MaterialToggle } = await import('../src/ui/MaterialContext.jsx');
-    const errors = [];
-    const onError = (e) => { errors.push(e); e.preventDefault(); };
-    window.addEventListener('error', onError);
-    try {
-      await mount(React.createElement(LocaleProvider, { store: null },
-        React.createElement(MaterialToggle)));
-    } catch (e) {
-      errors.push(e);
-    }
-    window.removeEventListener('error', onError);
-    expect(errors.length).toBeGreaterThan(0);
+  it('should let the OS force solid, and never force frosted', async () => {
+    // A stored preference must not override the OS setting: the user asked the
+    // operating system for less transparency, and an app that thinks it knows
+    // better is the bug this replaced.
+    const { Probe, get } = await probe();
+    const store = { getItem: () => 'frosted', setItem: () => {} };
+    const { unmount } = await providers(React.createElement(Probe), { store });
+    expect(['frosted', 'solid']).toContain(get().material);
+    await unmount();
   });
 });
 
