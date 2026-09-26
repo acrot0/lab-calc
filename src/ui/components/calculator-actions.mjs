@@ -119,6 +119,3 @@ export const ACTIONS = {
 
   memClear: (c) => c.setMemory(null),
 };
-
-/** Every action name, for the test that checks the key tables against this. */
-export const ACTION_NAMES = Object.keys(ACTIONS);

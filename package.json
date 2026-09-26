@@ -11,7 +11,7 @@
     "build": "vite build",
     "smoke": "node scripts/smoke.mjs",
     "check": "node scripts/check-imports.mjs src",
-    "verify": "node scripts/check-imports.mjs src && node scripts/check-dead-exports.mjs src && node scripts/check-licences.mjs && node scripts/check-authorship.mjs --all && node scripts/smoke.mjs",
+    "verify": "node scripts/check-imports.mjs src && node scripts/check-dead-exports.mjs src && node scripts/check-icons.mjs && node scripts/check-licences.mjs && node scripts/check-authorship.mjs --all && node scripts/smoke.mjs",
     "icons": "node scripts/make-icons.mjs",
     "screenshots": "node scripts/make-screenshots.mjs",
     "package:desktop": "node scripts/package-desktop.mjs",
@@ -19,7 +19,8 @@
     "package:android": "node scripts/package-android.mjs",
     "package:tauri": "node scripts/package-tauri.mjs",
     "licences": "node scripts/check-licences.mjs",
-    "prepare": "node scripts/install-hooks.mjs"
+    "prepare": "node scripts/install-hooks.mjs",
+    "icons:check": "node scripts/check-icons.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.9",

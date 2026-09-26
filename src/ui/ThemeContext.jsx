@@ -1,5 +1,5 @@
 import React, {
-  createContext, useContext, useState, useEffect, useCallback, useMemo, useRef,
+  createContext, useContext, useState, useEffect, useCallback, useMemo,
 } from 'react';
 import {
   detectTheme, resolveTheme, loadTheme, saveTheme, nextTheme, applyTheme, chromeColor,
@@ -129,81 +129,5 @@ export function ThemePicker() {
         </div>
       ))}
     </>
-  );
-}
-
-/**
- * The theme picker as a button that opens a menu.
- *
- * A menu rather than a cycling button. Cycling was right when there were three
- * states; with seven it means up to six clicks to reach the one you want, and
- * no way to see what the options are.
- *
- * Kept as its own component even though the topbar now uses the settings
- * popover: this is the shape for a place with room for a control of its own,
- * and the flat list above is the shape for inside a panel.
- */
-export function ThemeToggle() {
-  const { preference, resolved, setPreference } = useTheme();
-  const { locale, t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
-
-  // Close on an outside click or Escape. Without this the menu stays open
-  // behind the next interaction and looks like a stuck panel.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const current = labelOf(preference, locale);
-
-  return (
-    <div className="theme-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className="control"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        title={t('theme.pick')}
-      >
-        <Swatch themeKey={resolved} />
-        <span className="control-label">{current}</span>
-      </button>
-
-      {open && (
-        <div className="theme-menu" role="menu">
-          {THEME_GROUPS.map((group) => (
-            <div className="theme-group" key={group.id}>
-              <div className="theme-group-label">{t(`theme.group_${group.id}`)}</div>
-              {group.keys.map((key) => (
-                <button
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={preference === key}
-                  className={`theme-item${preference === key ? ' is-on' : ''}`}
-                  key={key}
-                  onClick={() => { setPreference(key); setOpen(false); }}
-                >
-                  <Swatch themeKey={key === 'system' ? resolved : key} />
-                  <span className="theme-name">{labelOf(key, locale)}</span>
-                  {PALETTES[key]?.credit && (
-                    <span className="theme-credit">{PALETTES[key].credit}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

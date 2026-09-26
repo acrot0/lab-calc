@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Icon audit</title>
+<style>
+  /*
+   * A contact sheet of every icon in the set, with a crosshair at the centre of
+   * each 256 grid and a box showing Phosphor's own live area (16px inset).
+   *
+   * The point is to make the two things a row of icons cannot show you
+   * visible at once: where each glyph's ink actually sits relative to the grid,
+   * and how much of the grid it fills. Reading the numbers is possible; seeing
+   * that one glyph is 20 units right of centre is what this is for.
+   *
+   * Served by the dev server at /tools/icon-audit.html. Not part of the app —
+   * `scripts/measure-icons.mjs` drives it headlessly and writes the metrics.
+   */
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #0e1117;
+    color: #c9d1e0;
+    font: 12px/1.5 ui-monospace, monospace;
+  }
+  h1 { font-size: 14px; font-weight: 500; margin: 0 0 4px; }
+  p.note { color: #7d879b; margin: 0 0 20px; max-width: 70ch; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .cell {
+    padding: 10px;
+    border: 1px solid #232a38;
+    border-radius: 8px;
+    background: #12161f;
+  }
+  /* The glyph box. The crosshair and live-area box are absolutely positioned
+     behind the icon so they read as the grid it was drawn on. */
+  .box {
+    position: relative;
+    width: 128px;
+    height: 128px;
+    margin: 0 auto 8px;
+    background: #171c27;
+    border-radius: 6px;
+  }
+  .box::before,
+  .box::after {
+    content: '';
+    position: absolute;
+    background: #2c3547;
+  }
+  .box::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+  .box::after { top: 50%; left: 0; right: 0; height: 1px; }
+  .live {
+    position: absolute;
+    /* 16 / 256 = 6.25% */
+    inset: 6.25%;
+    border: 1px dashed #33405a;
+    border-radius: 2px;
+  }
+  .box svg { position: relative; }
+  .name { color: #e6edf7; }
+  .m { color: #7d879b; }
+  .m b { color: #9fb4d4; font-weight: 400; }
+  .warn { color: #ffb454; }
+</style>
+</head>
+<body>
+<h1>Icon audit</h1>
+<p class="note">
+  Every icon at 128px on its own 256 grid. The solid cross is the centre of the
+  grid; the dashed box is Phosphor's 16px live area. A glyph whose ink is not
+  centred on the cross sits out of line with its neighbours at any size — the
+  error is proportional, so it is easiest to see large and easiest to miss
+  small, which is why this page renders them this way.
+</p>
+<div class="grid" id="grid"></div>
+
+<script type="module">
+  import { Icons, ICON_SIZE } from '../src/ui/icons.jsx';
+  import { renderToStaticMarkup } from 'react-dom/server';
+  import React from 'react';
+
+  const grid = document.getElementById('grid');
+  const metrics = {};
+
+  for (const [key, Icon] of Object.entries(Icons)) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = `
+      <div class="box"><span class="live"></span>${renderToStaticMarkup(
+        React.createElement(Icon, { size: 128, 'aria-hidden': true }),
+      )}</div>
+      <div class="name">${key}</div>
+      <div class="m" data-m></div>`;
+    grid.appendChild(cell);
+    cell.querySelector('svg').setAttribute('data-icon', key);
+  }
+
+  /*
+   * Measure after layout, not during.
+   *
+   * `getBBox` needs the element in the document and laid out; calling it while
+   * the markup is still being assembled returns zeros for the paths that have
+   * not been painted yet.
+   *
+   * ## Two measurements, and the difference between them matters
+   *
+   * `getBBox` reports the ink in the glyph's **own** coordinate space, which is
+   * the raw 256 grid — that is what the table in `icon-metrics.mjs` stores, and
+   * it must stay raw or the correction would compound on every regeneration.
+   *
+   * What the eye sees is the ink relative to the **rendered** box, which is
+   * after `normalize` has moved and scaled it. The label reports that, because a
+   * label reporting the raw offset would say `off 20` next to a glyph that is
+   * visibly centred, and the page would be lying about its own subject.
+   */
+  requestAnimationFrame(() => {
+    for (const svg of document.querySelectorAll('svg[data-icon]')) {
+      const key = svg.dataset.icon;
+      let minX = Infinity; let minY = Infinity;
+      let maxX = -Infinity; let maxY = -Infinity;
+      for (const p of svg.querySelectorAll('path, rect, circle, line, polyline, ellipse')) {
+        let b;
+        try { b = p.getBBox(); } catch { continue; }
+        if (!Number.isFinite(b.x) || (b.width === 0 && b.height === 0)) continue;
+        minX = Math.min(minX, b.x); minY = Math.min(minY, b.y);
+        maxX = Math.max(maxX, b.x + b.width); maxY = Math.max(maxY, b.y + b.height);
+      }
+      if (!Number.isFinite(minX)) continue;
+      const box = { minX, minY, w: maxX - minX, h: maxY - minY };
+      metrics[key] = box;
+
+      const rect = svg.getBoundingClientRect();
+      const vb = (svg.getAttribute('viewBox') || '0 0 256 256').split(' ').map(Number);
+      const k = rect.width / vb[2];
+      // Where the ink sits in the rendered box, in the box's own pixels.
+      const inkCx = (box.minX + box.w / 2 - vb[0]) * k;
+      const inkCy = (box.minY + box.h / 2 - vb[1]) * k;
+      const off = Math.hypot(inkCx - rect.width / 2, inkCy - rect.height / 2);
+      const fill = (Math.max(box.w, box.h) * k) / rect.width;
+
+      const label = svg.closest('.cell').querySelector('[data-m]');
+      label.innerHTML = `<b>fill ${(fill * 100).toFixed(0)}%</b>`
+        + ` <span class="${off > 1 ? 'warn' : ''}">off ${off.toFixed(1)}px</span>`;
+    }
+    window.__iconMetrics = metrics;
+    /*
+     * The table in the exact shape `src/ui/icon-metrics.mjs` wants.
+     *
+     * There is no headless browser in this project's dependencies and adding
+     * one would be 300MB for a script that runs when an icon is added. So the
+     * regeneration is: open this page, and paste what it prints. The format is
+     * emitted rather than left to the reader to transcribe — a hand-copied
+     * number is the one kind of error the audit itself cannot catch.
+     */
+    window.__iconTable = Object.entries(metrics)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, b]) => `  ${k}: { x: ${b.minX.toFixed(1)}, y: ${b.minY.toFixed(1)}, `
+        + `w: ${b.w.toFixed(1)}, h: ${b.h.toFixed(1)} },`)
+      .join('\n');
+    console.log('--- paste over ICON_INK in src/ui/icon-metrics.mjs ---\n'
+      + window.__iconTable);
+    window.__iconAuditDone = true;
+  });
+</script>
+</body>
+</html>

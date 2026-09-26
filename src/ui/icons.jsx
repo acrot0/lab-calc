@@ -1,5 +1,6 @@
 import React from 'react';
 import { useIconWeight } from './icon-style-context.mjs';
+import { normalize } from './icon-metrics.mjs';
 /*
  * Imported per icon, not from the package barrel.
  *
@@ -114,36 +115,53 @@ export const ICON_SIZE = {
 };
 
 /**
- * Wrap a Phosphor icon with the project's size and weight.
+ * Wrap a Phosphor icon with the project's size, weight and optical normalisation.
  *
  * Returning a component rather than exporting the raw icon keeps the call sites
  * free of the decision: `import { Icons } from '../icons.jsx'` then
  * `<Icons.dilute size={ICON_SIZE.control} />`. A caller that passes a size is
  * choosing a role, not a number.
  *
- * ## The weight now follows the user's icon-style preference
+ * ## The weight follows the user's icon-style preference
  *
- * `defaultWeight` is the weight a glyph uses when the user has not chosen a
- * style, and it is still per-glyph: a tab icon is decorative and a status icon
- * is not, so they want different defaults. What changed is that a *chosen*
- * style overrides all of them — that is the whole point of the setting.
- *
- * There is no longer a per-glyph `defaultWeight`, and that is deliberate. The
- * previous version let each glyph carry a default — tab icons drew `duotone`,
- * status icons `regular` — which was a reasonable design when the weight was
- * fixed. Once the user can choose, a per-glyph default becomes a lie: someone
- * who picks "linear" and still sees duotone tabs has been told the setting does
- * something it does not.
- *
+ * There is no per-glyph default weight, and that is deliberate. The previous
+ * version let each glyph carry one — tab icons drew `duotone`, status icons
+ * `regular` — which was reasonable when the weight was fixed. Once the user can
+ * choose, a per-glyph default becomes a lie: someone who picks "linear" and
+ * still sees duotone tabs has been told the setting does something it does not.
  * So the style is global, and an explicit `weight` prop remains for the few
  * call sites that need a specific weight regardless of the preference.
+ *
+ * ## The normalisation is per-glyph and that is the point
+ *
+ * Phosphor draws its glyphs on a shared 256 grid but does not draw them to a
+ * shared size or centre: measured across the 46 in use, the ink box runs from
+ * 144×224 to 240×240 and one glyph's ink sits 20 units right of centre. A row
+ * of them at one `size` therefore does not read as one set — which is what "the
+ * icons look inconsistent" means when it is hard to point at.
+ *
+ * `normalize(key)` supplies a `viewBox` and a `transform` that scale the ink
+ * box to a common target and centre it. Both props are passed only when the
+ * glyph has a measurement, so a newly added icon renders the way Phosphor drew
+ * it rather than with a correction invented for it. See `icon-metrics.mjs`.
  */
-function styled(Icon) {
+function styled(Icon, key) {
   return function StyledIcon({
     size = ICON_SIZE.control, weight: weightProp, ...rest
   }) {
     const preferred = useIconWeight();
-    return <Icon size={size} weight={weightProp ?? preferred} {...rest} />;
+    const viewBox = normalize(key);
+    return (
+      <Icon
+        size={size}
+        weight={weightProp ?? preferred}
+        // Undefined for a glyph with no measurement, which leaves Phosphor's
+        // own viewBox in place — the icon renders as drawn rather than with a
+        // correction invented for it.
+        viewBox={viewBox ?? undefined}
+        {...rest}
+      />
+    );
   };
 }
 
@@ -159,70 +177,70 @@ export const Icons = {
   // --- Tabs ---
   // Duotone: on a tab the glyph is part of the label, so it carries more weight
   // than an inline hint does.
-  weigh: styled(Flask),
-  dilute: styled(Eyedropper),
-  buffer: styled(TestTube),
+  weigh: styled(Flask, 'weigh'),
+  dilute: styled(Eyedropper, 'dilute'),
+  buffer: styled(TestTube, 'buffer'),
   // Phosphor has no plural TestTubes, and `Stack` is already the layers glyph.
   // `Rows` reads as a sequence of steps, which is what a serial dilution is —
   // the same tube, each one diluted from the last.
-  series: styled(Rows),
-  ph: styled(Pulse),
-  percent: styled(Percent),
-  curve: styled(ChartLine),
-  reagent: styled(DropHalf),
-  spectro: styled(Sun),
-  lab: styled(Calculator),
-  colligative: styled(Thermometer),
-  reaction: styled(Scales),
-  electro: styled(Lightning),
-  elements: styled(Atom),
-  convert: styled(ArrowsLeftRight),
+  series: styled(Rows, 'series'),
+  ph: styled(Pulse, 'ph'),
+  percent: styled(Percent, 'percent'),
+  curve: styled(ChartLine, 'curve'),
+  reagent: styled(DropHalf, 'reagent'),
+  spectro: styled(Sun, 'spectro'),
+  lab: styled(Calculator, 'lab'),
+  colligative: styled(Thermometer, 'colligative'),
+  reaction: styled(Scales, 'reaction'),
+  electro: styled(Lightning, 'electro'),
+  elements: styled(Atom, 'elements'),
+  convert: styled(ArrowsLeftRight, 'convert'),
   // The drawer, not the "Lab bench" tab — that one already owns Calculator, and
   // two controls wearing the same glyph in one topbar is not a distinction.
-  calc: styled(MathOperations),
+  calc: styled(MathOperations, 'calc'),
   // The icon-style toggle. `Shapes` rather than a palette, because what is
   // being chosen is how the glyphs are drawn, not what colour they are.
-  icons: styled(Shapes),
+  icons: styled(Shapes, 'icons'),
 
   // --- Chrome ---
   // The phone bar's overflow. `DotsThreeOutline` rather than `DotsThree`: the
   // outlined form is the one both platforms use for a "more" destination, and
   // the filled dots read as a menu button on a toolbar instead.
-  more: styled(DotsThreeOutline),
+  more: styled(DotsThreeOutline, 'more'),
   // The rail's expand toggle, in both states: the sidebar glyph says what the
   // control acts on, and the chevron says which way it will move. One icon
   // that flipped meaning would be two glyphs wearing one name.
-  expandNav: styled(Sidebar),
-  collapseNav: styled(CaretDoubleLeft),
-  settings: styled(GearSix),
-  caret: styled(CaretDown),
+  expandNav: styled(Sidebar, 'expandNav'),
+  collapseNav: styled(CaretDoubleLeft, 'collapseNav'),
+  settings: styled(GearSix, 'settings'),
+  caret: styled(CaretDown, 'caret'),
   // The keyboard-shortcut list. A keyboard glyph rather than a question mark:
   // the panel is a reference, and the glyph says what it is about.
-  shortcuts: styled(Keyboard),
-  history: styled(ClockCounterClockwise),
-  search: styled(MagnifyingGlass),
-  remove: styled(Trash),
-  replay: styled(ArrowCounterClockwise),
-  download: styled(DownloadSimple),
-  csv: styled(FileXls),
-  markdown: styled(FileText),
-  json: styled(FileCode),
-  upload: styled(UploadSimple),
-  warning: styled(Warning),
-  notice: styled(ShieldWarning),
-  check: styled(Check),
-  close: styled(X),
-  language: styled(Translate),
+  shortcuts: styled(Keyboard, 'shortcuts'),
+  history: styled(ClockCounterClockwise, 'history'),
+  search: styled(MagnifyingGlass, 'search'),
+  remove: styled(Trash, 'remove'),
+  replay: styled(ArrowCounterClockwise, 'replay'),
+  download: styled(DownloadSimple, 'download'),
+  csv: styled(FileXls, 'csv'),
+  markdown: styled(FileText, 'markdown'),
+  json: styled(FileCode, 'json'),
+  upload: styled(UploadSimple, 'upload'),
+  warning: styled(Warning, 'warning'),
+  notice: styled(ShieldWarning, 'notice'),
+  check: styled(Check, 'check'),
+  close: styled(X, 'close'),
+  language: styled(Translate, 'language'),
 
   // --- Reserved for the visualisation phases ---
   // Declared here so the set stays the one place an icon is chosen.
-  waves: styled(Waves),
-  gauge: styled(Gauge),
-  layers: styled(Stack),
-  branch: styled(GitBranch),
-  trend: styled(TrendUp),
-  microscope: styled(Microscope),
-  dna: styled(Dna),
-  syringe: styled(Syringe),
-  beaker: styled(Flask),
+  waves: styled(Waves, 'waves'),
+  gauge: styled(Gauge, 'gauge'),
+  layers: styled(Stack, 'layers'),
+  branch: styled(GitBranch, 'branch'),
+  trend: styled(TrendUp, 'trend'),
+  microscope: styled(Microscope, 'microscope'),
+  dna: styled(Dna, 'dna'),
+  syringe: styled(Syringe, 'syringe'),
+  beaker: styled(Flask, 'beaker'),
 };

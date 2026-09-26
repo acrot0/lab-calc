@@ -54,7 +54,7 @@ export const ZONE = {
  * calculator offers lives on `FN_PAGE_2`, and the digits and operators stay
  * below both, so switching pages never takes away the ability to type a number.
  */
-export const FN_PAGE_1 = [
+const FN_PAGE_1 = [
   [
     { label: 'sin', insert: 'sin(', zone: ZONE.fn, title: 'sin' },
     { label: 'cos', insert: 'cos(', zone: ZONE.fn, title: 'cos' },
@@ -101,7 +101,7 @@ export const FN_PAGE_1 = [
  * constantly and leaving the page to get back to them is a tax on the most
  * common thing a user does here.
  */
-export const FN_PAGE_2 = [
+const FN_PAGE_2 = [
   [
     { label: 'sinh', insert: 'sinh(', zone: ZONE.fn, title: 'sinh' },
     { label: 'cosh', insert: 'cosh(', zone: ZONE.fn, title: 'cosh' },

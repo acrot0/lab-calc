@@ -129,11 +129,38 @@ describe('icon set', () => {
      * picks "linear" and still sees duotone tabs has been told the setting does
      * something it does not.
      *
-     * The style is global now, so a second argument to `styled` would be dead
+     * The style is global now, so a weight argument to `styled` would be dead
      * code that reads as if it were doing something.
+     *
+     * `styled` takes a second argument for a different purpose — the key into
+     * the ink-measurement table — so this checks for the *weight* names rather
+     * than for any second argument. The distinction is not cosmetic: a check on
+     * arity would forbid the measurement key, and a check on nothing would let
+     * the per-glyph weight back in.
      */
     const icons = readFileSync('src/ui/icons.jsx', 'utf8');
-    const withArg = [...icons.matchAll(/styled\(\w+,\s*\w+\)/g)].map((m) => m[0]);
-    expect(withArg, `styled() called with a second argument: ${withArg.join(', ')}`).toEqual([]);
+    const weights = ['thin', 'light', 'regular', 'bold', 'fill', 'duotone'];
+    const withWeight = [...icons.matchAll(/styled\([^)]*\)/g)]
+      .map((m) => m[0])
+      .filter((call) => weights.some((w) => new RegExp(`['"]${w}['"]`).test(call)));
+    expect(withWeight, `styled() given a weight default: ${withWeight.join(', ')}`).toEqual([]);
+  });
+
+  it('should measure every glyph it draws', async () => {
+    // An icon with no entry in the table renders at Phosphor's own size and
+    // centre, which is the inconsistency the normalisation exists to remove —
+    // and it is invisible in review, because one unnormalised glyph in a row of
+    // seventeen just looks like a slightly different icon.
+    const { ICON_INK, normalize } = await import('../src/ui/icon-metrics.mjs');
+    const icons = readFileSync('src/ui/icons.jsx', 'utf8');
+    const body = icons.slice(icons.indexOf('export const Icons'));
+    const keys = [...body.matchAll(/\w+: styled\(\w+, '([^']*)'\)/g)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThan(20);
+    const unmeasured = keys.filter((k) => !ICON_INK[k]);
+    expect(unmeasured, 'drawn but never measured').toEqual([]);
+    // And every measured glyph must produce a viewBox, or the normalisation is
+    // silently doing nothing for it.
+    const broken = keys.filter((k) => typeof normalize(k) !== 'string');
+    expect(broken, 'measured but not normalisable').toEqual([]);
   });
 });
