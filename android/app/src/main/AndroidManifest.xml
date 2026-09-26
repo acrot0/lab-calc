@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <!--
+        INTERNET is declared by Capacitor's template, not requested by this app.
+
+        The app makes no network calls at all: the UI is bundled in the APK, the
+        calculations are local, and history is in localStorage. The permission is
+        kept because Capacitor's WebView serves the app through its own local
+        server and the template pairs the two; removing it is a change that can
+        only be verified by installing the APK on a device, and a build that
+        installs and shows nothing is a worse outcome than a permission the app
+        does not exercise.
+
+        If it is ever removed, verify on a real device that the app still loads
+        before shipping — this comment is the note that says so.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

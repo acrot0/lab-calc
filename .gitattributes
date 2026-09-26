@@ -2,3 +2,14 @@
 *.png binary
 *.woff binary
 *.woff2 binary
+
+# Windows batch files must keep CRLF.
+#
+# `cmd.exe` reads a `.bat` line by line and treats a lone LF as part of the
+# line, so an LF-only batch file fails in ways that read as a broken toolchain
+# — Gradle's wrapper is the one that matters here, and a checkout that
+# normalised it to LF would break `npm run package:android` on a machine where
+# nothing had changed. The `-text` disables the conversion; `eol=crlf` states
+# what the file is.
+*.bat -text eol=crlf
+*.cmd -text eol=crlf

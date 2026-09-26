@@ -16,9 +16,11 @@
     "screenshots": "node scripts/make-screenshots.mjs",
     "package:desktop": "node scripts/package-desktop.mjs",
     "package:desktop:fast": "node scripts/package-desktop.mjs --no-build",
+    "package:android": "node scripts/package-android.mjs",
     "licences": "node scripts/check-licences.mjs"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
     "@catppuccin/palette": "^1.8.0",
     "@rose-pine/palette": "^4.0.1",
     "@vitejs/plugin-react": "^6.1.1",
@@ -27,6 +29,8 @@
     "vitest": "^3.2.1"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/space-grotesk": "^5.3.0",

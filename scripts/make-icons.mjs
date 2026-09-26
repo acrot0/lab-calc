@@ -314,6 +314,54 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.met
   }
 
   /**
+   * The Android launcher icons.
+   *
+   * Written into the Capacitor project's resource tree rather than into
+   * `public/`, because that is where the Android build reads them from — the
+   * web manifest's icons are for the PWA and are not what a launcher shows.
+   * Without this the APK ships Capacitor's default icon: a generic Android
+   * placeholder, dated before this project existed.
+   *
+   * Five densities, because Android picks by screen density and scales nothing:
+   * a launcher asks for the bucket matching the device, and a missing one is a
+   * blank square rather than a fallback. 48/72/96/144/192 dp is the standard
+   * ladder for a legacy square icon.
+   *
+   * The adaptive variants (`anydpi-v26`) are what modern launchers actually
+   * use: a foreground layer and a background layer the launcher masks to
+   * whatever shape it likes — circle, squircle, teardrop. The foreground is
+   * drawn with `maskable` so the mark sits inside the 66% safe zone; anything
+   * outside it is cropped, and the flask's spout was the part that got cut.
+   */
+  {
+    const androidRes = path.join(process.cwd(), 'android', 'app', 'src', 'main', 'res');
+    if (fs.existsSync(path.join(process.cwd(), 'android'))) {
+      const buckets = [
+        ['mdpi', 48], ['hdpi', 72], ['xhdpi', 96],
+        ['xxhdpi', 144], ['xxxhdpi', 192],
+      ];
+      let written = 0;
+      for (const [bucket, size] of buckets) {
+        const dir = path.join(androidRes, `mipmap-${bucket}`);
+        fs.mkdirSync(dir, { recursive: true });
+        const square = encodePng(size, size, drawIcon(size));
+        fs.writeFileSync(path.join(dir, 'ic_launcher.png'), square);
+        fs.writeFileSync(path.join(dir, 'ic_launcher_round.png'), square);
+        // The adaptive foreground is drawn at the full icon size but with the
+        // mark inside the safe zone, so the launcher's mask has room to crop.
+        fs.writeFileSync(
+          path.join(dir, 'ic_launcher_foreground.png'),
+          encodePng(size, size, drawIcon(size, { maskable: true })),
+        );
+        written += 3;
+      }
+      console.log(`  android mipmap-*  5 密度 × 3 个  ${written} 个文件`);
+    } else {
+      console.log('  （跳过 Android 图标：没有 android/ 目录）');
+    }
+  }
+
+  /**
    * The Windows executable icon.
    *
    * ICO is a container, not an image format: a six-byte header, then one 16-byte
