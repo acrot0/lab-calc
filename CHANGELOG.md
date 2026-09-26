@@ -4,6 +4,84 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-09-26
+
+The calculator became the thing the rest of the app is built around, and the
+phone got a navigation that fits it.
+
+### Added
+
+- **A scientific calculator, not a four-function one.** Memory (`M+`/`M−`/`MR`/
+  `MC`), `ans`, and a history of recent calculations, all session-scoped and
+  never written to disk. `ans` carries its unit, so `ans × 2` after a `20 g/L`
+  answer is `40 g/L` rather than a bare `40` — a bare number would silently drop
+  the one thing the value meant.
+- **Unit conversion inside the calculator window**, as a second panel beside the
+  keypad. It shares the window's position and its fill button, so a converted
+  temperature or mass can be written straight into the field behind it — which
+  is the whole reason the window stays open. The converter is one component used
+  in both places rather than two that could drift.
+- **A phone navigation that fits a thumb.** Five destinations at the bottom —
+  weigh, dilute, buffer, pH, elements, in the order a session moves through
+  them — and the other eleven behind a "more" sheet. Material 3 and the iOS HIG
+  both specify 3–5 destinations in a bottom bar and put the rest behind an
+  overflow affordance; at 390px sixteen items would be 24px each, under the
+  touch floor, where five gives 78px.
+- **Keyboard shortcuts**, listed in the settings panel and read from the same
+  table the handler matches against, so one that stops working disappears from
+  the list with it. `Ctrl+K` for the calculator, `Ctrl+←`/`→` to move between
+  tabs, `Ctrl+J` to jump into the current tab's content, `?` for the list.
+
+### Fixed
+
+- **The icons were not one set.** Measured across the 46 glyphs in use,
+  Phosphor's ink boxes run from 144×224 to 240×240 — a 1.5× difference in
+  apparent size at the same `size` prop — and one glyph's ink sits 20 units
+  right of its grid centre, which reads as a lean. Each glyph now gets a
+  `viewBox` computed from its own ink box, sized so the ink fills a common 84%
+  of the rendered square and centred on it. Measured after: fill 0.84 for all
+  46 with zero spread, worst off-centre 0.03px against 20 units before.
+- **A landscape phone could not reach the calculator's digits.** Held sideways
+  there is 390px of height and the keypad was ten rows of 44px keys — 440px.
+  Measured: five of ten rows visible, `=` 21px below the fold. The keys are
+  transposed rather than scrolled — `display: contents` on each row makes its
+  keys children of a ten-column grid, so ten rows of five become four rows of
+  ten, the same reading order turned — and `=` sits in its own row below the
+  scrolling part, always on screen.
+- **The readout re-evaluated against its own answer.** `5 g / 250 mL`, `=`,
+  `ans × 2`, `=` showed 40, but the entry still read `ans × 2`, so the next
+  evaluation used the 40 as its own input and the display moved to 80. `M+`
+  then stored 80 where the screen said 40. `=` now freezes the answer against
+  the entry that produced it, which is what a physical calculator does.
+- **The calculator window could be parked below the screen.** The clamp kept
+  only a grab margin of the title bar, so a 669px window on a 900px viewport
+  landed at y=334 with its last 104px — including `=` — off the bottom and
+  unreachable, because the window does not scroll. A window that fits now fits
+  entirely.
+- **Fields stretched the width of the card.** At 1920px a chemical-formula box
+  holding `NaCl` was 894px across with its label above it, so the eye travelled
+  the width of the card to connect the two. Fields are capped at 34ch and a
+  card with no results column at 560px.
+- `isExpressionFragment` rejected three working keys: it probes a fragment by
+  evaluating completions of it, and `atanh(1)` is a *domain* error rather than a
+  syntax one, so `atanh(`, `asinh(` and `acosh(` were reported as unreadable.
+- **Settings moved off the topbar.** Four preference controls sat at the same
+  visual weight as the calculator button; on a 390px phone they took the whole
+  second header line before wrapping. They are one popover now, with the
+  shortcut list in it.
+
+### Changed
+
+- The desktop navigation rail expands on click rather than on hover. Hover moved
+  the target — crossing the rail to click an icon widened it by 152px and
+  shifted the icon out from under the pointer — and was unreachable without a
+  pointer, so a touch laptop got a column of unlabelled glyphs. The content now
+  reflows rather than being covered, which is the right trade once the expansion
+  is deliberate.
+- The icon set is Phosphor throughout, at three named sizes rather than eight
+  arbitrary ones. Every glyph is measured and normalised; `npm run icons:check`
+  fails if a drawn icon is unmeasured or a measurement is unused.
+
 ## [0.8.0] — 2026-09-26
 
 A phone build, an Android build, and a desktop build that works.

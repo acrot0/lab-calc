@@ -4,14 +4,14 @@
 
 **在线使用：<https://acrot0.github.io/lab-calc/>** —— 无需安装，可离线使用（PWA），数据只存在你自己的浏览器里。
 
-中文 / English 双语，**6 套主题**（含 Catppuccin、Rosé Pine 两套社区配色）+ 跟随系统，右上角切换。
+中文 / English 双语，**11 套主题**（含 Catppuccin、Rosé Pine、Gruvbox、Solarized 四套社区配色）+ 跟随系统，设置面板里切换。
 
 ```bash
 npm install
 npm run dev      # 开发
 npm run build    # 构建到 dist/，纯静态，可直接托管
-npm test         # 750 个测试
-npm run verify   # 导入完整性 + 许可证检查 + 15 项计算对已知答案的冒烟检查
+npm test         # 1369 个测试
+npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项计算对已知答案的冒烟检查
 ```
 
 ---
@@ -190,7 +190,7 @@ src/
     ├── xlsx.mjs          手写的 .xlsx 生成器（零依赖）
     ├── palettes.mjs      6 套主题配色（含 Catppuccin / Rosé Pine）
     ├── styles.css        设计 token + 组件样式
-    ├── tabs/             15 个计算标签页
+    ├── tabs/             16 个计算标签页
     └── components/       表单原语、历史面板、须知弹窗、SVG 插画
 ```
 
