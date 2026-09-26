@@ -25,7 +25,7 @@ import { claimField } from '../field-bridge.mjs';
  * tab has to know this exists — a field that has only ever been given a plain
  * number behaves exactly as it did.
  */
-export function NumField({ label, value, onChange, hint, error, step = 'any', min, id: idProp }) {
+export function NumField({ label, value, onChange, hint, error, step = 'any', min, disabled = false, id: idProp }) {
   const id = idProp ?? `f-${label}`;
   const { t } = useI18n();
   const [draft, setDraft] = useState(null);
@@ -52,7 +52,6 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
       release?.();
     };
   }, []);
-
   /*
    * `draft` holds what the user is typing; `value` is the evaluated number the
    * tab holds. Without the draft, typing `0.1*2` would re-render the field with
@@ -87,6 +86,7 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
         inputMode="decimal"
         step={step}
         min={min}
+        disabled={disabled}
         value={shown ?? ''}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={hint || error || preview !== null ? `${id}-hint` : undefined}

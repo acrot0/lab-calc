@@ -3,14 +3,20 @@
  *
  * This is not legal boilerplate bolted on at the end. A solution calculator
  * that looks authoritative but models an ideal solution will be trusted further
- * than it deserves: it ignores activity coefficients, ignores temperature, and
- * uses a bisection solve that is approximate near an equivalence point. Someone
- * who prepares a reagent from it without checking has been misled by the
- * interface, and the interface is ours.
+ * than it deserves. Someone who prepares a reagent from it without checking has
+ * been misled by the interface, and the interface is ours.
  *
  * So the notice names the specific limitations rather than gesturing at
  * "limitations". A user who knows what is missing can decide when the number is
  * good enough; a user told only "use at your own risk" learns nothing.
+ *
+ * It also has to stay true in the other direction. The buffer module now does
+ * correct for activity, temperature, and ionic strength, so a notice still
+ * claiming those are ignored would understate the tool — and, worse, would teach
+ * the user to distrust a number that is in fact better than they think. The
+ * points below therefore separate "corrected" from "never modelled", and the
+ * split has to be revisited whenever a tab moves between the two columns.
+ * `test/disclaimer.test.mjs` pins the split.
  *
  * The acknowledgement is stored so the notice does not have to be dismissed on
  * every visit — a notice people click past without reading is worse than none,
@@ -36,8 +42,8 @@ export const DISCLAIMER_POINTS = [
   {
     titleZh: '模型是简化的',
     titleEn: 'The model is simplified',
-    zh: '按理想溶液处理：不考虑活度系数、温度影响、离子强度、CO₂ 溶解、溶剂体积收缩与杂质。滴定曲线在等当点附近为近似值。',
-    en: 'Solutions are treated as ideal: activity coefficients, temperature effects, ionic strength, dissolved CO₂, volume contraction on mixing, and impurities are all ignored. Titration curves are approximate near an equivalence point.',
+    zh: '缓冲体系已校正活度系数、温度对 pKa 的影响与离子强度（Davies 方程，在 I ≤ 0.5 mol/L 内可靠）；其余页面仍按理想溶液处理。所有页面都不考虑 CO₂ 溶解、溶剂体积收缩、杂质与络合平衡。非缓冲体系的 pH 与滴定曲线在等当点附近均为近似值。',
+    en: 'Buffer systems correct for activity coefficients, the temperature dependence of pKa, and ionic strength (Davies equation, reliable to I ≤ 0.5 mol/L); the other tabs still treat solutions as ideal. No tab models dissolved CO₂, volume contraction on mixing, impurities, or complexation equilibria. Non-buffered pH values and titration curves are approximate near an equivalence point.',
   },
   {
     titleZh: '请自行核对结果',

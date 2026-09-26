@@ -85,6 +85,7 @@ const COMMON = {
   // `temperatureC`. Both are labelled: the two names are in the stored format
   // and renaming one would invalidate every record already saved.
   tempC: { zh: '温度 (°C)', en: 'Temperature (°C)' },
+  backgroundSalt: { zh: '外加盐浓度 (mol/L)', en: 'Added salt (mol/L)' },
   pressure: { zh: '压力', en: 'Pressure' },
   wavelength: { zh: '波长 (nm)', en: 'Wavelength (nm)' },
   absorbance: { zh: '吸光度', en: 'Absorbance' },

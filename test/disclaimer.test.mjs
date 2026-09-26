@@ -81,8 +81,28 @@ describe('disclaimer content', () => {
 
   it('should name what is not modelled, not just wave at "limitations"', () => {
     const all = DISCLAIMER_POINTS.flatMap((p) => [p.zh, p.en]).join(' ').toLowerCase();
-    expect(all).toMatch(/活度|activity/);
-    expect(all).toMatch(/温度|temperature/);
+    // CO2 and volume contraction are still outside every tab's model; naming
+    // them is what keeps the notice honest rather than decorative.
+    expect(all).toMatch(/co₂|co2/);
+    expect(all).toMatch(/体积收缩|volume contraction/);
+  });
+
+  it('should credit the corrections that are actually implemented', () => {
+    // The buffer module corrects activity, temperature and ionic strength. A
+    // notice still listing them as ignored would understate the tool and teach
+    // the user to distrust a number that is right. Guard the corrected clause.
+    const all = DISCLAIMER_POINTS.flatMap((p) => [p.zh, p.en]).join(' ').toLowerCase();
+    expect(all).toMatch(/活度系数|activity coefficient/);
+    expect(all).toMatch(/离子强度|ionic strength/);
+    expect(all).toMatch(/校正|correct/);
+    // The other tabs are not corrected, and the notice must not imply they are.
+    expect(all).toMatch(/理想溶液|ideal/);
+  });
+
+  it('should state the Davies validity range rather than calling the correction exact', () => {
+    const all = DISCLAIMER_POINTS.flatMap((p) => [p.zh, p.en]).join(' ').toLowerCase();
+    expect(all).toMatch(/davies/);
+    expect(all).toMatch(/0\.5/);
   });
 
   it('should have both languages for every point', () => {
