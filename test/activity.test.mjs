@@ -485,3 +485,75 @@ describe('the correction as a whole', () => {
     expect(Math.abs(real.ph - 5.0)).toBeGreaterThan(0.05);
   });
 });
+
+describe('the base direction, worked through the acid routine', () => {
+  /*
+   * The pH tab works a base by calling `weakAcidPhActivity` with pKb, and
+   * reading the result as a **pOH** — the two equilibria are the same equation
+   * with OH⁻ in the proton's role. That reuse is only correct if the returned
+   * number is the pOH and the charge passed is the one the routine expects, so
+   * both are pinned here rather than left to the tab's comment.
+   *
+   * The trap this guards: a neutral base's *conjugate acid* is a cation, which
+   * invites passing z = +1. That is wrong, and wrong by 0.10 pH units at
+   * I = 0.1 — an error the size of the correction itself, in the direction that
+   * makes the tab look like it is working.
+   */
+  it('should return the pOH when given a base pKb', () => {
+    // Ammonia: pKb 4.75, so the ideal pOH is 0.5*(4.75 - log10(0.1)) = 2.875.
+    const r = weakAcidPhActivity({ pKa: 4.75, conc: 0.1, charge: 0 });
+    expect(r.ph).toBeCloseTo(2.875, 2);
+    // Which is pH 11.125.
+    expect(14 - r.ph).toBeCloseTo(11.125, 2);
+  });
+
+  it('should barely move a neutral base, as it barely moves a neutral acid', () => {
+    /*
+     * The same cancellation that leaves acetic acid alone: the species that
+     * stays neutral is B, so gamma_B = 1, and the proton and hydroxide terms
+     * cancel. Reported as the small number it is rather than manufactured into
+     * a visible shift.
+     */
+    const ideal = 0.5 * (4.75 - Math.log10(0.1));
+    for (const I of [0.1, 0.5]) {
+      const r = weakAcidPhActivity({ pKa: 4.75, conc: 0.1, charge: 0, ionicStrength: I });
+      expect(Math.abs(r.ph - ideal), `I=${I}`).toBeLessThan(0.01);
+    }
+  });
+
+  it('should over-correct a neutral base if the conjugate acid charge is used', () => {
+    // The documented failure mode. z = +1 is the cation BH+, which is not the
+    // species in the equilibrium being solved.
+    const ideal = 0.5 * (4.75 - Math.log10(0.1));
+    const wrong = weakAcidPhActivity({ pKa: 4.75, conc: 0.1, charge: 1, ionicStrength: 0.1 });
+    expect(Math.abs(wrong.ph - ideal)).toBeGreaterThan(0.09);
+  });
+
+  it('should agree with the ideal model when I is zero, to the approximation’s own error', () => {
+    /*
+     * At I = 0 every gamma is 1, so the only difference left is the one between
+     * the two models' *arithmetic*: `weakAcidPh` uses the approximation
+     * [H+] = sqrt(Ka*C), while `weakAcidPhActivity` solves the quadratic
+     * exactly. Those differ by about 0.003 pH units at 0.1 M, and that gap is
+     * not an activity effect — it is the approximation's own error, which the
+     * tab already discloses in its warning.
+     *
+     * Asserted at that tolerance rather than at machine precision, because
+     * demanding equality would be demanding the exact model back and would
+     * make this test fail the moment the quadratic is solved more carefully.
+     */
+    for (const [pk, conc, charge] of [[4.76, 0.1, 0], [7.20, 0.1, -1], [9.25, 0.1, 1]]) {
+      const r = weakAcidPhActivity({ pKa: pk, conc, charge, ionicStrength: 0 });
+      expect(r.ph, `pKa=${pk}`).toBeCloseTo(weakAcidPh({ pKa: pk, conc }), 2);
+    }
+  });
+
+  it('should keep every gamma at one when I is zero', () => {
+    // The reason the check above is meaningful: with no ionic strength there is
+    // nothing for the activity terms to do, so they must all be exactly 1.
+    const r = weakAcidPhActivity({ pKa: 7.20, conc: 0.1, charge: -1, ionicStrength: 0 });
+    expect(r.gammaH).toBe(1);
+    expect(r.gammaAcid).toBe(1);
+    expect(r.gammaBase).toBe(1);
+  });
+});

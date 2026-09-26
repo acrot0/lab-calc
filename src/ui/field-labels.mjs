@@ -73,6 +73,11 @@ const COMMON = {
   // form some older records carry. Both are labelled so neither prints raw.
   pKa: { zh: 'pKa', en: 'pKa' },
   conc: { zh: '浓度 (mol/L)', en: 'Concentration (mol/L)' },
+  // The pH tab's activity inputs. `charge` is the charge of the acid form and
+  // `salt` the background ionic strength — both are what the correction needs
+  // beyond a pK, so both end up in the record.
+  charge: { zh: '酸型电荷 z', en: 'Charge of acid form (z)' },
+  salt: { zh: '背景离子强度 (mol/L)', en: 'Background ionic strength (mol/L)' },
   ph: { zh: 'pH', en: 'pH' },
   poh: { zh: 'pOH', en: 'pOH' },
   kind: { zh: '类型', en: 'Type' },
