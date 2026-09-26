@@ -697,25 +697,44 @@ export default function CalculatorDrawer({ open, onClose, store }) {
             ))}
           </div>
 
+          {/*
+            The keypad is split in two: the rows that can scroll, and `=`.
+
+            On a phone held upright everything fits and the split is invisible —
+            `.calc-rows` is an ordinary block. Held sideways there is 150px for
+            220px of keys, so the rows scroll and `=` stays put below them. The
+            alternative was putting `=` behind the scroll, and it is the key a
+            thumb finds by position at the bottom of the pad; the other was
+            shrinking the keys below 44px, which is the one thing the touch work
+            exists to prevent.
+          */}
           <div className="calc-keypad" role="group" aria-label={t('convert.calcKeypad')}>
-            {/* Only the function rows swap. The memory row and the digits stay
-                put, so a user on either page can still type a number, recall
-                the answer and clear the entry. */}
-            {FN_PAGES[fnPage].map((row, ri) => (
-              <div className="calc-row" key={`fn-${ri}`}>
-                {row.map(renderKey)}
-              </div>
-            ))}
-            {MEMORY_KEYS.map((row, ri) => (
-              <div className="calc-row is-memory" key={`mem-${ri}`}>
-                {row.map(renderKey)}
-              </div>
-            ))}
-            {DIGIT_KEYS.map((row, ri) => (
-              <div className="calc-row" key={`dig-${ri}`}>
-                {row.map(renderKey)}
-              </div>
-            ))}
+            <div className="calc-rows">
+              {/* Only the function rows swap. The memory row and the digits
+                  stay put, so a user on either page can still type a number,
+                  recall the answer and clear the entry. */}
+              {FN_PAGES[fnPage].map((row, ri) => (
+                <div className="calc-row" key={`fn-${ri}`}>
+                  {row.map(renderKey)}
+                </div>
+              ))}
+              {MEMORY_KEYS.map((row, ri) => (
+                <div className="calc-row is-memory" key={`mem-${ri}`}>
+                  {row.map(renderKey)}
+                </div>
+              ))}
+              {DIGIT_KEYS.slice(0, -1).map((row, ri) => (
+                <div className="calc-row" key={`dig-${ri}`}>
+                  {row.map(renderKey)}
+                </div>
+              ))}
+            </div>
+            {/* The last row of `DIGIT_KEYS` is the `=` row and only that key —
+                see the table. Taken by slice rather than written here so the
+                key stays in `calculator-keys.mjs` with the rest. */}
+            <div className="calc-row is-equals">
+              {DIGIT_KEYS[DIGIT_KEYS.length - 1].map(renderKey)}
+            </div>
           </div>
 
           {/*

@@ -2594,6 +2594,15 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   gap: 8px;
 }
 
+/* The rows above `=`. A plain block upright — the split exists for the
+   landscape layout, where this is the part that scrolls. See the note in the
+   landscape block. */
+.calc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .calc-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2803,35 +2812,261 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
    * `align-content: start` keeps the left column's rows packed at the top
    * rather than stretched to match.
    */
+  /*
+   * The columns are `1fr : 2.1fr`, not `1fr : 1.35fr`.
+   *
+   * The keypad is nine rows of 44px keys plus gaps — 478px, and it cannot
+   * shrink. The left column can: its content is an input, a readout, six unit
+   * chips and a page switch. Measured with the old ratio, the left column took
+   * 226px of the 371px body and left the keypad 264px, which is five rows — so
+   * the digits and `=` were behind a scroll on the one surface a thumb is meant
+   * to use without looking. The keypad gets the larger share because it is the
+   * part that does not fit.
+   */
+  /*
+   * The body is two columns: the readout stack on the left, the keypad right.
+   *
+   * A single grid was tried first and the row sizing defeated it. With the
+   * keypad spanning all five rows, its height is the *sum* of the row heights —
+   * so `grid-template-rows: repeat(4, auto) 1fr` gave it four content-sized
+   * rows plus whatever the `1fr` resolved to, measured at 223px against the 478
+   * it needs.
+   *
+   * The fix is not a bigger body; it is a transposed keypad. See below.
+   */
+  /*
+   * The body stacks: a readout strip across the top, the keypad below it.
+   *
+   * A two-column split was tried first, with the keypad on the right, and it
+   * gave 28px-wide keys — ten columns in a 337px column is not a keypad. The
+   * constraint is height, not width: 390px of screen minus the head leaves 223
+   * for the keys, and the only way to fit ten rows of keys in that is to use
+   * the full width for them.
+   *
+   * So the left column becomes a *row*: the entry, readout and controls sit
+   * side by side across the top, and the keypad gets the whole width below.
+   */
+  /*
+   * The page switch shares the top row with the readout rather than taking a
+   * row of its own.
+   *
+   * Given its own row it cost 31px of the 150 the keypad had, and the scrolling
+   * grid dropped to 79px — under two rows of keys. The top row has slack: the
+   * readout is one line of text in a 63px box.
+   */
+  /*
+   * The top row is three cells: entry, readout, page switch.
+   *
+   * The switch shares the row rather than taking one of its own — given a row
+   * it cost 31px of the 150 the keypad had and the scrolling grid dropped to
+   * 79px, under two rows of keys.
+   */
+  /*
+   * The top row is three cells: entry, readout, page switch.
+   *
+   * The switch shares the row rather than taking one of its own — given a row
+   * it cost 31px of the 150 the keypad had and the scrolling grid dropped to
+   * 79px, under two rows of keys.
+   *
+   * The middle column is `auto` rather than a fraction: the readout holds one
+   * line of digits, and giving it a share of the row took width the page switch
+   * needed — at 115px the switch's two labels wrapped to two lines, which made
+   * the row 53px tall and pushed `=` past the bottom of the screen.
+   */
   .calc-body {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-    grid-template-rows: repeat(4, auto) 1fr;
+    grid-template-columns: minmax(0, 1.6fr) auto minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
     grid-template-areas:
-      'input   keypad'
-      'readout keypad'
-      'fill    keypad'
-      'units   keypad'
-      'pages   keypad';
+      'input   readout  pages'
+      'keypad  keypad   keypad';
     gap: var(--s2) var(--s3);
     padding: var(--s3);
-    align-content: start;
-    /* Bounded so the grid has a shortfall to resolve; see the note on the
-       keypad's own scroll below. */
-    max-height: calc(100dvh - var(--s4) - 5.5rem);
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
   }
 
   .calc-input { grid-area: input; }
-  .calc-readout { grid-area: readout; min-height: 0; }
-  .calc-fill { grid-area: fill; }
-  .calc-units { grid-area: units; }
-  .calc-pages { grid-area: page; }
-  /* The memory indicator and the history are not placed: there is no room for
-     them in a 390px-tall layout, and the grid's explicit rows would leave them
-     unplaced and overflowing. The memory value is visible in the entry anyway
-     the moment `MR` is pressed, which is when it matters. */
+  .calc-readout { grid-area: readout; align-self: center; }
+
+  /*
+   * The unit chips and the page switch are dropped, and their `grid-area`
+   * declarations with them.
+   *
+   * `display: none` alone was not enough: an element with a `grid-area` naming
+   * an area the template does not define is auto-placed, which creates an
+   * *implicit row* — measured, the template resolved to four rows where two
+   * were declared, and the keypad's `1fr` got 66px instead of 148. A hidden
+   * element still participates in placement; removing the placement is what
+   * removes the row.
+   *
+   * They are reachable in the upright layout, and a unit can be typed on the
+   * phone's own keyboard here; they cost height the keypad needs more.
+   */
+  /*
+   * The unit chips and the fill button are dropped; the page switch is not.
+   *
+   * The chips are a shortcut for typing a unit, and the phone's own keyboard
+   * can type one — they cost height the keypad needs more. The fill button
+   * writes into the field behind the window, which is one tap away since the
+   * panel is open *over* that form.
+   *
+   * The page switch stays: hiding it would put the second page of functions
+   * out of reach entirely, which is a missing feature rather than a layout
+   * trade. It is one 30px row.
+   *
+   * Each hidden element's `grid-area` goes with it. `display: none` alone was
+   * not enough — an element naming an area the template does not define is
+   * auto-placed, which creates an implicit row, and measured the template
+   * resolved to four rows where two were declared with the keypad's `1fr`
+   * getting 66px instead of 148.
+   */
+  .calc-units,
+  .calc-fill { display: none; grid-area: auto; }
+
+  .calc-input { grid-area: input; }
+
+  /*
+   * The readout and the page switch share the right-hand cell, side by side.
+   *
+   * Stacking them was the first attempt and it hid the readout: `align-self:
+   * end` put the switch over the answer, so `12*4` evaluated and the result was
+   * behind a button. Side by side they both fit — the readout is one line, the
+   * switch is two short labels.
+   *
+   * The labels are shortened for this layout rather than the buttons being made
+   * taller: "常用函数" wraps to two lines in a 40px-tall segment and pushes the
+   * row up, which is the space the keypad needs.
+   */
+  .calc-readout {
+    grid-area: readout;
+    align-self: stretch;
+    min-height: 0;
+    /* Bounded, so a long answer wraps inside the readout rather than widening
+       the column and squeezing the page switch. */
+    max-width: 22ch;
+    padding: var(--s2) var(--s3);
+  }
+
+  /*
+   * The page switch is one column of two stacked segments, not two side by
+   * side.
+   *
+   * Side by side at this width the labels wrapped to two lines each, which made
+   * the row 53px tall — enough to push `=` past the bottom of a 390px screen.
+   * Stacked, each segment is as wide as its label needs and the pair is the
+   * height of the row.
+   */
+  .calc-pages {
+    grid-area: pages;
+    align-self: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: 1fr;
+    padding: 0;
+    background: transparent;
+    border: none;
+    gap: 2px;
+  }
+
+  .calc-page {
+    min-height: 0;
+    padding: 0 var(--s2);
+    font-size: var(--t-xs);
+    white-space: nowrap;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+
+  /* The icon is what the upright layout has room for; here the label is what
+     says which page it is, and the two are one above the other. */
+  .calc-page svg { display: none; }
+
+  .calc-page.is-on { background: var(--surface); border-color: var(--accent); }
+
+  /* The memory indicator and the history are dropped: there is no room for
+     them in a 390px-tall layout, and the memory value is visible in the entry
+     anyway the moment `MR` is pressed, which is when it matters. */
   .calc-mem, .calc-history { display: none; }
+
+  /*
+   * The drawer is a flex column with the body taking the remainder.
+   *
+   * The body's own `max-height` is lifted: it was `calc(100dvh - ... - 5.5rem)`,
+   * written when the head was shorter, and measured it left 283px on a 390px
+   * screen. The drawer already caps at `100dvh - var(--s4)`, and `flex: 1` on
+   * the body makes that cap the thing the grid resolves against.
+   */
+  .calc-body { max-height: none; }
+
+  /*
+   * The keypad is transposed: ten columns, four scrolling rows, and `=` pinned.
+   *
+   * Ten rows of 44px keys is 440px and a landscape phone has 150 for them — the
+   * digits and `=` were behind a scroll, on the one surface meant to be used
+   * without looking. No amount of column tuning fixes that arithmetic; the keys
+   * have to be arranged in fewer rows.
+   *
+   * The rows are laid out sideways instead. `display: contents` on each row makes
+   * its keys direct children of the grid, so ten rows of five become four rows
+   * of ten plus `=` without touching the key tables — the component still emits
+   * one element per row, and the arrangement stays data.
+   *
+   * The order is the reading order, which is the point: `sin` through `e` runs
+   * across the first row, then the next. A user reads left to right and down,
+   * exactly as on the upright keypad — it is the same sequence, turned.
+   */
+  .calc-keypad {
+    grid-area: keypad;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* The part that scrolls. `min-height: 0` is what lets it scroll rather than
+     growing to its content — a flex item defaults to a minimum of its content
+     size, and clearing it is the difference between the two. */
+  .calc-rows {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    grid-auto-rows: 44px;
+    gap: 6px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* Each row dissolves into the grid, so its keys are placed by the grid's own
+     flow rather than by a row container. */
+  .calc-rows .calc-row { display: contents; }
+
+  /* The memory row's extra top margin made sense when it separated one row of
+     nine from the next; in a flow layout it is a gap that does not line up. */
+  .calc-row.is-memory { margin-top: 0; }
+
+  /*
+   * `=` keeps its own row, outside the scroll, full width.
+   *
+   * `display: block` was the first attempt and it left the key 29px wide: the
+   * `span 10` on `.calc-key.is-wide` only means anything inside a grid, and a
+   * block box has no columns to span. As a one-cell grid the key spans its
+   * single column, which is the full width — the same declaration, in a
+   * container that can act on it.
+   */
+  .calc-row.is-equals {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    flex: none;
+  }
+
+  /* `=` spans every column upright, and here it spans whatever row it is in —
+     the full width of the scrolling grid, and the full width of its own. */
+  .calc-key.is-wide { grid-column: 1 / -1; }
+
+  /* The function keys are the smallest text on the keypad and were sized for a
+     44px-tall key. At this width there is room to read them. */
+  .calc-key.is-fn { font-size: var(--t-sm); }
 
   /* The keypad owns the right column and the full height, and scrolls inside
      it. `min-height: 0` is what allows that: a grid item defaults to a minimum

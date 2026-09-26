@@ -235,6 +235,73 @@ describe('mobile layout regressions', () => {
   });
 });
 
+describe('calculator landscape layout', () => {
+  /*
+   * A phone held sideways has 390px of height and ten rows of 44px keys need
+   * 440. Measured before the fix: five of ten rows visible, `=` 21px below the
+   * fold, on the one surface meant to be used without looking.
+   *
+   * The rules that make it fit are four declarations in one media query, and
+   * every one of them is load-bearing — a later edit that removes one produces
+   * a keypad that still renders and is still unusable. Asserted against the
+   * stylesheet because proving it needs a real layout engine and a coarse
+   * pointer, which jsdom has neither of.
+   */
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+  const marker = '@media (pointer: coarse) and (max-height: 500px) and (min-width: 640px)';
+  const start = css.indexOf(marker);
+  const landscape = css.slice(start, css.indexOf('/* ====', start));
+
+  it('should transpose the keypad rather than scrolling it', () => {
+    // Ten columns is what turns ten rows into four. Without it the keypad is
+    // 440px tall in a 150px box and `=` is behind a scroll.
+    expect(landscape).toMatch(/\.calc-rows\s*\{[^}]*grid-template-columns:\s*repeat\(10/);
+  });
+
+  it('should dissolve each key row into the grid', () => {
+    // `display: contents` is what makes the keys direct children of the
+    // ten-column grid; without it each row is its own five-column grid and the
+    // transposition does nothing.
+    expect(landscape).toMatch(/\.calc-rows\s+\.calc-row\s*\{\s*display:\s*contents/);
+  });
+
+  it('should keep the equals key outside the scrolling area', () => {
+    // `=` is the key a thumb finds by position at the bottom of the pad. Behind
+    // the scroll it is unreachable, which is the defect this whole block is for.
+    expect(landscape).toMatch(/\.calc-row\.is-equals\s*\{[^}]*flex:\s*none/);
+    // And its own row must be a grid, or `grid-column: 1 / -1` has no columns
+    // to span and the key renders 29px wide — measured.
+    expect(landscape).toMatch(/\.calc-row\.is-equals\s*\{[^}]*display:\s*grid/);
+  });
+
+  it('should keep the page switch reachable', () => {
+    // Hiding it would put the second page of functions out of reach entirely,
+    // which is a missing feature rather than a layout trade.
+    expect(landscape).not.toMatch(/\.calc-pages[^{]*\{[^}]*display:\s*none/);
+  });
+
+  it('should not give a hidden element a grid area', () => {
+    /*
+     * `display: none` alone is not enough. An element naming an area the
+     * template does not define is auto-placed, which creates an *implicit row*:
+     * measured, the template resolved to four rows where two were declared and
+     * the keypad's `1fr` got 66px instead of 148.
+     */
+    // Comments stripped first: a rule's own explanation mentions `display:
+    // none` and `grid-area`, and a match spanning a comment reads as a rule
+    // that does not exist.
+    const bare = landscape.replace(/\/\*[\s\S]*?\*\//g, '');
+    const hidden = [...bare.matchAll(/[^{}]+\{[^}]*display:\s*none[^}]*\}/g)]
+      .map((m) => m[0].replace(/\s+/g, ' ').trim())
+      .filter((rule) => {
+        const area = /grid-area:\s*([^;}]+)/.exec(rule);
+        // `auto` is the opt-out; anything else names an area.
+        return area && area[1].trim() !== 'auto';
+      });
+    expect(hidden, `hidden but still placed: ${hidden.join(' | ')}`).toEqual([]);
+  });
+});
+
 describe('calculator touch targets', () => {
   /*
    * Asserted against the stylesheet rather than by rendering, for the same
