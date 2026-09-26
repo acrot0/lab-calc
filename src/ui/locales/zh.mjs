@@ -1180,5 +1180,31 @@ export const zh = {
     bioKineticsNoFit: '数据拟合不出正的 Vmax——速率随底物浓度下降，不符合米氏方程。',
     temperatureBelowAbsoluteZero: '温度低于绝对零度（{tempC} °C），物理上不存在。',
     functionArity: "{fn} 需要 {want} 个参数，收到 {got} 个。",
+
+    // 不确定度传播
+    uncertaintyNegative: '不确定度不能为负数（当前为 {unc}）。不确定度是误差的大小，没有方向。',
+    uncertaintyZeroValue: '数值为 0 但不确定度是 {unc}。相对不确定度要除以数值，0 会让它无定义——请检查这个量是不是本该有值。',
+    uncertaintyNoTerms: '至少需要一个输入量才能传播不确定度。',
+
+    // 实验统计
+    statsNoData: '没有数据。至少要有一个测量值才能统计。',
+    statsTooFewForOutlier: '离群值检验至少需要 {min} 个数据点（当前 {n} 个）。点太少时，任何一个点看起来都像离群值。',
+    statsTooManyForDixon: 'Dixon Q 检验最多支持 {max} 个数据点（当前 {n} 个）。点更多时请改用 Grubbs 检验——Q 的临界值表到那里就收敛了。',
+    statsBadConfidence: '置信水平必须在 0 与 1 之间（当前为 {confidence}）。95% 要写成 0.95。',
+    statsBadProbability: '概率必须在 0 与 1 之间（当前为 {p}）。',
+    statsTooFewForCI: '至少需要 {min} 个数据点（当前 {n} 个）。单个测量值没有离散度，算不出区间。',
+    statsTooFewForVariance: '两组数据各至少需要 2 个点才能比较离散度（当前 {n1} 和 {n2} 个）。',
+    statsZeroVariance: '数据完全没有波动（所有值相同）。方差为 0 时比值和 t 值都无定义——这两组要么完全相同，要么差异是确定的。',
+
+    // 分析化学
+    unknownMetal: '未知金属 "{metal}"。EDTA 络合滴定的条件常数表里没有这个离子。',
+
+    // 物理化学
+    kineticsOrderUnsupported: '动力学级数只支持 0、1、2 级（当前为 {order}）。更高整数级数的积分速率方程形式不同，不能套用。',
+    arrheniusTooFewPoints: 'Arrhenius 拟合至少需要 3 个温度点（当前 {n} 个）。两点能精确连成一条直线，算出的活化能没有任何不确定度——那是最容易误导人的答案。',
+    alphaOutOfRange: '解离度必须在 0 与 1 之间（当前为 {alpha}）。1 表示完全解离，此时 Ostwald 稀释定律的分母为 0。',
+    crossoverUndefinedEntropy: 'ΔS 为 0 时没有转变温度。ΔG = ΔH − TΔS 里的熵项整个消失，ΔG 不再随温度变化。',
+    moleFractionOutOfRange: '摩尔分数必须在 0 与 1 之间（当前为 {xA}）。',
+    phaseComponentMissing: '缺少组分 "{name}" 的参数（需要熔点 meltingC 和熔化焓 fusionKJ）。',
   },
 };

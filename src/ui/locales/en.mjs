@@ -1175,5 +1175,31 @@ export const en = {
     bioKineticsNoFit: 'The data fit no positive Vmax — the rate falls as substrate rises, which Michaelis–Menten does not describe.',
     temperatureBelowAbsoluteZero: 'Temperature is below absolute zero ({tempC} C), which does not exist.',
     functionArity: "{fn} takes {want} argument(s); {got} given.",
+
+    // Uncertainty propagation
+    uncertaintyNegative: 'An uncertainty cannot be negative ({unc}). It is the size of an error, and has no direction.',
+    uncertaintyZeroValue: 'The value is 0 but its uncertainty is {unc}. A relative uncertainty divides by the value, so zero leaves it undefined — check whether this quantity should have a value at all.',
+    uncertaintyNoTerms: 'At least one input quantity is needed to propagate an uncertainty.',
+
+    // Experimental statistics
+    statsNoData: 'No data. At least one measurement is needed.',
+    statsTooFewForOutlier: 'An outlier test needs at least {min} points ({n} given). With fewer, every point looks like an outlier.',
+    statsTooManyForDixon: "Dixon's Q covers at most {max} points ({n} given). Beyond that the tabulated critical values converge and Grubbs' test is the right one.",
+    statsBadConfidence: 'The confidence level must be between 0 and 1 ({confidence} given). 95% is written 0.95.',
+    statsBadProbability: 'The probability must be between 0 and 1 ({p} given).',
+    statsTooFewForCI: 'At least {min} points are needed ({n} given). A single measurement has no spread, so it gives no interval.',
+    statsTooFewForVariance: 'Each sample needs at least 2 points to compare spreads ({n1} and {n2} given).',
+    statsZeroVariance: 'The data have no spread at all — every value is identical. A ratio and a t statistic both divide by that zero, so neither is defined; the samples are either the same or definitely different.',
+
+    // Analytical chemistry
+    unknownMetal: 'Unknown metal "{metal}". It is not in the conditional-constant table for EDTA complexometric titration.',
+
+    // Physical chemistry
+    kineticsOrderUnsupported: 'Only reaction orders 0, 1 and 2 are supported ({order} given). Higher integer orders have different integrated rate laws and cannot be substituted.',
+    arrheniusTooFewPoints: 'An Arrhenius fit needs at least 3 temperatures ({n} given). Two points lie exactly on a line, so the activation energy comes back with no uncertainty at all — the most misleading answer available.',
+    alphaOutOfRange: 'The degree of dissociation must be between 0 and 1 ({alpha} given). At 1 the electrolyte is fully dissociated and the denominator of Ostwald’s dilution law is zero.',
+    crossoverUndefinedEntropy: 'With ΔS at zero there is no crossover temperature. The entropy term of ΔG = ΔH − TΔS vanishes entirely, so ΔG stops depending on temperature.',
+    moleFractionOutOfRange: 'The mole fraction must be between 0 and 1 ({xA} given).',
+    phaseComponentMissing: 'Component "{name}" is missing its parameters (meltingC and fusionKJ are required).',
   },
 };
