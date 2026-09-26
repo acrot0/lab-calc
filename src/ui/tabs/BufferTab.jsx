@@ -9,7 +9,7 @@ import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
 
-export default function BufferTab({ onRecord, restored }) {
+export default function BufferTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [preset, setPreset] = useState(restored?.preset ?? '');
   const [pka, setPka] = useState(restored?.pKa != null ? String(restored.pKa) : '4.76');
@@ -168,7 +168,7 @@ export default function BufferTab({ onRecord, restored }) {
           {showDiagram ? t('diagram.hide') : t('diagram.show')}
         </button>
       </div>
-      {showDiagram && <BufferDiagram pka={n(pka) || 4.76} />}
+      {showDiagram && <BufferDiagram pka={n(pka) || 4.76} theme={theme} />}
       {err && <Err>{err}</Err>}
       {out && !out.inRange && <Warn>{t('buffer.warning')}</Warn>}
 

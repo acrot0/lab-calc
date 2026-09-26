@@ -8,7 +8,7 @@ import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
 
-export default function SeriesTab({ onRecord, restored }) {
+export default function SeriesTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [stock, setStock] = useState(restored?.stockConc != null ? String(restored.stockConc) : '1000');
   const [factor, setFactor] = useState(restored?.factor != null ? String(restored.factor) : '10');
@@ -100,7 +100,7 @@ export default function SeriesTab({ onRecord, restored }) {
       {/* Driven by the fields above rather than by the result, so the shape can
           be explored before committing to a calculation. */}
       {showDiagram && (
-        <DilutionDiagram factor={n(factor)} steps={n(steps)} />
+        <DilutionDiagram factor={n(factor)} steps={n(steps)} theme={theme} />
       )}
       {err && <Err>{err}</Err>}
       {out && (

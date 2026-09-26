@@ -20,7 +20,7 @@ import { useI18n } from '../../LocaleContext.jsx';
  * composition rather than described, which is the difference between a reader
  * believing the buffering range and a reader seeing why it is where it is.
  */
-export default function BufferDiagram({ pka = 4.76 }) {
+export default function BufferDiagram({ pka = 4.76, theme }) {
   const { t } = useI18n();
 
   // pH = pKa + log10(f / (1 - f)), the same equation the tab computes with.
@@ -47,6 +47,8 @@ export default function BufferDiagram({ pka = 4.76 }) {
     <Diagram
       label={t('diagram.buffer.label')}
       caption={t('diagram.buffer.caption', { pka })}
+      exportName="buffer-hh"
+      theme={theme}
     >
       {/* The working range, behind everything. */}
       <rect

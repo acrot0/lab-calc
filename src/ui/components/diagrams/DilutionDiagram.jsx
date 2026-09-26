@@ -21,7 +21,7 @@ import { useI18n } from '../../LocaleContext.jsx';
  * log values are drawn on the same frame by mapping them through their own
  * domain, which is why each curve carries its own scale.
  */
-export default function DilutionDiagram({ factor = 10, steps = 8 }) {
+export default function DilutionDiagram({ factor = 10, steps = 8, theme }) {
   const { t } = useI18n();
 
   const f = Number.isFinite(factor) && factor > 1 ? factor : 10;
@@ -64,6 +64,8 @@ export default function DilutionDiagram({ factor = 10, steps = 8 }) {
     <Diagram
       label={t('diagram.dilution.label')}
       caption={t('diagram.dilution.caption', { factor: f, steps: n })}
+      exportName="serial-dilution"
+      theme={theme}
     >
       <Axis
         xDomain={[0, n]}

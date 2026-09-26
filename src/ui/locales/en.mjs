@@ -834,6 +834,9 @@ export const en = {
   diagram: {
     show: 'Show the diagram',
     hide: 'Hide the diagram',
+    export: 'Export SVG',
+    exported: 'Exported',
+    exportHint: 'Export a standalone SVG file for a lab notebook or a paper (colours baked in, no dependency on this app)',
     buffer: {
       label: 'Buffer pH against the fraction of acid dissociated',
       caption: 'pH = pKa + log([A⁻]/[HA]), plotted. The horizontal axis is the fraction of the acid that has been deprotonated, the vertical axis is pH. The curve is steep at both ends — nearly all the acid is in one form, so a small addition shifts the ratio sharply — and nearly flat through the middle, where both forms are present in quantity. The shaded band is pKa ± 1, the range where the buffer actually works.',

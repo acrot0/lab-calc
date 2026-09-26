@@ -2863,6 +2863,53 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   color: var(--text-dim);
 }
 
+/*
+ * The caption and its export control share a row.
+ *
+ * The caption is long — several lines of explanation — so the button is aligned
+ * to the first line rather than centred against the block, which would leave it
+ * floating beside the middle of a paragraph. `flex-start` with the caption
+ * taking the slack puts it where the eye already is when the caption begins.
+ */
+.diagram-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  margin-top: var(--s2);
+}
+
+.diagram-foot .diagram-caption { flex: 1 1 auto; margin-top: 0; }
+
+/*
+ * The export control is quiet on purpose.
+ *
+ * It sits beside an explanation, not beside an action — the diagram is the
+ * content and this is a way to take it elsewhere. Accent-filling it would make
+ * the figure read as a form with a submit button.
+ */
+.diagram-export {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: var(--s1) var(--s3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-xs);
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.diagram-export:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
 /* Axis: a hairline spine, small ticks, and labels in the dim token so they
    read as annotation rather than as content. */
 .diagram-axis line {

@@ -1,4 +1,7 @@
-import React, { useId } from 'react';
+import React, { useId, useRef, useState } from 'react';
+import { serializeDiagram, diagramFilename } from '../svg-export.mjs';
+import { useI18n } from '../LocaleContext.jsx';
+import { Icons, ICON_SIZE } from '../icons.jsx';
 
 /**
  * The shared drawing surface for explanatory diagrams.
@@ -32,18 +35,64 @@ export const PLOT = {
 };
 
 /**
- * A figure with a caption and an accessible description.
+ * A figure with a caption, an accessible description, and an export.
  *
  * `label` is what a screen reader announces; `caption` is what a sighted reader
  * reads. Both are required, because a diagram without either is decoration, and
  * decoration that carries the explanation is worse than no diagram.
+ *
+ * `exportName` is the filename stem; `theme` is what the export names in that
+ * filename and what it reads the surface colour from. Both are optional so a
+ * diagram can render without an export control, but every diagram in the app
+ * passes them — a figure that explains a formula is exactly the thing someone
+ * wants in their lab notebook.
  */
-export function Diagram({ label, caption, children, className = '' }) {
+export function Diagram({
+  label, caption, children, className = '', exportName, theme,
+}) {
   const titleId = useId();
   const descId = useId();
+  const { t } = useI18n();
+  const svgRef = useRef(null);
+  const [done, setDone] = useState(false);
+
+  /*
+   * Export the diagram as a standalone SVG.
+   *
+   * The background is read from the rendered container rather than from the
+   * theme token, because `prefers-color-scheme` and the density setting both
+   * feed into what is on screen and only the rendered value has them resolved.
+   */
+  function exportSvg() {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const figure = svg.closest('.diagram');
+    const background = figure
+      ? getComputedStyle(figure.querySelector('.diagram-svg') ?? svg).backgroundColor
+      : undefined;
+    const markup = serializeDiagram(svg, { background });
+    if (!markup) return;
+
+    const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = diagramFilename(exportName ?? 'diagram', theme);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoking immediately can cancel the download in some browsers; one tick
+    // is enough for the click to have been handled.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+
+    setDone(true);
+    setTimeout(() => setDone(false), 1600);
+  }
+
   return (
     <figure className={`diagram ${className}`.trim()}>
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
         className="diagram-svg"
         role="img"
@@ -55,7 +104,20 @@ export function Diagram({ label, caption, children, className = '' }) {
         <desc id={descId}>{caption}</desc>
         {children}
       </svg>
-      <figcaption className="diagram-caption">{caption}</figcaption>
+      <div className="diagram-foot">
+        <figcaption className="diagram-caption">{caption}</figcaption>
+        {exportName && (
+          <button
+            type="button"
+            className="diagram-export"
+            onClick={exportSvg}
+            title={t('diagram.exportHint')}
+          >
+            <Icons.download size={ICON_SIZE.inline} aria-hidden="true" />
+            {done ? t('diagram.exported') : t('diagram.export')}
+          </button>
+        )}
+      </div>
     </figure>
   );
 }
