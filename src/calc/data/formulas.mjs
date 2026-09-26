@@ -50,9 +50,16 @@
 /**
  * An input field.
  *
+ * The human label is NOT carried here. It comes from `field-labels.mjs`, keyed
+ * by the same `key`, and that is the only table the report and the spreadsheet
+ * read. A `labelKey` used to sit on every field pointing at a locale key under
+ * `fields.`, but nothing ever read it — the label path had moved to
+ * `fieldLabel()` and the property stayed behind, 107 of them. It is gone rather
+ * than kept in sync, because a second label source that no code consults is a
+ * second answer waiting to disagree with the first.
+ *
  * @typedef {object} Field
  * @property {string}  key      Stored record key. Part of the data format.
- * @property {string}  labelKey Locale key under `fields.`.
  * @property {'number'|'text'|'select'} type
  * @property {string|null} unit Dimension id, or null for a plain number.
  * @property {boolean} [required]
@@ -67,7 +74,6 @@
  *
  * @typedef {object} Output
  * @property {string} key
- * @property {string} labelKey
  * @property {string|null} unit
  * @property {boolean} [trace] True for intermediate values shown in the worked
  *   solution but not as a headline result.
@@ -78,7 +84,6 @@
  *
  * @typedef {object} Formula
  * @property {string} id        Stable; matches the tab id.
- * @property {string} labelKey
  * @property {string} equation  The relationship, as written.
  * @property {string} source    Where the equation and its constants come from.
  * @property {string[]} assumptions  Printed with the result. A limitation the
@@ -95,7 +100,6 @@ export const FORMULAS = [
    * ------------------------------------------------------------------ */
   {
     id: 'weigh',
-    labelKey: 'tabs.weigh',
     module: 'solution.mjs',
     equation: 'm = c · V · M',
     source: 'Definition of molarity, c = n/V, rearranged. Molar masses are the '
@@ -106,19 +110,18 @@ export const FORMULAS = [
       'Volumetric glassware is used at its calibration temperature (20 °C).',
     ],
     inputs: [
-      { key: 'formula', labelKey: 'fields.formula', type: 'text', unit: null, required: true },
-      { key: 'targetMolarity', labelKey: 'fields.targetMolarity', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
-      { key: 'targetVolumeMl', labelKey: 'fields.targetVolumeMl', type: 'number', unit: 'volume', required: true, min: 0, expr: true },
+      { key: 'formula', type: 'text', unit: null, required: true },
+      { key: 'targetMolarity', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
+      { key: 'targetVolumeMl', type: 'number', unit: 'volume', required: true, min: 0, expr: true },
     ],
     outputs: [
-      { key: 'massG', labelKey: 'fields.massG', unit: 'mass' },
-      { key: 'molarMass', labelKey: 'fields.molarMass', unit: 'molarMass' },
-      { key: 'moles', labelKey: 'fields.moles', unit: 'amount' },
+      { key: 'massG', unit: 'mass' },
+      { key: 'molarMass', unit: 'molarMass' },
+      { key: 'moles', unit: 'amount' },
     ],
   },
   {
     id: 'dilute',
-    labelKey: 'tabs.dilute',
     module: 'solution.mjs',
     equation: 'c₁V₁ = c₂V₂',
     source: 'Conservation of solute: the amount of solute is unchanged by adding '
@@ -129,19 +132,18 @@ export const FORMULAS = [
       'The stock concentration is accurate; this does not standardise it.',
     ],
     inputs: [
-      { key: 'stockMolarity', labelKey: 'fields.stockMolarity', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
-      { key: 'targetMolarity', labelKey: 'fields.targetMolarity', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
-      { key: 'targetVolumeMl', labelKey: 'fields.targetVolumeMl', type: 'number', unit: 'volume', required: true, min: 0, expr: true },
+      { key: 'stockMolarity', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
+      { key: 'targetMolarity', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
+      { key: 'targetVolumeMl', type: 'number', unit: 'volume', required: true, min: 0, expr: true },
     ],
     outputs: [
-      { key: 'stockVolumeMl', labelKey: 'fields.stockVolumeMl', unit: 'volume' },
-      { key: 'diluentVolumeMl', labelKey: 'fields.diluentVolumeMl', unit: 'volume' },
-      { key: 'dilutionFactor', labelKey: 'fields.dilutionFactor', unit: null },
+      { key: 'stockVolumeMl', unit: 'volume' },
+      { key: 'diluentVolumeMl', unit: 'volume' },
+      { key: 'dilutionFactor', unit: null },
     ],
   },
   {
     id: 'series',
-    labelKey: 'tabs.series',
     module: 'solution.mjs',
     equation: 'Cₙ = C₀ / fⁿ',
     source: 'Repeated dilution: each step divides the concentration by the same '
@@ -151,18 +153,17 @@ export const FORMULAS = [
       'Each tube is mixed before the next transfer is taken.',
     ],
     inputs: [
-      { key: 'stockConc', labelKey: 'fields.stockMolarity', type: 'number', unit: 'molarity', required: true, min: 0 },
-      { key: 'factor', labelKey: 'fields.dilutionFactor', type: 'number', unit: null, required: true, min: 1 },
-      { key: 'steps', labelKey: 'fields.steps', type: 'number', unit: null, required: true, min: 1, max: 20 },
-      { key: 'stepVolumeMl', labelKey: 'fields.volumeMl', type: 'number', unit: 'volume', required: true, min: 0 },
+      { key: 'stockConc', type: 'number', unit: 'molarity', required: true, min: 0 },
+      { key: 'factor', type: 'number', unit: null, required: true, min: 1 },
+      { key: 'steps', type: 'number', unit: null, required: true, min: 1, max: 20 },
+      { key: 'stepVolumeMl', type: 'number', unit: 'volume', required: true, min: 0 },
     ],
     outputs: [
-      { key: 'series', labelKey: 'fields.series', unit: null },
+      { key: 'series', unit: null },
     ],
   },
   {
     id: 'percent',
-    labelKey: 'tabs.percent',
     module: 'titration.mjs',
     equation: 'm = %w/v · V / 100',
     source: 'Definition of weight-by-volume percent: grams of solute per 100 mL '
@@ -172,16 +173,15 @@ export const FORMULAS = [
       'For %w/w a density is needed, which this screen does not ask for.',
     ],
     inputs: [
-      { key: 'percent', labelKey: 'fields.percent', type: 'number', unit: null, required: true, min: 0, max: 100 },
-      { key: 'volumeMl', labelKey: 'fields.volumeMl', type: 'number', unit: 'volume', required: true, min: 0, expr: true },
+      { key: 'percent', type: 'number', unit: null, required: true, min: 0, max: 100 },
+      { key: 'volumeMl', type: 'number', unit: 'volume', required: true, min: 0, expr: true },
     ],
     outputs: [
-      { key: 'massG', labelKey: 'fields.massG', unit: 'mass' },
+      { key: 'massG', unit: 'mass' },
     ],
   },
   {
     id: 'reagent',
-    labelKey: 'tabs.reagent',
     module: 'reagent.mjs',
     equation: 'c = 10 · ρ · w / M',
     source: 'Concentrated-reagent molarity from the bottle label: density, mass '
@@ -192,14 +192,14 @@ export const FORMULAS = [
       'The bottle is not assumed to be freshly opened.',
     ],
     inputs: [
-      { key: 'formula', labelKey: 'fields.formula', type: 'text', unit: null, required: true },
-      { key: 'percent', labelKey: 'fields.percent', type: 'number', unit: null, required: true, min: 0, max: 100 },
-      { key: 'density', labelKey: 'fields.density', type: 'number', unit: 'massConcentration', required: true, min: 0 },
+      { key: 'formula', type: 'text', unit: null, required: true },
+      { key: 'percent', type: 'number', unit: null, required: true, min: 0, max: 100 },
+      { key: 'density', type: 'number', unit: 'massConcentration', required: true, min: 0 },
     ],
     outputs: [
-      { key: 'molarity', labelKey: 'fields.molarity', unit: 'molarity' },
-      { key: 'molarMass', labelKey: 'fields.molarMass', unit: 'molarMass' },
-      { key: 'molality', labelKey: 'fields.molality', unit: 'molality' },
+      { key: 'molarity', unit: 'molarity' },
+      { key: 'molarMass', unit: 'molarMass' },
+      { key: 'molality', unit: 'molality' },
     ],
   },
 
@@ -208,7 +208,6 @@ export const FORMULAS = [
    * ------------------------------------------------------------------ */
   {
     id: 'ph',
-    labelKey: 'tabs.ph',
     module: 'titration.mjs',
     equation: 'pH = ½(pKa − lg c)',
     source: 'Weak-acid dissociation with the autoionisation of water neglected. '
@@ -220,17 +219,16 @@ export const FORMULAS = [
       'Activity coefficients are taken as 1 — the ionic strength is not asked for.',
     ],
     inputs: [
-      { key: 'kind', labelKey: 'fields.kind', type: 'select', unit: null, required: true, options: 'PH_KINDS' },
-      { key: 'pk', labelKey: 'fields.pk', type: 'number', unit: null, required: true },
-      { key: 'conc', labelKey: 'fields.conc', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
+      { key: 'kind', type: 'select', unit: null, required: true, options: 'PH_KINDS' },
+      { key: 'pk', type: 'number', unit: null, required: true },
+      { key: 'conc', type: 'number', unit: 'molarity', required: true, min: 0, expr: true },
     ],
     outputs: [
-      { key: 'ph', labelKey: 'fields.ph', unit: null },
+      { key: 'ph', unit: null },
     ],
   },
   {
     id: 'buffer',
-    labelKey: 'tabs.buffer',
     module: 'buffer.mjs',
     equation: 'pH = pKa + lg([A⁻]/[HA])',
     source: 'Henderson–Hasselbalch, from the acid dissociation equilibrium with '
@@ -243,13 +241,13 @@ export const FORMULAS = [
       'The buffer capacity is finite: pH moves as strong acid or base is added.',
     ],
     inputs: [
-      { key: 'pKa', labelKey: 'fields.pKa', type: 'number', unit: null, required: true },
-      { key: 'targetPh', labelKey: 'fields.ph', type: 'number', unit: null, required: true, min: 0, max: 14 },
-      { key: 'acidConc', labelKey: 'fields.conc', type: 'number', unit: 'molarity', required: true, min: 0 },
+      { key: 'pKa', type: 'number', unit: null, required: true },
+      { key: 'targetPh', type: 'number', unit: null, required: true, min: 0, max: 14 },
+      { key: 'acidConc', type: 'number', unit: 'molarity', required: true, min: 0 },
     ],
     outputs: [
-      { key: 'baseConc', labelKey: 'fields.conc', unit: 'molarity' },
-      { key: 'ratio', labelKey: 'fields.ratio', unit: null },
+      { key: 'baseConc', unit: 'molarity' },
+      { key: 'ratio', unit: null },
     ],
   },
 
@@ -258,7 +256,6 @@ export const FORMULAS = [
    * ------------------------------------------------------------------ */
   {
     id: 'spectro',
-    labelKey: 'tabs.spectro',
     module: 'curve.mjs',
     equation: 'A = ε · c · l',
     source: 'Beer–Lambert law, with ε from the user\'s own calibration rather '
@@ -270,23 +267,22 @@ export const FORMULAS = [
       'The solvent blank has been subtracted.',
     ],
     inputs: [
-      { key: 'mode', labelKey: 'fields.mode', type: 'select', unit: null, required: true, options: 'SPECTRO_MODES' },
-      { key: 'epsilon', labelKey: 'fields.extinction', type: 'number', unit: null, min: 0 },
-      { key: 'conc', labelKey: 'fields.conc', type: 'number', unit: 'molarity', min: 0, expr: true },
-      { key: 'absorbance', labelKey: 'fields.absorbance', type: 'number', unit: null, min: 0 },
-      { key: 'pathCm', labelKey: 'fields.pathLength', type: 'number', unit: 'length', min: 0 },
-      { key: 'ptsText', labelKey: 'fields.ptsText', type: 'text', unit: null },
-      { key: 'reading', labelKey: 'fields.absorbance', type: 'number', unit: null, min: 0 },
+      { key: 'mode', type: 'select', unit: null, required: true, options: 'SPECTRO_MODES' },
+      { key: 'epsilon', type: 'number', unit: null, min: 0 },
+      { key: 'conc', type: 'number', unit: 'molarity', min: 0, expr: true },
+      { key: 'absorbance', type: 'number', unit: null, min: 0 },
+      { key: 'pathCm', type: 'number', unit: 'length', min: 0 },
+      { key: 'ptsText', type: 'text', unit: null },
+      { key: 'reading', type: 'number', unit: null, min: 0 },
     ],
     outputs: [
-      { key: 'abs', labelKey: 'fields.absorbance', unit: null },
-      { key: 'fit', labelKey: 'fields.fit', unit: null, trace: true },
-      { key: 'pred', labelKey: 'fields.pred', unit: null, trace: true },
+      { key: 'abs', unit: null },
+      { key: 'fit', unit: null, trace: true },
+      { key: 'pred', unit: null, trace: true },
     ],
   },
   {
     id: 'curve',
-    labelKey: 'tabs.curve',
     module: 'curve.mjs',
     equation: 'A = k·c + b',
     source: 'Least-squares regression of the calibration standards. The '
@@ -298,17 +294,16 @@ export const FORMULAS = [
       + 'highest standard is not supported by the data.',
     ],
     inputs: [
-      { key: 'ptsText', labelKey: 'fields.ptsText', type: 'text', unit: null, required: true },
-      { key: 'reading', labelKey: 'fields.absorbance', type: 'number', unit: null, required: true, min: 0 },
+      { key: 'ptsText', type: 'text', unit: null, required: true },
+      { key: 'reading', type: 'number', unit: null, required: true, min: 0 },
     ],
     outputs: [
-      { key: 'fit', labelKey: 'fields.fit', unit: null },
-      { key: 'pred', labelKey: 'fields.pred', unit: null },
+      { key: 'fit', unit: null },
+      { key: 'pred', unit: null },
     ],
   },
   {
     id: 'titrationCurve',
-    labelKey: 'tabs.titrationCurve',
     module: 'titration.mjs',
     equation: 'pH = f(V) by exact charge balance',
     source: 'The full charge-balance expression, solved for [H⁺] at each added '
@@ -321,19 +316,18 @@ export const FORMULAS = [
       'The equivalence point is the steepest part of the curve, not pH 7.',
     ],
     inputs: [
-      { key: 'pKa', labelKey: 'fields.pKa', type: 'number', unit: null, required: true },
-      { key: 'analyteConc', labelKey: 'fields.conc', type: 'number', unit: 'molarity', required: true, min: 0 },
-      { key: 'analyteVolumeMl', labelKey: 'fields.volumeMl', type: 'number', unit: 'volume', required: true, min: 0 },
-      { key: 'titrantConc', labelKey: 'fields.conc', type: 'number', unit: 'molarity', required: true, min: 0 },
+      { key: 'pKa', type: 'number', unit: null, required: true },
+      { key: 'analyteConc', type: 'number', unit: 'molarity', required: true, min: 0 },
+      { key: 'analyteVolumeMl', type: 'number', unit: 'volume', required: true, min: 0 },
+      { key: 'titrantConc', type: 'number', unit: 'molarity', required: true, min: 0 },
     ],
     outputs: [
-      { key: 'equivalenceMl', labelKey: 'fields.equivalenceMl', unit: 'volume' },
-      { key: 'equivalencePh', labelKey: 'fields.ph', unit: null },
+      { key: 'equivalenceMl', unit: 'volume' },
+      { key: 'equivalencePh', unit: null },
     ],
   },
   {
     id: 'lab',
-    labelKey: 'tabs.lab',
     module: 'lab.mjs',
     equation: 'c = n / V,  n = m / M',
     source: 'Definitional relationships between mass, amount, volume and '
@@ -343,17 +337,17 @@ export const FORMULAS = [
       'The volume is the final solution volume, not the solvent added.',
     ],
     inputs: [
-      { key: 'formula', labelKey: 'fields.formula', type: 'text', unit: null },
-      { key: 'massG', labelKey: 'fields.massG', type: 'number', unit: 'mass', min: 0, expr: true },
-      { key: 'moles', labelKey: 'fields.moles', type: 'number', unit: 'amount', min: 0, expr: true },
-      { key: 'volumeMl', labelKey: 'fields.volumeMl', type: 'number', unit: 'volume', min: 0, expr: true },
-      { key: 'molarity', labelKey: 'fields.molarity', type: 'number', unit: 'molarity', min: 0, expr: true },
+      { key: 'formula', type: 'text', unit: null },
+      { key: 'massG', type: 'number', unit: 'mass', min: 0, expr: true },
+      { key: 'moles', type: 'number', unit: 'amount', min: 0, expr: true },
+      { key: 'volumeMl', type: 'number', unit: 'volume', min: 0, expr: true },
+      { key: 'molarity', type: 'number', unit: 'molarity', min: 0, expr: true },
     ],
     outputs: [
-      { key: 'massG', labelKey: 'fields.massG', unit: 'mass' },
-      { key: 'moles', labelKey: 'fields.moles', unit: 'amount' },
-      { key: 'molarity', labelKey: 'fields.molarity', unit: 'molarity' },
-      { key: 'molarMass', labelKey: 'fields.molarMass', unit: 'molarMass' },
+      { key: 'massG', unit: 'mass' },
+      { key: 'moles', unit: 'amount' },
+      { key: 'molarity', unit: 'molarity' },
+      { key: 'molarMass', unit: 'molarMass' },
     ],
   },
 
@@ -362,7 +356,6 @@ export const FORMULAS = [
    * ------------------------------------------------------------------ */
   {
     id: 'colligative',
-    labelKey: 'tabs.colligative',
     module: 'colligative.mjs',
     equation: 'ΔTb = i·Kb·m   ΔTf = i·Kf·m   Π = i·c·R·T',
     source: 'The colligative laws. Kb and Kf are tabulated per solvent; R is '
@@ -375,22 +368,22 @@ export const FORMULAS = [
       'Ion pairing reduces the real i below its nominal value.',
     ],
     inputs: [
-      { key: 'mode', labelKey: 'fields.mode', type: 'select', unit: null, required: true, options: 'COLLIGATIVE_MODES' },
-      { key: 'solvent', labelKey: 'fields.solvent', type: 'select', unit: null, options: 'SOLVENTS' },
-      { key: 'molality', labelKey: 'fields.molality', type: 'number', unit: 'molality', min: 0, expr: true },
-      { key: 'molarity', labelKey: 'fields.molarity', type: 'number', unit: 'molarity', min: 0, expr: true },
-      { key: 'i', labelKey: 'fields.iFactor', type: 'number', unit: null, min: 0 },
-      { key: 'tempC', labelKey: 'fields.temperatureC', type: 'number', unit: 'temperature', min: -273 },
-      { key: 'massG', labelKey: 'fields.massG', type: 'number', unit: 'mass', min: 0, expr: true },
-      { key: 'solventKg', labelKey: 'fields.solventKg', type: 'number', unit: 'mass', min: 0, expr: true },
+      { key: 'mode', type: 'select', unit: null, required: true, options: 'COLLIGATIVE_MODES' },
+      { key: 'solvent', type: 'select', unit: null, options: 'SOLVENTS' },
+      { key: 'molality', type: 'number', unit: 'molality', min: 0, expr: true },
+      { key: 'molarity', type: 'number', unit: 'molarity', min: 0, expr: true },
+      { key: 'i', type: 'number', unit: null, min: 0 },
+      { key: 'tempC', type: 'number', unit: 'temperature', min: -273 },
+      { key: 'massG', type: 'number', unit: 'mass', min: 0, expr: true },
+      { key: 'solventKg', type: 'number', unit: 'mass', min: 0, expr: true },
     ],
     outputs: [
-      { key: 'deltaTf', labelKey: 'fields.deltaTf', unit: null },
-      { key: 'deltaTb', labelKey: 'fields.deltaTb', unit: null },
-      { key: 'atm', labelKey: 'fields.atm', unit: 'pressure' },
-      { key: 'kPa', labelKey: 'fields.kPa', unit: 'pressure' },
-      { key: 'osmolarity', labelKey: 'fields.osmolarity', unit: 'molarity' },
-      { key: 'molarMass', labelKey: 'fields.molarMass', unit: 'molarMass' },
+      { key: 'deltaTf', unit: null },
+      { key: 'deltaTb', unit: null },
+      { key: 'atm', unit: 'pressure' },
+      { key: 'kPa', unit: 'pressure' },
+      { key: 'osmolarity', unit: 'molarity' },
+      { key: 'molarMass', unit: 'molarMass' },
     ],
   },
 
@@ -399,7 +392,6 @@ export const FORMULAS = [
    * ------------------------------------------------------------------ */
   {
     id: 'reaction',
-    labelKey: 'tabs.reaction',
     module: 'reaction.mjs',
     equation: 'n = m / M,  limiting reagent by smallest n/coefficient',
     source: 'Conservation of mass and the balanced equation. The balancer solves '
@@ -411,20 +403,19 @@ export const FORMULAS = [
       'No side products, no equilibria, no catalytic cycles.',
     ],
     inputs: [
-      { key: 'equation', labelKey: 'fields.equation', type: 'text', unit: null, required: true },
-      { key: 'formula', labelKey: 'fields.formula', type: 'text', unit: null },
-      { key: 'massG', labelKey: 'fields.massG', type: 'number', unit: 'mass', min: 0, expr: true },
-      { key: 'moles', labelKey: 'fields.moles', type: 'number', unit: 'amount', min: 0, expr: true },
+      { key: 'equation', type: 'text', unit: null, required: true },
+      { key: 'formula', type: 'text', unit: null },
+      { key: 'massG', type: 'number', unit: 'mass', min: 0, expr: true },
+      { key: 'moles', type: 'number', unit: 'amount', min: 0, expr: true },
     ],
     outputs: [
-      { key: 'limiting', labelKey: 'fields.limitingUnit', unit: null },
-      { key: 'extent', labelKey: 'fields.extent', unit: 'amount' },
-      { key: 'percentYield', labelKey: 'fields.percentYield', unit: null },
+      { key: 'limiting', unit: null },
+      { key: 'extent', unit: 'amount' },
+      { key: 'percentYield', unit: null },
     ],
   },
   {
     id: 'electro',
-    labelKey: 'tabs.electro',
     module: 'electro.mjs',
     equation: 'E = E° − (RT/nF)·ln Q',
     source: 'Nernst equation. F = 96485.33212 C/mol and R = 8.314462618 '
@@ -437,16 +428,16 @@ export const FORMULAS = [
       'Liquid junction potentials are ignored.',
     ],
     inputs: [
-      { key: 'e0', labelKey: 'fields.e0', type: 'number', unit: 'voltage', required: true },
-      { key: 'n', labelKey: 'fields.electrons', type: 'number', unit: null, required: true, min: 1 },
-      { key: 'q', labelKey: 'fields.q', type: 'number', unit: null, required: true, min: 0 },
-      { key: 'tempC', labelKey: 'fields.temperatureC', type: 'number', unit: 'temperature', min: -273 },
+      { key: 'e0', type: 'number', unit: 'voltage', required: true },
+      { key: 'n', type: 'number', unit: null, required: true, min: 1 },
+      { key: 'q', type: 'number', unit: null, required: true, min: 0 },
+      { key: 'tempC', type: 'number', unit: 'temperature', min: -273 },
     ],
     outputs: [
-      { key: 'e', labelKey: 'fields.e', unit: 'voltage' },
-      { key: 'deltaGKJ', labelKey: 'fields.deltaGKJ', unit: 'molarEnergy' },
-      { key: 'equilibriumK', labelKey: 'fields.equilibriumK', unit: null },
-      { key: 'spontaneous', labelKey: 'fields.spontaneous', unit: null },
+      { key: 'e', unit: 'voltage' },
+      { key: 'deltaGKJ', unit: 'molarEnergy' },
+      { key: 'equilibriumK', unit: null },
+      { key: 'spontaneous', unit: null },
     ],
   },
 ];
