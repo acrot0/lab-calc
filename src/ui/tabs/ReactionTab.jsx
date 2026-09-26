@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  balanceEquation, limitingReagent, empiricalFormula, percentComposition,
+  balanceEquation, limitingReagent, empiricalFormula, percentComposition, yieldSweep,
 } from '../../calc/reaction.mjs';
 import { ATOMIC_WEIGHTS } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
+import YieldPlot from '../components/YieldPlot.jsx';
 import { fmt, fmtSci, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -31,7 +32,7 @@ function productsOf(equation) {
   return parts[1].split('+').map((s) => s.trim().replace(/^\d+/, '')).filter((s) => s.length > 0);
 }
 
-export default function ReactionTab({ onRecord, restored }) {
+export default function ReactionTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [mode, setMode] = useState(restored?.mode ?? 'balance');
   const [equation, setEquation] = useState(restored?.equation ?? 'Fe + O2 -> Fe2O3');
@@ -111,6 +112,50 @@ export default function ReactionTab({ onRecord, restored }) {
   }
 
   const shown = shownFor(out, 'mode', mode);
+
+  /*
+   * The yield sweep, for the chart.
+   *
+   * Shown in limiting mode once a calculation has run, because the sweep needs
+   * the same reactants and amounts the user already entered. One of them is
+   * varied and the rest are held at what was typed, so the corner lands at the
+   * balanced ratio between them.
+   *
+   * The varied reactant is the one that is **in excess** in the user's own
+   * amounts. That is the instructive choice: the plateau is the answer to "why
+   * did adding more of this do nothing", and asking that about the reactant
+   * that was already limiting would show a line that only ever climbs.
+   *
+   * Nothing is drawn when there is only one reactant — a sweep of the sole
+   * reagent has no ceiling and so no plateau, and the chart would be a straight
+   * line restating the equation.
+   */
+  const sweep = useMemo(() => {
+    if (!shown || shown.mode !== 'limiting') return null;
+    const list = reactants.map((f) => ({ formula: f, amount: n(amounts[f]), unit }));
+    if (list.length < 2) return null;
+    if (!list.every((a) => Number.isFinite(a.amount) && a.amount > 0)) return null;
+    const target = shown.products?.[0]?.formula;
+    if (!target) return null;
+    /*
+     * The excess reactant, read from the result rather than recomputed. If
+     * every reactant is limiting — a perfectly stoichiometric batch — there is
+     * no excess row, and the first reactant is swept instead; the corner then
+     * sits at the left edge and the chart honestly shows a line that only
+     * climbs, which is what a stoichiometric batch does.
+     */
+    const excessFormula = shown.excess?.[0]?.formula ?? list[0].formula;
+    try {
+      return yieldSweep({
+        equation: shown.equation ?? equation,
+        amounts: list.filter((a) => a.formula !== excessFormula),
+        varyOf: excessFormula,
+        yieldOf: target,
+      });
+    } catch {
+      return null;
+    }
+  }, [shown, reactants, amounts, unit, equation]);
 
   /*
    * The reasoning behind each mode's answer.
@@ -336,6 +381,10 @@ export default function ReactionTab({ onRecord, restored }) {
             <Result value={fmt(shown.percentYield, 2)} unit="%"
               note={t('reaction.percentYieldNote', { formula: shown.yieldOf ?? '' })} />
           )}
+          {/* Below the numbers, because it explains them rather than replacing
+              them: the table says how much this batch makes, the chart says
+              what more of one reactant would do. */}
+          {sweep && <YieldPlot sweep={sweep} theme={theme} />}
         </>
       )}
 

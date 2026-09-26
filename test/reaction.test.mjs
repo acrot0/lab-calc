@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseEquation, balanceEquation, limitingReagent, empiricalFormula, percentComposition,
+  yieldSweep,
 } from '../src/calc/reaction.mjs';
 
 const coef = (r, side) => r[side].map((s) => s.coefficient);
@@ -275,5 +276,86 @@ describe('limitingReagent', () => {
         { formula: 'O2', amount: 16, unit: 'g' },
       ],
     })).toThrow(/unknownUnit/);
+  });
+});
+
+describe('yieldSweep', () => {
+  /*
+   * The chart's claim, asserted as arithmetic: the yield rises while the varied
+   * reactant limits, then stops. If this ever stops being true the chart is
+   * drawing a line that means something other than what its caption says.
+   */
+  const base = {
+    equation: 'Fe + O2 -> Fe2O3',
+    amounts: [{ formula: 'O2', amount: 8, unit: 'g' }],
+    varyOf: 'Fe',
+    yieldOf: 'Fe2O3',
+  };
+
+  it('should put the corner at the balanced ratio', () => {
+    // 4 Fe + 3 O2 -> 2 Fe2O3. 8 g O2 is 8/31.998 = 0.25 mol, which needs
+    // 0.25 * 4/3 = 0.3333 mol Fe.
+    //
+    // Checked to four places rather than six: the corner is computed through
+    // O2's molar mass, which is 31.998 g/mol, so the input is 0.250016 mol
+    // rather than exactly 0.25. That 2e-5 is the atomic weights' precision
+    // showing through, not an error in the ratio.
+    const r = yieldSweep({ ...base, steps: 8 });
+    expect(r.cornerMoles).toBeCloseTo(0.25 * (4 / 3), 4);
+    expect(r.cornerRatio).toBe(4);
+  });
+
+  it('should rise before the corner and be flat after it', () => {
+    const r = yieldSweep({ ...base, steps: 60 });
+    const before = r.points.filter((p) => p.molesVary < r.cornerMoles);
+    const after = r.points.filter((p) => p.molesVary > r.cornerMoles);
+
+    for (let i = 1; i < before.length; i++) {
+      expect(before[i].massProduct, `step ${i}`).toBeGreaterThan(before[i - 1].massProduct);
+    }
+    for (const p of after) {
+      expect(p.massProduct).toBeCloseTo(r.maxMassProduct, 9);
+    }
+  });
+
+  it('should mark which reactant is limiting on each point', () => {
+    const r = yieldSweep({ ...base, steps: 20 });
+    for (const p of r.points) {
+      // At exactly the corner both are limiting; the strict comparison leaves
+      // that point unmarked, which is the honest reading of a tie.
+      if (p.molesVary < r.cornerMoles) expect(p.limiting).toBe('Fe');
+      if (p.molesVary > r.cornerMoles) expect(p.limiting).toBeNull();
+    }
+  });
+
+  it('should sweep to twice the corner so the plateau is on screen', () => {
+    // Stopping at the corner would draw only the rising half, and the flat run
+    // is the half that carries the lesson.
+    const r = yieldSweep({ ...base, steps: 10 });
+    const last = r.points[r.points.length - 1];
+    expect(last.molesVary).toBeCloseTo(r.cornerMoles * 2, 9);
+  });
+
+  it('should give the same corner regardless of the units the user typed', () => {
+    /*
+     * The corner is a property of the reaction, not of the batch. A user who
+     * typed 0.25 mol of O2 sees the same ratio as one who typed 8 g.
+     */
+    const inGrams = yieldSweep({ ...base, steps: 4 });
+    const inMoles = yieldSweep({
+      ...base,
+      amounts: [{ formula: 'O2', amount: 0.25, unit: 'mol' }],
+      steps: 4,
+    });
+    expect(inMoles.cornerMoles).toBeCloseTo(inGrams.cornerMoles, 4);
+    expect(inMoles.cornerRatio).toBe(inGrams.cornerRatio);
+  });
+
+  it('should reject a reactant that is not in the equation', () => {
+    expect(() => yieldSweep({ ...base, varyOf: 'Au' })).toThrow();
+  });
+
+  it('should reject a product that is not in the equation', () => {
+    expect(() => yieldSweep({ ...base, yieldOf: 'H2O' })).toThrow();
   });
 });

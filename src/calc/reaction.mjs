@@ -316,3 +316,101 @@ export function limitingReagent({ equation, amounts, yieldOf, actualG }) {
 
   return out;
 }
+
+/**
+ * Product yield as one reactant's supply is varied, holding the others fixed.
+ *
+ * ## What this shows that the numbers do not
+ *
+ * `limitingReagent` answers "which one runs out, and how much do I get" for one
+ * set of amounts. The mistake it cannot prevent is the one students actually
+ * make: adding more of the reactant that is *already* in excess, expecting more
+ * product. The answer does not move, and a table of one row cannot show a
+ * plateau — it is just a number that looks wrong.
+ *
+ * Swept across the stoichiometric ratio the answer is a wedge with a corner:
+ * rising while the varied reactant limits, flat once it does not. The corner
+ * sits exactly at the balanced ratio, so the chart states the stoichiometry
+ * geometrically. Reading the ratio off the balanced equation and seeing it
+ * marked on the same picture is the whole reason to draw this.
+ *
+ * ## Why it returns ratios and not amounts
+ *
+ * The x axis is a ratio to the fixed reactant, so the corner lands at a value
+ * that depends only on the coefficients — not on whatever amounts the user
+ * happened to type. A user who typed 5 g against 2 g sees the same corner as
+ * one who typed 5 mol against 2 mol, which is the point: the stoichiometry is a
+ * property of the reaction, not of the batch.
+ *
+ * @param {string} equation
+ * @param {Array<{formula: string, amount: number, unit: string}>} amounts
+ *   The reactants held fixed. Must contain every reactant but `varyOf`.
+ * @param {string} varyOf        The reactant whose supply is swept
+ * @param {string} yieldOf       The product to measure
+ * @param {number} [steps]       Points along the sweep
+ */
+export function yieldSweep({ equation, amounts, varyOf, yieldOf, steps = 60 }) {
+  const { reactants } = parseEquation(equation);
+  if (!reactants.includes(varyOf)) fail('notAReactant', { formula: varyOf });
+
+  const balanced = balanceEquation({ equation });
+  const coeffOf = new Map(balanced.reactants.map((s) => [s.formula, s.coefficient]));
+  const product = balanced.products.find((s) => s.formula === yieldOf);
+  if (!product) fail('notAProduct', { formula: yieldOf });
+
+  // The fixed reactants, in moles, taken from the amounts given.
+  const fixed = new Map();
+  for (const a of amounts) {
+    if (a.formula === varyOf) continue;
+    if (!coeffOf.has(a.formula)) fail('notAReactant', { formula: a.formula });
+    if (!(a.unit in UNITS)) fail('unknownUnit', { unit: a.unit });
+    requirePositive(a.amount, a.formula);
+    const moles = UNITS[a.unit] === 'moles' ? a.amount * TO_MOLES[a.unit] : a.amount / molarMass(a.formula);
+    fixed.set(a.formula, moles);
+  }
+
+  /*
+   * The other reactants' ceiling, expressed as the extent they allow. The
+   * smallest of these is the plateau: past it the varied reactant cannot be the
+   * limiting one whatever else is added, so the product stops moving.
+   */
+  let ceiling = Infinity;
+  for (const [formula, moles] of fixed) {
+    ceiling = Math.min(ceiling, moles / coeffOf.get(formula));
+  }
+  if (!Number.isFinite(ceiling)) fail('amountMissing', { formula: varyOf });
+
+  /*
+   * The sweep runs to twice the stoichiometric ratio.
+   *
+   * One times would stop exactly at the corner and never show the plateau,
+   * which is the half of the picture that carries the lesson. Two times puts
+   * the corner in the middle with the flat run beside it.
+   */
+  const ratioAtCorner = ceiling * coeffOf.get(varyOf);
+  const xMax = ratioAtCorner * 2;
+  const points = [];
+  for (let k = 0; k <= steps; k++) {
+    const moles = (xMax * k) / steps;
+    const extent = Math.min(moles / coeffOf.get(varyOf), ceiling);
+    points.push({
+      molesVary: moles,
+      extent,
+      molesProduct: product.coefficient * extent,
+      massProduct: product.coefficient * extent * molarMass(yieldOf),
+      // Which reactant is limiting at this point — the thing the shape encodes.
+      limiting: moles / coeffOf.get(varyOf) < ceiling ? varyOf : null,
+    });
+  }
+
+  return {
+    points,
+    varyOf,
+    yieldOf,
+    // Where the two regimes meet, in moles of the varied reactant.
+    cornerMoles: ratioAtCorner,
+    cornerRatio: coeffOf.get(varyOf),
+    maxMassProduct: product.coefficient * ceiling * molarMass(yieldOf),
+    productMolarMass: molarMass(yieldOf),
+  };
+}

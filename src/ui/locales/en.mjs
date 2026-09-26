@@ -714,6 +714,9 @@ export const en = {
     formulaNote: 'Empirical formula mass {M} g/mol',
     formulaNoteMolecular: 'Empirical {empirical}, multiplier n = {n}, molar mass {M} g/mol',
     massPercent: 'mass percent',
+    plotCorner: '{n}:1 stoichiometric point',
+    plotLabel: 'Effect of {vary} supplied on {product} yield: the corner is at {corner} mol',
+    plotCaption: 'The horizontal axis is how much {vary} is supplied, with the other reactants held at the amounts you entered. The yield rises with {vary} until the stoichiometric point (dashed), then stops — past it {vary} is in excess and more of it produces no more {product}. Maximum {max} g.',
     disclaimer: 'For teaching and pre-lab checking only. The balancer ignores ions and electrons (half reactions) and does not judge whether the reaction actually proceeds.',
   },
   electro: {

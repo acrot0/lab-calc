@@ -716,6 +716,9 @@ export const zh = {
     formulaNote: '最简式摩尔质量 {M} g/mol',
     formulaNoteMolecular: '最简式 {empirical}，倍数 n = {n}，分子量 {M} g/mol',
     massPercent: '质量分数',
+    plotCorner: '{n}:1 化学计量点',
+    plotLabel: '{vary} 的加入量对 {product} 产量的影响：折点位于 {corner} mol',
+    plotCaption: '横轴是 {vary} 的加入量，其余反应物按你填的量固定。产量先随 {vary} 上升，到达化学计量点（虚线）后不再变化——此时 {vary} 已过量，再加也不会多产 {product}。最高 {max} g。',
     disclaimer: '仅供教学与预习核对。配平结果不包含离子/电子（半反应），也不判断反应能否实际发生。',
   },
   electro: {
