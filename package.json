@@ -17,12 +17,14 @@
     "package:desktop": "node scripts/package-desktop.mjs",
     "package:desktop:fast": "node scripts/package-desktop.mjs --no-build",
     "package:android": "node scripts/package-android.mjs",
+    "package:tauri": "node scripts/package-tauri.mjs",
     "licences": "node scripts/check-licences.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.9",
     "@catppuccin/palette": "^1.8.0",
     "@rose-pine/palette": "^4.0.1",
+    "@tauri-apps/cli": "^2.11.5",
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^30.1.1",
     "vite": "^8.3.1",
@@ -36,6 +38,7 @@
     "@fontsource-variable/space-grotesk": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@tauri-apps/api": "^2.11.1",
     "gruvbox": "^1.1.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

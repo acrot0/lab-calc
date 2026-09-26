@@ -128,6 +128,19 @@ What the phase settled, in case a later change is tempted to undo it:
 The bench procedure drawn as a flow: take this much, add that much, make up to
 volume. Exportable as SVG so it can be pasted into a lab notebook.
 
+**Half done (2026-09-26).** The export exists: `src/ui/svg-export.mjs` walks a
+rendered diagram, reads each element's computed style, and writes those values
+onto the elements, so what comes out is the figure as it appeared — no
+stylesheet, no font files, no JavaScript. The two explanatory diagrams (buffer
+pH, serial dilution) carry an "export SVG" button.
+
+What is missing is the *procedure* diagram itself: the flow from "take this
+much" to "make up to volume", which no tab draws today. The export is the half
+that had to exist first, and it was the half whose absence made the component's
+own comment ("can be exported by copying the markup") untrue — the diagrams are
+styled through CSS classes that resolve through theme tokens, so the markup on
+its own was unstyled black hairlines.
+
 ### Phase 6 — New capability
 
 - **Chemistry depth** (exam-relevant): full Debye-Hückel, complexation
@@ -138,18 +151,27 @@ volume. Exportable as SVG so it can be pasted into a lab notebook.
   calibration records.
 - **Experience**: unit-system switching, keyboard shortcuts, bulk calculation.
 
-### Phase 7 — Data portability
+### Phase 7 — Data portability — done
 
 Export and import the calculation history as a versioned JSON file. No backend:
 the user moves the file however they like. The format carries a schema version
 from the first release so a future sync feature has something to migrate from.
 
-### Phase 8 — Research documentation
+`export.mjs` carries `BUNDLE_FORMAT = 'lab-calc.history'` and
+`BUNDLE_VERSION = 1`, with the version written from the first release rather
+than added when it was needed — a format that waits for a version number has
+already published files nobody can migrate.
+
+### Phase 8 — Research documentation — done
 
 `docs/research-value.zh.md` — what problem the tool solves for research, the
 algorithm and its literature source for each calculation, how the results were
 verified, where the models stop being valid, and how it compares with the
 commercial tools. Written for a reader deciding whether to trust it.
+
+Re-checked against the code on 2026-09-26, which found two sections that had
+gone stale: the activity-correction claim (said to be limited to the reagent
+tab, and it is not) and a duplicated list of idealisation caveats.
 
 ## Out of scope
 

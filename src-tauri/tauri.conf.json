@@ -1,0 +1,45 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Lab Calc",
+  "version": "0.7.0",
+  "identifier": "com.labcalc.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://127.0.0.1:5177",
+    "beforeDevCommand": "npx vite --host 127.0.0.1 --port 5177",
+    "beforeBuildCommand": "npx vite build --mode desktop"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Lab Calc — 实验室溶液计算器",
+        "width": 1240,
+        "height": 860,
+        "minWidth": 720,
+        "minHeight": 560,
+        "resizable": true,
+        "fullscreen": false,
+        "theme": "Dark"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  }
+}

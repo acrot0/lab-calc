@@ -29,3 +29,22 @@ src/calc/docs/
 
 # Scratch space for work in progress; removed before the branch is finished.
 .scratch/
+
+# Rust build output for the Tauri shell. `src-tauri/target/` is the Cargo
+# equivalent of node_modules: several GB of compiled dependencies that are
+# reproduced from Cargo.lock. `src-tauri/gen/` holds schemas Tauri generates
+# on first build.
+src-tauri/target/
+src-tauri/gen/
+
+# Capacitor's Gradle output and local SDK path. The Android project itself is
+# committed — it is the source of a reproducible build — but `build/` and
+# `.gradle/` are outputs, and `local.properties` records this machine's SDK
+# location, which is not true on any other.
+android/build/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/capacitor-cordova-android-plugins/
