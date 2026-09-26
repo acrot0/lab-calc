@@ -710,3 +710,57 @@ describe('units with no exponent vector', () => {
     expect(code('1 °C')).toBe('temperatureInExpression');
   });
 });
+
+describe('caller-supplied variables', () => {
+  /*
+   * `ans` is the reason this exists: the calculator's "last result". It cannot
+   * be a constant — its value changes per evaluation — and it must resolve by
+   * name, because that is what a user types.
+   */
+  const ANS = { ans: { value: 20, unit: 'g/L', exponents: [1, -3, 0, 0, 0, 0] } };
+
+  it('should resolve a variable by name', () => {
+    expect(evaluate('ans', ANS).value).toBe(20);
+  });
+
+  it('should carry the variable\'s unit through arithmetic', () => {
+    /*
+     * The reason a variable holds a dimension and not just a number. After
+     * `5 g / 250 mL` the answer is 20 g/L, and a bare number would silently
+     * drop the unit — making `ans * 2` a dimensionless 40 that looks right
+     * and means nothing.
+     */
+    const r = evaluate('ans * 2', ANS);
+    expect(r.value).toBeCloseTo(40, 9);
+    expect(r.unit).toBe('g/L');
+  });
+
+  it('should add a variable to a quantity of the same dimension', () => {
+    const r = evaluate('ans + 5 g/L', ANS);
+    expect(r.value).toBeCloseTo(25, 9);
+  });
+
+  it('should refuse to add a variable to a different dimension', () => {
+    // Same rule as any other quantity: `20 g/L + 3 g` has no meaning.
+    expect(() => evaluate('ans + 3 g', ANS)).toThrow();
+  });
+
+  it('should treat an unknown name as a unit, not as a variable', () => {
+    // Without the vars map there is nothing to resolve, and the existing
+    // behaviour — report it as an unrecognised unit — is the right error.
+    expect(() => evaluate('ans * 2')).toThrow();
+  });
+
+  it('should not shadow the built-in constants', () => {
+    // `pi` is checked after variables, so a caller that passes a variable named
+    // `pi` gets theirs — but the default path still resolves the constant.
+    expect(evaluate('pi').value).toBeCloseTo(Math.PI, 12);
+    expect(evaluate('2 * pi').value).toBeCloseTo(2 * Math.PI, 12);
+  });
+
+  it('should leave a variable-free call unchanged', () => {
+    // The second parameter is optional; every existing call site passes one.
+    expect(evaluate('5 g / 250 mL').unit).toBe('g/L');
+    expect(evaluate('2 + 3').value).toBe(5);
+  });
+});

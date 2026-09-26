@@ -530,7 +530,7 @@ function tokenize(src) {
  * one — the only consumer wants a value, and building a tree to walk it once
  * would be a layer with no user.
  */
-function parse(tokens, t) {
+function parse(tokens, t, vars) {
   let pos = 0;
 
   /*
@@ -664,6 +664,23 @@ function parse(tokens, t) {
       // A name may be a constant, a function, or a unit, and the order matters:
       // `e` is a constant before it could be an unknown unit, and `sin` needs
       // its argument parsed before anything is computed.
+      /*
+       * A caller-supplied variable, before the constants and before units.
+       *
+       * `ans` is the case this exists for: the calculator's "last result". It
+       * cannot be a constant, because its value changes per evaluation, and it
+       * must be resolvable by name, because that is what a user types. Checked
+       * before `CONSTANTS` so a variable could in principle shadow one, but the
+       * names in use (`ans`) do not collide with any.
+       *
+       * A variable carries a **unit** as well as a value: `ans` after `5 g / 250 mL`
+       * is 20 g/L, and a bare number would silently drop the dimension and make
+       * `ans * 2` a dimensionless 40.
+       */
+      if (vars && Object.prototype.hasOwnProperty.call(vars, tk.value)) {
+        const v = vars[tk.value];
+        return quantity(v.value, v.exponents ?? [0, 0, 0, 0, 0, 0], v.unit ?? null, 1);
+      }
       if (tk.value in CONSTANTS) return scalar(CONSTANTS[tk.value]);
       /*
        * A callable name is a function only when a `(` follows it — see the note
@@ -934,10 +951,10 @@ function sameExponents(a, b) {
  * label where it does not, so a correct intermediate result is never reported
  * as an error just because it has no familiar name.
  */
-export function evaluate(source) {
+export function evaluate(source, vars) {
   const text = normalizeExpression(source).trim();
   if (text === '') fail('expressionEmpty', {});
-  const q = parse(tokenize(text), text);
+  const q = parse(tokenize(text), text, vars);
   const si = toSi(q);
   if (!Number.isFinite(si)) fail('expressionNotFinite', {});
 
