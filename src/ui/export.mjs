@@ -11,7 +11,6 @@
  * the formatting can be tested without a DOM.
  */
 
-import { toXlsx } from './xlsx.mjs';
 import { fieldLabel } from './field-labels.mjs';
 
 export const CSV_COLUMNS = ['时间', '类型', '说明', '输入', '结果'];
@@ -368,6 +367,12 @@ function toMetaRows(entries, locale, now) {
 /**
  * Download an .xlsx.
  *
+ * Async, and the writer is imported inside rather than at the top of the file.
+ * `xlsx.mjs` builds a ZIP of XML by hand — every part, the content types, the
+ * relationships, the shared strings — and it is several hundred lines that no
+ * part of opening the app needs. Imported statically it was in the first
+ * download for everyone who never exports a spreadsheet, which is most people.
+ *
  * The bytes go through a Blob rather than a string, so `downloadFile` takes
  * the `Uint8Array` unchanged. The MIME type is the registered one for xlsx;
  * getting it wrong makes Excel refuse the file on a double-click even though
@@ -376,7 +381,8 @@ function toMetaRows(entries, locale, now) {
  * Two sheets: the data, and the notes that make the data readable later. The
  * data sheet is first, because that is what the file is for.
  */
-export function downloadXlsx(entries, { detailed = true, now = new Date(), locale = 'zh' } = {}) {
+export async function downloadXlsx(entries, { detailed = true, now = new Date(), locale = 'zh' } = {}) {
+  const { toXlsx } = await import('./xlsx.mjs');
   const zh = locale !== 'en';
   const rows = detailed ? toXlsxDetailedRows(entries, locale) : toXlsxRows(entries, locale);
   const meta = toMetaRows(entries, locale, now);

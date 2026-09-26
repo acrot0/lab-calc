@@ -28,19 +28,44 @@ function walk(dir, out = []) {
   return out;
 }
 
-/** Names brought in by `import { a, b as c } from '...'`. */
+/**
+ * Names brought in by a static or dynamic destructured import.
+ *
+ * The dynamic form is matched too, because it is a real pattern in this
+ * codebase and not an accident: `xlsx.mjs` and the print report are loaded on
+ * demand so they stay out of the first download, and both are written as
+ * `await import('...')` or `import('...').then(...)`.
+ *
+ * Without this, the checker reported a dynamic import as an undefined call —
+ * a false positive that would push a future author to either duplicate the
+ * import statically (undoing the split) or silence the check. Teaching it the
+ * syntax is the fix that keeps the check worth running.
+ */
 function importedNames(src) {
   const names = [];
-  for (const m of src.matchAll(/import\s*\{([^}]+)\}\s*from/g)) {
-    for (const raw of m[1].split(',')) {
-      const name = raw.trim().split(/\s+as\s+/).pop().trim();
-      if (name) names.push(name);
+  const patterns = [
+    // import { a, b as c } from '...'
+    /import\s*\{([^}]+)\}\s*from/g,
+    // const { a, b } = await import('...')  /  const { a } = await import('…')
+    /(?:const|let|var)\s*\{([^}]+)\}\s*=\s*await\s+import\s*\(/g,
+    // .then(({ a, b }) => …)
+    /\.then\s*\(\s*\(\s*\{([^}]+)\}\s*\)/g,
+  ];
+  for (const re of patterns) {
+    for (const m of src.matchAll(re)) {
+      for (const raw of m[1].split(',')) {
+        const name = raw.trim().split(/\s+as\s+/).pop().trim();
+        if (name) names.push(name);
+      }
     }
   }
   return names;
 }
 
-const stripImports = (src) => src.replace(/import\s*\{[^}]+\}\s*from\s*['"][^'"]+['"];?/g, '');
+const stripImports = (src) => src
+  .replace(/import\s*\{[^}]+\}\s*from\s*['"][^'"]+['"];?/g, '')
+  .replace(/(?:const|let|var)\s*\{[^}]+\}\s*=\s*await\s+import\s*\([^)]*\);?/g, '')
+  .replace(/\.then\s*\(\s*\(\s*\{[^}]+\}\s*\)/g, '.then((');
 
 /**
  * Remove comments and quoted strings, leaving only code.

@@ -604,6 +604,7 @@ export const zh = {
     replay: '重新载入这次计算的参数',
     remove: '删除这条记录',
     dismiss: '关闭提示',
+    exportFailed: "导出失败，请重试。",
   },
   reaction: {
     mode: '计算类型',

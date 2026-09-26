@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { filterHistory } from '../history.mjs';
@@ -8,7 +8,21 @@ import {
 import { useI18n } from '../LocaleContext.jsx';
 import { recordSummary } from '../summaries.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
-import Report from './Report.jsx';
+
+/*
+ * The print report is loaded on demand.
+ *
+ * It is a sibling of the app, rendered into `document.body` and hidden by the
+ * print stylesheet until the browser prints. Nothing about the first screen
+ * needs it, and it drags in the formula registry, the method descriptions and
+ * the signature block — a few hundred lines of markup that were downloaded and
+ * parsed on every visit to show nothing.
+ *
+ * Loaded when the panel first mounts rather than at print time, because a
+ * print dialog does not wait for a network fetch: by the time the chunk
+ * arrived the page would already have been sent to the printer, blank.
+ */
+const Report = lazy(() => import('./Report.jsx'));
 
 export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onImport }) {
   const { t, locale } = useI18n();
@@ -27,8 +41,13 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
     const rows = shown.map((e) => ({ ...e, summary: recordSummary(e, t) }));
     if (format === 'csv') downloadCsv(rows, locale);
     else if (format === 'json') downloadBundle(entries);
-    else if (format === 'xlsx') downloadXlsx(rows, { locale });
-    else downloadMarkdown(rows, locale);
+    else if (format === 'xlsx') {
+      // Async because the .xlsx writer is fetched on demand — see the note on
+      // `downloadXlsx`. A failure here is a fetch that did not arrive, which is
+      // worth telling the user rather than swallowing.
+      downloadXlsx(rows, { locale })
+        .catch(() => setNotice({ kind: 'err', text: t('history.exportFailed') }));
+    } else downloadMarkdown(rows, locale);
   }
 
   /*

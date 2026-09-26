@@ -602,6 +602,7 @@ export const en = {
     replay: 'Reload the inputs from this calculation',
     remove: 'Delete this entry',
     dismiss: 'Dismiss notice',
+    exportFailed: "Export failed. Try again.",
   },
   reaction: {
     mode: 'Calculation',

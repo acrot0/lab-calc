@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Icons, ICON_SIZE } from './icons.jsx';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay, MAX_ENTRIES,
@@ -10,22 +10,6 @@ import { useTheme, ThemeToggle } from './ThemeContext.jsx';
 import { IconStyleToggle } from './IconStyleContext.jsx';
 import { DensityToggle } from './DensityContext.jsx';
 import { LOCALES } from './i18n.mjs';
-import WeighTab from './tabs/WeighTab.jsx';
-import DiluteTab from './tabs/DiluteTab.jsx';
-import BufferTab from './tabs/BufferTab.jsx';
-import SeriesTab from './tabs/SeriesTab.jsx';
-import ConvertTab from './tabs/ConvertTab.jsx';
-import PhTab from './tabs/PhTab.jsx';
-import PercentTab from './tabs/PercentTab.jsx';
-import CurveTab from './tabs/CurveTab.jsx';
-import ReagentTab from './tabs/ReagentTab.jsx';
-import SpectroTab from './tabs/SpectroTab.jsx';
-import LabTab from './tabs/LabTab.jsx';
-import ColligativeTab from './tabs/ColligativeTab.jsx';
-import BioTab from './tabs/BioTab.jsx';
-import ReactionTab from './tabs/ReactionTab.jsx';
-import ElectroTab from './tabs/ElectroTab.jsx';
-import ElementsTab from './tabs/ElementsTab.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
@@ -33,6 +17,58 @@ import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
 import { installBackNav } from './back-nav.mjs';
+
+/*
+ * Tabs are loaded on demand.
+ *
+ * All sixteen used to be static imports, so the first screen downloaded and
+ * parsed every tab's code before it could draw — including the periodic table
+ * with its SMILES renderer and the two canvas-chart tabs. On a phone that is
+ * the difference between a calculator that opens and one that does not.
+ *
+ * The default tab is still fetched immediately, but as its own chunk rather
+ * than as part of a 750 KB bundle. React's Suspense boundary shows the spinner
+ * while a chunk arrives; a cached chunk arrives in the same frame, so the
+ * fallback is only ever seen on a cold, slow load.
+ */
+const WeighTab = lazy(() => import('./tabs/WeighTab.jsx'));
+const DiluteTab = lazy(() => import('./tabs/DiluteTab.jsx'));
+const BufferTab = lazy(() => import('./tabs/BufferTab.jsx'));
+const SeriesTab = lazy(() => import('./tabs/SeriesTab.jsx'));
+const ConvertTab = lazy(() => import('./tabs/ConvertTab.jsx'));
+const PhTab = lazy(() => import('./tabs/PhTab.jsx'));
+const PercentTab = lazy(() => import('./tabs/PercentTab.jsx'));
+const CurveTab = lazy(() => import('./tabs/CurveTab.jsx'));
+const ReagentTab = lazy(() => import('./tabs/ReagentTab.jsx'));
+const SpectroTab = lazy(() => import('./tabs/SpectroTab.jsx'));
+const LabTab = lazy(() => import('./tabs/LabTab.jsx'));
+const ColligativeTab = lazy(() => import('./tabs/ColligativeTab.jsx'));
+const BioTab = lazy(() => import('./tabs/BioTab.jsx'));
+const ReactionTab = lazy(() => import('./tabs/ReactionTab.jsx'));
+const ElectroTab = lazy(() => import('./tabs/ElectroTab.jsx'));
+const ElementsTab = lazy(() => import('./tabs/ElementsTab.jsx'));
+
+/**
+ * What shows while a tab's chunk is in flight.
+ *
+ * Deliberately a quiet placeholder rather than a spinner: the chunk is usually
+ * cached and arrives within a frame, so a spinner would flash and read as a
+ * glitch. It keeps the card's shape so nothing jumps when the real content
+ * lands.
+ *
+ * The label is announced, so a screen-reader user knows what is loading rather
+ * than meeting silence.
+ */
+function CardSkeleton({ label }) {
+  return (
+    <div className="card is-loading" role="status" aria-live="polite">
+      <span className="sr-only">{label}</span>
+      <div className="skeleton-row" />
+      <div className="skeleton-row" />
+      <div className="skeleton-row is-short" />
+    </div>
+  );
+}
 
 /**
  * Every tab has its own icon. "Dilute" and "Serial dilution" shared one
@@ -269,7 +305,13 @@ export default function App() {
               itself: the history panel is a `.card` too, and a container on
               <main> would have the panel matching the card rules. */}
           <div className="work">
-            <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
+            {/* The tab's chunk is fetched on demand. The fallback is a plain
+                card of the same height so the layout does not jump when the
+                real one replaces it — a spinner that collapses to nothing and
+                then expands is worse than no spinner. */}
+            <Suspense fallback={<CardSkeleton label={t(`tabs.${active.id}`)} />}>
+              <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
+            </Suspense>
           </div>
           <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear}
             onImport={importEntries} />

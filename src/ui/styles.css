@@ -794,6 +794,46 @@ select.control {
 }
 
 /*
+ * The placeholder shown while a tab's chunk loads.
+ *
+ * It is the same `.card` with grey bars in place of the content, so the card
+ * that replaces it occupies the same box and nothing shifts. The bars are the
+ * surface colour one step up, which reads as "content goes here" in every
+ * palette without introducing a colour the theme does not define.
+ *
+ * The shimmer is a background-position animation rather than a moving element,
+ * so it composites on the GPU and costs nothing on the phone this exists for.
+ */
+.skeleton-row {
+  height: 44px;
+  margin-bottom: var(--s4);
+  border-radius: var(--r-md);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    var(--surface-3) 50%,
+    var(--surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+.skeleton-row.is-short { width: 45%; }
+
+@keyframes skeleton-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The placeholder still needs to read as "loading", so it keeps a pulse —
+     but an opacity pulse, not a sweep across the screen. */
+  .skeleton-row {
+    animation: value-fade-soft 1.6s ease-in-out infinite alternate !important;
+  }
+}
+
+/*
  * Inputs left, results right.
  *
  * Every tab is one flat card with its inputs and its `<Result>` as siblings, so

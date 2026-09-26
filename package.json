@@ -33,7 +33,6 @@
     "@fontsource/instrument-serif": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "gruvbox": "^1.1.2",
-    "lucide-react": "^1.48.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "smiles-drawer": "^2.4.1",
