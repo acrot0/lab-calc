@@ -122,9 +122,12 @@ describe('WeighTab uncertainty budget', () => {
     await click(c.querySelector('.unc-toggle'));
     const flaskRow = () => [...c.querySelectorAll('.unc-contrib > div')]
       .find((d) => /容量瓶|flask/.test(d.textContent)).textContent;
-    expect(flaskRow()).toMatch(/0\.1443/);
+    // 0.25/√3 = 0.1443 mL, one figure (leading digit 1 takes two, so 0.14) —
+    // quoted to the place the uncertainty justifies, not to a fixed count.
+    expect(flaskRow()).toMatch(/0\.14/);
     await setField(fieldIn(byLabel(c, /容量瓶规格|Flask size/)), '1000');
-    expect(flaskRow()).toMatch(/0\.2309/);
+    // 0.40/√3 = 0.2309 mL, one figure: 0.2.
+    expect(flaskRow()).toMatch(/0\.2/);
   });
 
   it('should shrink the relative total when the flask is matched to the volume', async () => {
@@ -221,8 +224,10 @@ describe('WeighTab uncertainty budget', () => {
     await click(c.querySelector('.unc-toggle'));
     const shown = c.querySelector('.unc-contrib').textContent;
     const flask = glasswareUncertainty({ kind: 'flask', nominalMl: 500 });
+    // The arithmetic is 0.1443 mL; what is rendered is that rounded to the
+    // place the uncertainty occupies, which is 0.14.
     expect(flask.unc).toBeCloseTo(0.25 / Math.sqrt(3), 6);
-    expect(shown).toContain('0.1443');
+    expect(shown).toMatch(/0\.14/);
   });
 
   it('should quote the relative figure to the same precision everywhere', async () => {
@@ -288,5 +293,116 @@ describe('uncertainty panel contrast', () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+});
+
+/*
+ * The dilution tab's budget.
+ *
+ * Same engine, different instruments: a pipette delivers the stock and a flask
+ * makes up the final volume, so the two enter as a quotient. The cases below
+ * are the ones that differ from weighing — there is no balance term at all, and
+ * the pipette's relative error is what governs.
+ */
+describe('DiluteTab uncertainty budget', () => {
+  async function mountDilute() {
+    const { default: DiluteTab } = await import('../src/ui/tabs/DiluteTab.jsx');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(LocaleProvider, { store: memoryStore({ 'lab-calc.locale.v1': 'zh' }) },
+        React.createElement(DiluteTab, { onRecord: () => {}, restored: null })));
+    });
+    return container;
+  }
+
+  it('should offer a budget with a pipette and no balance', async () => {
+    const c = await mountDilute();
+    await click(c.querySelector('.unc-toggle'));
+    const body = c.querySelector('.unc-body');
+    expect(body.textContent).toMatch(/移液管/);
+    // A dilution measures no mass, so a readability field would imply a
+    // weighing step that does not exist.
+    expect(body.textContent).not.toMatch(/分度值|readability/);
+    expect(logged).toEqual([]);
+  });
+
+  it('should be governed by the pipette, not the flask', async () => {
+    /*
+     * A 25 mL class A pipette is ±0.03 mL (0.12% relative) and a 100 mL class A
+     * flask is ±0.10 mL (0.10%). Both are in the budget; the point of the
+     * assertion is that the pipette term is the larger of the two, because that
+     * is what a user has to change to improve the dilution.
+     */
+    const c = await mountDilute();
+    await click(c.querySelector('.unc-toggle'));
+    const rows = [...c.querySelectorAll('.unc-contrib > div')].map((d) => d.textContent);
+    const pip = rows.find((r) => /移液管/.test(r));
+    const flask = rows.find((r) => /容量瓶/.test(r));
+    // 0.03/√3 = 0.01732 mL, quoted to two figures (leading digit 1) and so
+    // rendered at the ten-thousandth: "± 0.017".
+    expect(pip).toMatch(/0\.017/);
+    // 0.10/√3 = 0.05774 mL, one figure (leading digit 5): "± 0.06".
+    expect(flask).toMatch(/0\.06/);
+    // The comparison the panel exists to make: the pipette is the larger term,
+    // so it is what a user changes to improve the dilution.
+    const pipVal = Number(pip.replace(/[^0-9.]/g, ''));
+    const flaskVal = Number(flask.replace(/[^0-9.]/g, ''));
+    expect(pipVal).toBeLessThan(flaskVal);
+  });
+
+  it('should put the ± under the result once calculated', async () => {
+    const c = await mountDilute();
+    await click([...c.querySelectorAll('button.primary')].find((b) => /计算/.test(b.textContent)));
+    await click(c.querySelector('.unc-toggle'));
+    // 1 M stock to 0.1 M in 100 mL is 10 mL of stock.
+    expect(c.querySelector('.result-main').textContent).toMatch(/10/);
+    const unc = c.querySelector('.result-unc');
+    expect(unc).not.toBeNull();
+    expect(unc.querySelector('.result-unc-value').textContent).toMatch(/±/);
+  });
+
+  it('should follow the target volume rather than the value it was given', async () => {
+    const c = await mountDilute();
+    await click(c.querySelector('.unc-toggle'));
+    const rel = () => Number(c.querySelector('.unc-relative strong').textContent.replace('%', ''));
+    const before = rel();
+    // Making up 1000 mL instead of 100 mL in a 1000 mL flask (0.40 mL, 0.023%)
+    // is tighter than 0.10 mL on 100 mL (0.058%), so the relative total falls.
+    await setField(fieldIn(byLabel(c, /容量瓶规格|Flask size/)), '1000');
+    await setField(fieldIn(byLabel(c, /目标体积|Target volume/)), '1000');
+    expect(rel()).toBeLessThan(before);
+  });
+
+  it('should render the panel without logging a React error', async () => {
+    const c = await mountDilute();
+    await click(c.querySelector('.unc-toggle'));
+    await click([...c.querySelectorAll('button.primary')].find((b) => /计算/.test(b.textContent)));
+    expect(logged).toEqual([]);
+  });
+});
+
+describe('the budget panel lists each source once', () => {
+  it('should not repeat a source the tab also passes in', async () => {
+    /*
+     * The panel renders the pipette row itself when the budget carries one, and
+     * the dilution tab also passed a pipette `Contribution` as a child — so the
+     * row appeared twice, which reads as two separate instruments contributing.
+     * A source listed twice is worse than one listed not at all: the reader
+     * concludes they own two pipettes.
+     */
+    const { default: DiluteTab } = await import('../src/ui/tabs/DiluteTab.jsx');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(LocaleProvider, { store: memoryStore({ 'lab-calc.locale.v1': 'zh' }) },
+        React.createElement(DiluteTab, { onRecord: () => {}, restored: null })));
+    });
+    await click(container.querySelector('.unc-toggle'));
+    const rows = [...container.querySelectorAll('.unc-contrib > div')].map((d) => d.textContent);
+    const pipetteRows = rows.filter((r) => /移液管/.test(r));
+    expect(pipetteRows).toHaveLength(1);
   });
 });

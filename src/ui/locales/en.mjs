@@ -1122,6 +1122,35 @@ export const en = {
     close: 'Close',
     ackFailed: 'Browser storage is unavailable, so this acknowledgement will not be remembered.',
   },
+  /*
+   * Uncertainty, shared by every tab that reports one.
+   * Generic on purpose: "Class A" and "room temperature" mean the same thing
+   * whether the glassware is making up a solution or diluting one.
+   */
+  unc: {
+    uncTitle: 'Uncertainty',
+    uncShow: 'Work out the uncertainty',
+    uncHide: 'Hide the uncertainty',
+    uncIntro: 'Computed from the glassware and balance you actually used, not estimated. Tolerances convert to standard uncertainties through a rectangular distribution (divided by the square root of three), and balance linearity is counted twice.',
+    uncFlask: 'Making up the volume with a flask',
+    uncFlaskSize: 'Flask size (mL)',
+    uncPipette: 'Transferring with a pipette',
+    uncPipetteSize: 'Pipette size (mL)',
+    uncGrade: 'Grade',
+    uncGradeA: 'Class A',
+    uncGradeB: 'Class B',
+    uncTemp: 'Room temperature (C)',
+    uncReadability: 'Balance readability (g)',
+    uncLinearity: 'Balance linearity tolerance (g)',
+    uncBalance: 'Balance',
+    uncMassDetail: 'Weighing',
+    uncResult: 'Relative uncertainty on this result',
+    uncRelative: 'relative',
+    uncContrib: 'Contributions by source',
+    uncNotModelled: 'Glassware and balance only. Technique (making up to the mark, reading the meniscus, temperature equilibration), reagent purity and hygroscopicity are not in here - a real uncertainty is usually larger.',
+    uncExact: 'The molar mass carries the IUPAC atomic-weight intervals; elements missing from the table are treated as exact.',
+    uncUnavailable: 'Either this glassware size is outside the standard table, or the formula contains an element with no atomic-weight interval - the uncertainty cannot be computed. The result above still stands, but no digit count can be trusted.',
+  },
   fields: {
     equivalenceHint: 'Roughly where the equivalence point is (mL)',
     nominalMl: 'Nominal capacity (mL)',

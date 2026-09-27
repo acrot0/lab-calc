@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { stockFromSolid, molarMass, molarMassBreakdown } from '../../calc/solution.mjs';
-import { TextField, NumField, Result, Err, Warn } from '../components/Fields.jsx';
+import { TextField, NumField, Result, Err } from '../components/Fields.jsx';
+import { UncertaintyPanel, Contribution } from '../components/UncertaintyPanel.jsx';
 import { fmt, fmtSci, fmtMeasured, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
@@ -230,7 +231,7 @@ export default function WeighTab({ onRecord, restored }) {
         ] : null}
         unc={out && uncOpen && budget ? {
           ...fmtMeasured(out.massG, budget.balance.unc, { unit: ` ${t('weigh.unit')}` }),
-          detail: `${t('weigh.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,
+          detail: `${t('unc.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,
         } : null}
         worked={worked}
         workedLabel={t('common.worked')}
@@ -242,106 +243,16 @@ export default function WeighTab({ onRecord, restored }) {
         budget={budget}
         state={{ flaskMl, setFlaskMl, flaskGrade, setFlaskGrade, tempC, setTempC,
           readabilityG, setReadabilityG, linearityG, setLinearityG }}
-      />
+      >
+        <Contribution
+          label={t('unc.uncBalance')} value={budget?.mass.value}
+          unc={budget?.balance.unc} unit={t('weigh.unit')}
+        />
+        <Contribution
+          label={t('common.molarMass')} value={budget?.molarMass.molarMass}
+          unc={budget?.molarMass.unc} unit="g/mol"
+        />
+      </UncertaintyPanel>
     </Card>
-  );
-}
-
-/**
- * The uncertainty budget, as a disclosure rather than a permanent block.
- *
- * Collapsed by default because it is four inputs most sessions do not need, and
- * an always-visible form above the result pushes the result off the first
- * screen. It is a disclosure rather than a separate tab because the budget is
- * about *this* calculation — a separate page would lose the connection.
- *
- * Every source is listed with its own contribution, not just the total. A
- * single combined number tells the user their result is uncertain; the
- * breakdown tells them which instrument to change, which is the only actionable
- * thing in the whole panel.
- */
-function UncertaintyPanel({ open, onToggle, budget, state }) {
-  const { t } = useI18n();
-  const {
-    flaskMl, setFlaskMl, flaskGrade, setFlaskGrade, tempC, setTempC,
-    readabilityG, setReadabilityG, linearityG, setLinearityG,
-  } = state;
-
-  return (
-    <div className="unc-panel">
-      <button type="button" className="link-btn unc-toggle" aria-expanded={open} onClick={onToggle}>
-        {open ? '▾' : '▸'} {open ? t('weigh.uncHide') : t('weigh.uncShow')}
-      </button>
-      {open && (
-        <div className="unc-body">
-          <p className="unc-intro">{t('weigh.uncIntro')}</p>
-          <div className="row">
-            <NumField label={t('weigh.uncFlaskSize')} value={flaskMl} onChange={setFlaskMl} min="0" />
-            <label className="field">
-              <span className="field-label">{t('weigh.uncGrade')}</span>
-              <select value={flaskGrade} onChange={(e) => setFlaskGrade(e.target.value)}>
-                <option value="A">{t('weigh.uncGradeA')}</option>
-                <option value="B">{t('weigh.uncGradeB')}</option>
-              </select>
-            </label>
-          </div>
-          <NumField label={t('weigh.uncTemp')} value={tempC} onChange={setTempC} />
-          <div className="row">
-            <NumField label={t('weigh.uncReadability')} value={readabilityG} onChange={setReadabilityG} min="0" />
-            <NumField label={t('weigh.uncLinearity')} value={linearityG} onChange={setLinearityG} min="0" />
-          </div>
-
-          {budget ? (
-            <>
-              <div className="unc-relative">
-                <span>{t('weigh.uncResult')}</span>
-                {/*
-                  Three decimals, not two.
-                  Relative uncertainties live between about 0.01% and a few
-                  percent, and at two decimals everything under 0.05% collapses
-                  to "0.03%" — so swapping a 500 mL flask for a 1000 mL one, a
-                  17% improvement in the budget, reads as no change at all.
-                  That is the same defect as quoting digits the glassware
-                  cannot support, in the other direction.
-                */}
-                <strong>{fmtSci(budget.relative * 100, 3)}%</strong>
-              </div>
-              <dl className="unc-contrib">
-                <div>
-                  <dt>{t('weigh.uncBalance')}</dt>
-                  <dd>{fmtMeasured(budget.mass.value, budget.mass.unc, { unit: ` ${t('weigh.unit')}` }).uncText}</dd>
-                </div>
-                {budget.molarMass.unc > 0 && (
-                  <div>
-                    <dt>{t('common.molarMass')}</dt>
-                    <dd>{`± ${fmt(budget.molarMass.unc, 4)} g/mol`}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt>{t('weigh.uncFlask')}</dt>
-                  <dd>{`± ${fmt(budget.flask.unc, 4)} mL`}</dd>
-                </div>
-              </dl>
-              {budget.balance.belowMinimumWeight && (
-                <Warn>
-                  {t('weigh.uncBelowMin', {
-                    mass: fmtSci(budget.mass.value, 3),
-                    min: fmtSci(budget.balance.minimumWeightG, 3),
-                  })}
-                </Warn>
-              )}
-              <p className="unc-caveat">{t('weigh.uncNotModelled')}</p>
-              <p className="unc-caveat">{t('weigh.uncExact')}</p>
-            </>
-          ) : (
-            // Not an error the user made — an instrument size the standard does
-            // not cover, or a formula with an element outside the weight table.
-            // The main result is unaffected, so this states what is missing
-            // rather than presenting a zero as if it were a measurement.
-            <p className="unc-caveat">{t('weigh.uncUnavailable')}</p>
-          )}
-        </div>
-      )}
-    </div>
   );
 }

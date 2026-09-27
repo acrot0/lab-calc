@@ -1123,6 +1123,35 @@ export const zh = {
     close: '关闭',
     ackFailed: '浏览器存储不可用，本次确认不会被记住。',
   },
+  /*
+   * Uncertainty, shared by every tab that reports one.
+   * Generic on purpose: "Class A" and "room temperature" mean the same thing
+   * whether the glassware is making up a solution or diluting one.
+   */
+  unc: {
+    uncTitle: '不确定度',
+    uncShow: '算不确定度',
+    uncHide: '收起不确定度',
+    uncIntro: '按你实际用的玻璃器皿和天平算，不是估值。容差按矩形分布换算成标准不确定度（÷√3），天平线性按称量两次计。',
+    uncFlask: '定容用容量瓶',
+    uncFlaskSize: '容量瓶规格 (mL)',
+    uncPipette: '移液用移液管',
+    uncPipetteSize: '移液管规格 (mL)',
+    uncGrade: '等级',
+    uncGradeA: 'A 级',
+    uncGradeB: 'B 级',
+    uncTemp: '室温 (°C)',
+    uncReadability: '天平分度值 (g)',
+    uncLinearity: '天平线性允差 (g)',
+    uncBalance: '天平',
+    uncMassDetail: '称量',
+    uncResult: '本次结果的相对不确定度',
+    uncRelative: '相对',
+    uncContrib: '各来源贡献',
+    uncNotModelled: '只算了器皿和天平。手法（定容、读数、温度平衡）、试剂纯度与吸湿性都不在内——真实的不确定度通常比这个大。',
+    uncExact: '摩尔质量这一项按 IUPAC 原子量区间算入；表中没有的元素按精确值处理。',
+    uncUnavailable: '这台器皿的规格不在标准表内，或者化学式里有原子量区间未收录的元素——不确定度算不出来。上面的结果仍然有效，只是没有可信位数。',
+  },
   fields: {
     equivalenceHint: '等当点大致位置 (mL)',
     nominalMl: '标称容量 (mL)',
