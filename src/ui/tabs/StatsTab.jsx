@@ -204,15 +204,26 @@ export default function StatsTab({ onRecord, restored }) {
       };
       setOut(result);
       setErr(null);
+      /*
+       * The stored record and the summary are computed from the *same* shape.
+       *
+       * The summary reads `o.n`, `o.mean`, `o.sd` flat, but it was being handed
+       * `result` — which nests those under `describeA`. So the history line for
+       * every statistics record read 「n = undefined，均值 ?，标准差 ?」. The tab
+       * was the only kind where the object going into the summary was not the
+       * object being stored, and the mismatch was invisible because both are
+       * called `outputs`.
+       */
+      const outputs = {
+        mean: result.describeA.mean,
+        sd: result.describeA.sd,
+        n: result.describeA.n,
+      };
       onRecord({
         kind: 'stats',
         inputs: { seriesA, seriesB, confidence },
-        outputs: {
-          mean: result.describeA.mean,
-          sd: result.describeA.sd,
-          n: result.describeA.n,
-        },
-        summary: recordSummary({ kind: 'stats', inputs: { seriesA, seriesB, confidence }, outputs: result }, t),
+        outputs,
+        summary: recordSummary({ kind: 'stats', inputs: { seriesA, seriesB, confidence }, outputs }, t),
       });
     } catch (e) {
       setErr(errorMessage(e, t));

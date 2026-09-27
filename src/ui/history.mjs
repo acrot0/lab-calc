@@ -206,6 +206,18 @@ export function replayInputs(entry) {
  *
  * Kept here rather than in the component so the mapping can be tested — a
  * replay button that opens the wrong tab is a silent, easy-to-ship bug.
+ *
+ * ## Why the five analysis tabs are in here
+ *
+ * They were not, and the failure was worse than a wrong tab: `planReplay`
+ * returns null for a kind it does not know, and `App.replay` ignores a null
+ * plan. So the replay button was rendered, enabled, and did nothing at all —
+ * for every record from the biology, uncertainty, data, analytical and
+ * physical tabs. Nothing about the button looked broken, which is why it went
+ * unnoticed through five releases.
+ *
+ * All five tabs take `restored` and seed their state from it, so the route was
+ * the only thing missing.
  */
 export const KIND_TO_TAB = {
   massForMolarity: 'weigh',
@@ -222,6 +234,11 @@ export const KIND_TO_TAB = {
   colligative: 'colligative',
   reaction: 'reaction',
   electro: 'electro',
+  bio: 'bio',
+  uncertainty: 'uncertainty',
+  stats: 'stats',
+  analytical: 'analytical',
+  physical: 'physical',
 };
 
 /**

@@ -14,6 +14,8 @@
 import { fieldLabel } from './field-labels.mjs';
 import { META_FIELDS } from './history.mjs';
 import { DISCLAIMER_POINTS } from './disclaimer.mjs';
+import { zh } from './locales/zh.mjs';
+import { en } from './locales/en.mjs';
 
 export const CSV_COLUMNS = ['时间', '类型', '说明', '输入', '结果'];
 
@@ -57,36 +59,33 @@ function columnsFor(locale = 'zh') {
 }
 
 /**
- * The tab a record came from, per locale.
+ * The name of a record's kind, from the locale files.
  *
  * The key is the record's stored `kind`, which is part of the data format and
  * must not change when a label is reworded — the same reasoning as
  * `field-labels.mjs`. The English column was missing until the export was
  * reviewed: an English user's CSV said `称量配制` in the Type column, which is
  * the one column that tells them what the row even is.
+ *
+ * ## Why this reads the locale files rather than a table here
+ *
+ * It had its own table, and the table is now gone. Two tables naming the same
+ * set drifted in the only way that is invisible: both were complete for the
+ * fourteen original kinds and this one was never extended for the five added
+ * later, so a bio record exported as `bio` while the history list, the printed
+ * report and the app's own tab bar all called it 生物. The subset it happened
+ * to cover was exactly the subset nobody had added recently, which is why
+ * reading it looked fine.
+ *
+ * A locale lookup cannot disagree with the locale files, and `test/kind-registry`
+ * asserts every recorded kind resolves in both languages — so the fallback
+ * below is reached only by a record from a removed tab, where the raw key is
+ * the most informative thing available.
  */
-const KIND_NAMES = {
-  massForMolarity: { zh: '称量配制', en: 'Weigh & prepare' },
-  stockFromSolid: { zh: '称量配制', en: 'Weigh & prepare' },
-  dilution: { zh: '稀释', en: 'Dilution' },
-  dilutionSeries: { zh: '梯度稀释', en: 'Serial dilution' },
-  bufferRecipe: { zh: '缓冲液', en: 'Buffer' },
-  phCalc: { zh: 'pH 计算', en: 'pH' },
-  percentSolution: { zh: '百分比配制', en: 'Percent solution' },
-  titrationCurve: { zh: '滴定曲线', en: 'Titration curve' },
-  reagent: { zh: '浓试剂', en: 'Concentrated reagent' },
-  spectro: { zh: '分光光度', en: 'Spectrophotometry' },
-  lab: { zh: '实验台计算', en: 'Bench calculator' },
-  colligative: { zh: '依数性', en: 'Colligative' },
-  reaction: { zh: '反应计量', en: 'Reaction stoichiometry' },
-  electro: { zh: '电化学', en: 'Electrochemistry' },
-};
-
-/** A record's kind in the reader's language, falling back to the stored key. */
 function kindName(kind, locale = 'zh') {
-  const entry = KIND_NAMES[kind];
-  if (!entry) return kind ?? '';
-  return entry[locale] ?? entry.zh;
+  if (kind === null || kind === undefined) return '';
+  const dict = locale === 'en' ? en : zh;
+  return dict.kinds?.[kind] ?? kind;
 }
 
 /**

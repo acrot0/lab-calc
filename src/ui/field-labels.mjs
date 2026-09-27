@@ -123,7 +123,7 @@ const COMMON = {
   extent: { zh: '反应进度 (mol)', en: 'Extent of reaction (mol)' },
   e0: { zh: '标准电动势 E° (V)', en: 'Standard EMF E° (V)' },
   ecell: { zh: '电池电动势 E (V)', en: 'Cell EMF E (V)' },
-  n: { zh: '电子数 n', en: 'Electrons n' },
+  n: { zh: 'n', en: 'n' },
   q: { zh: '反应商 Q', en: 'Reaction quotient Q' },
   deltaG: { zh: 'ΔG (kJ/mol)', en: 'ΔG (kJ/mol)' },
   /*
@@ -188,6 +188,79 @@ const COMMON = {
   equivalencePh: { zh: '等当点 pH', en: 'Equivalence pH' },
   dilutionRatio: { zh: '稀释比', en: 'Dilution ratio' },
   finalConc: { zh: '终浓度', en: 'Final concentration' },
+
+  /* --- Biology. Added when the five newest tabs were audited: every tab that
+     records `outputs: <the module's return value>` was shipping the module's
+     whole key set to the printed report, and none of it was labelled. The
+     coverage test missed it because it sweeps for a `const`-declared inputs
+     object, and these tabs write the object inline in the `onRecord` call —
+     see the note on that sweep. --- */
+  a230: { zh: 'A230', en: 'A230' },
+  naType: { zh: '核酸类型', en: 'Nucleic acid type' },
+  concNgPerUl: { zh: '浓度 (ng/µL)', en: 'Concentration (ng/µL)' },
+  concUgPerMl: { zh: '浓度 (µg/mL)', en: 'Concentration (µg/mL)' },
+  coefficient: { zh: '换算系数', en: 'Conversion coefficient' },
+  ratio260280: { zh: 'A260/A280', en: 'A260/A280' },
+  ratio260230: { zh: 'A260/A230', en: 'A260/A230' },
+  verdict: { zh: '纯度判定', en: 'Purity verdict' },
+  sampleUl: { zh: '取样体积 (µL)', en: 'Sample volume (µL)' },
+  diluentUl: { zh: '稀释液体积 (µL)', en: 'Diluent volume (µL)' },
+  totalUl: { zh: '总体积 (µL)', en: 'Total volume (µL)' },
+  fold: { zh: '稀释倍数', en: 'Fold dilution' },
+  nmolPerUl: { zh: '浓度 (nmol/µL)', en: 'Concentration (nmol/µL)' },
+  ugPerMl: { zh: '浓度 (µg/mL)', en: 'Concentration (µg/mL)' },
+  gc: { zh: 'GC 含量 (%)', en: 'GC content (%)' },
+  cellsNeeded: { zh: '需接种细胞数', en: 'Cells needed' },
+  doublings: { zh: '倍增次数', en: 'Doublings' },
+  doublingTimeH: { zh: '倍增时间 (h)', en: 'Doubling time (h)' },
+  ratePerH: { zh: '每小时倍增率', en: 'Doublings per hour' },
+  rcf: { zh: '相对离心力 (×g)', en: 'Relative centrifugal force (×g)' },
+  rpm: { zh: '转速 (rpm)', en: 'Speed (rpm)' },
+  kFactor: { zh: 'k 因子', en: 'k factor' },
+  vmax: { zh: '最大反应速率 Vmax', en: 'Maximum rate Vmax' },
+  km: { zh: '米氏常数 Km', en: 'Michaelis constant Km' },
+  kcat: { zh: '催化常数 kcat', en: 'Turnover number kcat' },
+  efficiency: { zh: '催化效率 kcat/Km', en: 'Catalytic efficiency kcat/Km' },
+  diffusionLimited: { zh: '达到扩散极限', en: 'Diffusion-limited' },
+  cells0: { zh: '起始细胞数', en: 'Initial cell count' },
+  cells1: { zh: '终止细胞数', en: 'Final cell count' },
+  hours: { zh: '培养时间 (h)', en: 'Culture time (h)' },
+  radius: { zh: '离心半径 (cm)', en: 'Rotor radius (cm)' },
+  sequence: { zh: '序列', en: 'Sequence' },
+  stockDensity: { zh: '母液密度 (cells/mL)', en: 'Stock density (cells/mL)' },
+  targetDensity: { zh: '目标密度 (cells/mL)', en: 'Target density (cells/mL)' },
+  cultureVol: { zh: '培养体积 (mL)', en: 'Culture volume (mL)' },
+  finalVol: { zh: '终体积 (mL)', en: 'Final volume (mL)' },
+
+  /* --- Analytical chemistry. --- */
+  conditionalLogK: { zh: '条件常数 lg K′', en: 'Conditional constant lg K′' },
+  sampleConc: { zh: '样品浓度 (mol/L)', en: 'Sample concentration (mol/L)' },
+  potential: { zh: '电位 (V)', en: 'Potential (V)' },
+  lod: { zh: '检出限', en: 'Detection limit' },
+  loq: { zh: '定量限', en: 'Quantification limit' },
+  resolution: { zh: '分离度 R', en: 'Resolution R' },
+  plates: { zh: '理论塔板数', en: 'Theoretical plates' },
+  recovery: { zh: '回收率 (%)', en: 'Recovery (%)' },
+  mean: { zh: '均值', en: 'Mean' },
+
+  /* --- Physical chemistry. --- */
+  order: { zh: '反应级数', en: 'Reaction order' },
+  r2: { zh: 'R²', en: 'R²' },
+  EaKJ: { zh: '活化能 (kJ/mol)', en: 'Activation energy (kJ/mol)' },
+  lambda: { zh: '摩尔电导率', en: 'Molar conductivity' },
+  alpha: { zh: '解离度', en: 'Degree of dissociation' },
+  K: { zh: '平衡常数 K', en: 'Equilibrium constant K' },
+  eutecticC: { zh: '低共熔温度 (°C)', en: 'Eutectic temperature (°C)' },
+  xA: { zh: '摩尔分数 x', en: 'Mole fraction x' },
+  points: { zh: '数据点', en: 'Data points' },
+
+  /* --- Uncertainty and statistics. --- */
+  unc: { zh: '标准不确定度', en: 'Standard uncertainty' },
+  seriesA: { zh: '数据组 A', en: 'Series A' },
+  seriesB: { zh: '数据组 B', en: 'Series B' },
+  confidence: { zh: '置信水平 (%)', en: 'Confidence level (%)' },
+  sd: { zh: '标准差 s', en: 'Standard deviation s' },
+  k: { zh: 'k', en: 'k' },
 };
 
 
@@ -214,5 +287,28 @@ export const LABELLED_KEYS = Object.keys(COMMON);
  * test asserts a label differs from its key, because a label identical to the
  * key is usually the fallback wearing a costume; these are the legitimate
  * exceptions, listed here so the rule stays strict for everything else.
+ *
+ * `k` is the interesting member of this set: it is written by **two** tabs with
+ * different meanings — the rate constant in the kinetics fit and the rotor's k
+ * factor in the centrifuge calculation — and one key can only carry one label.
+ * Both are conventionally written `k`, and the printed report puts the record's
+ * kind directly above the field, so the symbol is legible in both contexts and
+ * a single spelled-out label would be wrong in one of them.
  */
-export const SYMBOL_KEYS = new Set(['pKa', 'pka', 'ph', 'poh', 'a260', 'a280', 'e0', 'n', 'q']);
+export const SYMBOL_KEYS = new Set(['pKa', 'pka', 'ph', 'poh', 'a260', 'a280', 'e0', 'n', 'q', 'k']);
+
+/*
+ * `n` is in the set above for the same reason as `k`, and more sharply: four
+ * tabs write it and it means something different in each.
+ *
+ *   electro      the electrons transferred in the half reaction
+ *   reagent      the equivalents per formula unit
+ *   stats        the number of replicates
+ *   analytical   the number of blank readings
+ *
+ * The label used to read 「电子数 n」, which was right for one of the four and
+ * wrong for the other three — a statistics record headed 电子数. All four are
+ * conventionally written `n`, and the record's kind sits directly above the
+ * field in the printed report, so the symbol says the right thing in every
+ * context where a spelled-out name cannot.
+ */

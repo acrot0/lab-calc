@@ -15,6 +15,8 @@ import {
   BUNDLE_VERSION,
   localStamp,
 } from '../src/ui/export.mjs';
+import { zh } from '../src/ui/locales/zh.mjs';
+import { en } from '../src/ui/locales/en.mjs';
 
 const entry = (over = {}) => ({
   id: 'a1',
@@ -294,8 +296,14 @@ describe('export labels and units', () => {
   it('should name the record kind in the reader\'s language', () => {
     // The Type column is the one that tells a reader what the row even is, so
     // an untranslated kind leaves an English export unreadable.
-    expect(toCsv([entry()], 'en')).toContain('Weigh & prepare');
-    expect(toCsv([entry()], 'zh')).toContain('称量配制');
+    //
+    // Asserted against the locale files rather than a literal. The export had
+    // its own name table and it said `Weigh & prepare` where the app's history
+    // list said `Weigh out` — a difference with no cause, visible only to
+    // someone who had both in front of them. One wording now, and this checks
+    // it is the same one.
+    expect(toCsv([entry()], 'en')).toContain(en.kinds.stockFromSolid);
+    expect(toCsv([entry()], 'zh')).toContain(zh.kinds.stockFromSolid);
   });
 
   it('should fall back to the stored key for an unknown kind', () => {

@@ -99,7 +99,14 @@ export default function Report({ entries, title }) {
                 <h2>{recordSummary(e, t) || t('history.untitled')}</h2>
                 <div className="report-when">
                   {e.at ? stamp(new Date(e.at), locale) : ''}
-                  {e.kind && <span className="report-kind">{t(`tabs.${e.kind}`, {})}</span>}
+                  {/* The record's kind, from the block that names kinds.
+                      This read `t(\`tabs.${e.kind}\`)` and was right for the
+                      five kinds whose stored name happens to equal its tab id.
+                      For the other eight it printed the key: a school report
+                      headed `tabs.dilution`. Both blocks exist in the locale
+                      files with overlapping member names, so nothing about the
+                      call site looked wrong. */}
+                  {e.kind && <span className="report-kind">{t(`kinds.${e.kind}`)}</span>}
                 </div>
               </div>
             </header>

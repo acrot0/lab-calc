@@ -1099,7 +1099,7 @@ export const zh = {
     colligative: '依数性',
     reaction: '反应计量',
     electro: '电化学',
-    bio: "生物计算",
+    bio: '生物计算',
     uncertainty: '不确定度',
     stats: '实验数据',
     analytical: '分析化学',

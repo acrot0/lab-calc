@@ -440,6 +440,240 @@ export const FORMULAS = [
       { key: 'spontaneous', unit: null },
     ],
   },
+
+  /* ---------------------------------------------------------------------
+   * The five analysis tabs.
+   *
+   * Each is a menu of eight to twelve separate calculations behind one mode
+   * selector, so the equation is the *set* of relations rather than one line —
+   * the same treatment `colligative` gets. Declaring only the first mode would
+   * be worse than declaring nothing: the report would print one relationship
+   * under a heading that claims to describe the record.
+   *
+   * These five were missing entirely, and the gap was invisible because the
+   * absence is graceful: `Report.jsx` prints the record without its
+   * 「计算方法」 section rather than failing, so a bio record looked complete
+   * and simply carried no statement of what produced its numbers.
+   * ------------------------------------------------------------------ */
+  {
+    id: 'bio',
+    module: 'bio.mjs',
+    equation: 'c = A₂₆₀·k/l   C₁V₁ = C₂V₂   c_oligo = A₂₆₀/(ε·l)'
+      + '   t_d = t/log₂(N/N₀)   RCF = 1.118×10⁻⁵·r·rpm²'
+      + '   v = V_max·[S]/(K_m+[S])',
+    source: 'Beer–Lambert with the standard nucleic-acid extinction coefficients '
+      + '— 50, 40 and 33 µg·mL⁻¹ per A₂₆₀ unit for dsDNA, RNA and ssDNA — from the '
+      + 'molecular-biology tables (Sambrook et al.). The oligo molarity uses '
+      + 'nearest-neighbour base extinction coefficients with the 0.9 hypochromicity '
+      + 'correction for a single strand. C₁V₁ = C₂V₂, the doubling relation '
+      + 'N = N₀·2^(t/t_d), RCF = 1.118×10⁻⁵·r·(rpm)², and the Michaelis–Menten rate law.',
+    assumptions: [
+      'The extinction coefficient is an average over base composition, so a '
+      + 'spectrophotometric yield is an estimate — a G+C-rich sample absorbs less '
+      + 'per microgram. It is always followed by a gel for this reason.',
+      'The 260/280 and 260/230 ratios mean what they mean only when read in the '
+      + 'same buffer as the blank; a ratio against a different blank is a different '
+      + 'number.',
+      'Doubling time is only meaningful for a culture in exponential phase between '
+      + 'the two timepoints given. A lagging or confluent culture gives an '
+      + 'arithmetic number rather than a biological one.',
+      'RCF depends on the rotor radius, so an rpm quoted without one is not a '
+      + 'reproducible protocol — which is why papers report RCF.',
+      'K_m and V_max come from a linearised fit, and the two standard linear forms '
+      + 'weight the error differently. Both are reported rather than one.',
+    ],
+    inputs: [
+      { key: 'mode', type: 'select', unit: null, required: true, options: 'MODES' },
+      { key: 'a260', type: 'number', unit: null, min: 0, expr: true },
+      { key: 'a280', type: 'number', unit: null, min: 0 },
+      { key: 'a230', type: 'number', unit: null, min: 0 },
+      { key: 'naType', type: 'select', unit: null, options: 'NA_TYPES' },
+      { key: 'pathCm', type: 'number', unit: 'length', min: 0 },
+      { key: 'dilution', type: 'number', unit: null, min: 0 },
+      { key: 'sequence', type: 'text', unit: null },
+      { key: 'stockConc', type: 'number', unit: null, min: 0 },
+      { key: 'targetConc', type: 'number', unit: null, min: 0 },
+      { key: 'finalVol', type: 'number', unit: 'volume', min: 0 },
+      { key: 'stockDensity', type: 'number', unit: null, min: 0 },
+      { key: 'targetDensity', type: 'number', unit: null, min: 0 },
+      { key: 'cultureVol', type: 'number', unit: 'volume', min: 0 },
+      { key: 'cells0', type: 'number', unit: null, min: 0 },
+      { key: 'cells1', type: 'number', unit: null, min: 0 },
+      { key: 'hours', type: 'number', unit: 'time', min: 0 },
+      { key: 'radius', type: 'number', unit: 'length', min: 0 },
+      { key: 'rpm', type: 'number', unit: null, min: 0 },
+      { key: 'kcat', type: 'number', unit: null, min: 0 },
+      { key: 'km', type: 'number', unit: 'molarity', min: 0 },
+      { key: 'points', type: 'number', unit: null, min: 0 },
+    ],
+    outputs: [
+      { key: 'concNgPerUl', unit: 'massConcentration' },
+      { key: 'concUgPerMl', unit: 'massConcentration' },
+      { key: 'coefficient', unit: null },
+      { key: 'ratio260280', unit: null },
+      { key: 'ratio260230', unit: null },
+      { key: 'verdict', unit: null },
+      { key: 'sampleUl', unit: 'volume' },
+      { key: 'diluentUl', unit: 'volume' },
+      { key: 'totalUl', unit: 'volume' },
+      { key: 'fold', unit: null },
+      { key: 'nmolPerUl', unit: 'molarity' },
+      { key: 'ugPerMl', unit: 'massConcentration' },
+      { key: 'molarMass', unit: 'molarMass' },
+      { key: 'gc', unit: null },
+      { key: 'volumeUl', unit: 'volume' },
+      { key: 'cellsNeeded', unit: null },
+      { key: 'doublings', unit: null },
+      { key: 'doublingTimeH', unit: 'time' },
+      { key: 'ratePerH', unit: null },
+      { key: 'rcf', unit: null },
+      { key: 'rpm', unit: null },
+      { key: 'k', unit: null },
+      { key: 'vmax', unit: null },
+      { key: 'km', unit: 'molarity' },
+      { key: 'r2', unit: null },
+      { key: 'points', unit: null },
+      { key: 'efficiency', unit: null },
+      { key: 'diffusionLimited', unit: null },
+    ],
+  },
+  {
+    id: 'uncertainty',
+    module: 'uncertainty.mjs',
+    equation: 'u_c(y) = √( Σ (∂f/∂xᵢ)² · u(xᵢ)² )   u(x) = a/√3',
+    source: 'The GUM law of propagation of uncertainty (JCGM 100:2008). A '
+      + 'tolerance stated as a bound is converted through a rectangular '
+      + 'distribution, u = a/√3, per Eurachem QUAM:2012 §8.1.4. Atomic-weight '
+      + 'standard uncertainties are the IUPAC 2021 abridged intervals converted '
+      + 'the same way.',
+    assumptions: [
+      'The input quantities are independent, so the covariance terms are zero. '
+      + 'Two inputs read from the same instrument would not be.',
+      'A certificate tolerance is treated as a rectangular bound rather than a '
+      + 'standard deviation. A manufacturer who means the latter is stating a '
+      + 'larger figure, and the two are not interchangeable.',
+      'Balance linearity is counted twice when a reading is a difference — tare '
+      + 'plus gross — because the same error enters both readings.',
+    ],
+    inputs: [
+      { key: 'mode', type: 'select', unit: null, required: true, options: 'MODES' },
+    ],
+    outputs: [
+      { key: 'molarMass', unit: 'molarMass' },
+      { key: 'value', unit: null },
+      { key: 'conc', unit: 'molarity' },
+      { key: 'unc', unit: null },
+    ],
+  },
+  {
+    id: 'stats',
+    module: 'stats.mjs',
+    equation: 'x̄ = Σxᵢ/n   s = √( Σ(xᵢ−x̄)²/(n−1) )'
+      + '   G = |x_out − x̄|/s   Q = gap/range'
+      + '   t = |x̄₁−x̄₂| / √(s₁²/n₁ + s₂²/n₂)   F = s₁²/s₂²',
+    source: 'The sample standard deviation (n−1 denominator), the Grubbs and '
+      + "Dixon outlier statistics with their tabulated critical values, Student's "
+      + 't confidence interval, and the two-sample t and F tests. Critical values '
+      + 'are computed in `distributions.mjs` from the t and F quantile functions.',
+    assumptions: [
+      'The data are a sample from a larger population, so the n−1 denominator is '
+      + 'used. The population form would understate the spread of every result.',
+      'Grubbs assumes the remaining data are roughly normal, and a single grossly '
+      + 'wrong point inflates s enough to hide itself — which is why the statistic '
+      + 'and the critical value are both reported rather than a verdict alone.',
+      "Dixon's Q is tabulated only for small n. Outside that range the tabulated "
+      + 'critical value does not apply and the screen says so.',
+      'A rejection test replaces the eye with a stated rule and a stated '
+      + 'confidence. Discarding a point because it "looks wrong" inflates the '
+      + 'precision of what remains.',
+    ],
+    inputs: [
+      { key: 'seriesA', type: 'text', unit: null, required: true },
+      { key: 'seriesB', type: 'text', unit: null },
+      { key: 'confidence', type: 'number', unit: null, min: 0, max: 100 },
+    ],
+    outputs: [
+      { key: 'mean', unit: null },
+      { key: 'sd', unit: null },
+      { key: 'n', unit: null },
+    ],
+  },
+  {
+    id: 'analytical',
+    module: 'analytical.mjs',
+    equation: 'lg K′ = lg K − lg α_Y(H)   F = n·M_sought/M_weighed'
+      + '   R = 2(t₂−t₁)/(w₁+w₂)   N = 16(t/w)²   LOD = 3.3·s_slope/slope',
+    source: 'The conditional formation constant of an EDTA complex from the '
+      + 'tabulated absolute constant and the acid dissociation of the ligand '
+      + '(Ringbom); the redox equivalence potential from the Nernst equation; the '
+      + 'gravimetric factor from the IUPAC 2021 molar masses; resolution and plate '
+      + 'count from their standard definitions; and the IUPAC 3.3σ/slope detection '
+      + 'limit, with the 10σ quantification limit.',
+    assumptions: [
+      'The conditional constant is quoted at the pH entered, and it moves sharply '
+      + 'with pH: calcium is titratable at pH 10 and not at pH 5.',
+      'Metal–indicator and masking equilibria are not modelled beyond the '
+      + 'conditional constant, so an indicator blank is not subtracted.',
+      'The detection limit uses the 3.3σ/slope convention and assumes the slope '
+      + 'is known and the blank is normal. A different convention gives a '
+      + 'different number from the same data.',
+      'Resolution and plate count assume Gaussian peaks. A tailing peak gives a '
+      + 'figure that looks acceptable and is not.',
+    ],
+    inputs: [
+      { key: 'mode', type: 'select', unit: null, required: true, options: 'MODES' },
+    ],
+    outputs: [
+      { key: 'conditionalLogK', unit: null },
+      { key: 'sampleConc', unit: 'molarity' },
+      { key: 'potential', unit: 'voltage' },
+      { key: 'factor', unit: null },
+      { key: 'percent', unit: null },
+      { key: 'mean', unit: null },
+      { key: 'recovery', unit: null },
+      { key: 'lod', unit: null },
+      { key: 'loq', unit: null },
+      { key: 'resolution', unit: null },
+      { key: 'plates', unit: null },
+    ],
+  },
+  {
+    id: 'physical',
+    module: 'physical.mjs',
+    equation: 'r = k·[A]ⁿ   ln k = ln A − E_a/RT   Λ = κ/c   α = Λ/Λ₀'
+      + '   ΔG = ΔH − TΔS   K = exp(−ΔG/RT)',
+    source: 'The integrated rate laws for zero, first and second order; the '
+      + 'Arrhenius equation; molar conductivity and the Ostwald dilution law; '
+      + 'ΔG = ΔH − TΔS with K = exp(−ΔG/RT); and the Kohlrausch limiting-law '
+      + 'extrapolation to infinite dilution.',
+    assumptions: [
+      'The reaction order is determined from the data rather than assumed — all '
+      + 'three linearised forms are fitted and the straightest wins, and the '
+      + 'residuals are shown so a systematic curve stays visible.',
+      'The Arrhenius fit assumes E_a is constant over the temperature range. A '
+      + 'curved Arrhenius plot means it is not.',
+      'Kohlrausch extrapolation holds for strong electrolytes at low '
+      + 'concentration; at high concentration the limiting law fails.',
+      'ΔG and K are standard-state values. The direction at the working '
+      + 'concentrations needs the reaction quotient, which the electrochemistry '
+      + 'tab computes.',
+    ],
+    inputs: [
+      { key: 'mode', type: 'select', unit: null, required: true, options: 'MODES' },
+    ],
+    outputs: [
+      { key: 'order', unit: null },
+      { key: 'k', unit: null },
+      { key: 'r2', unit: null },
+      { key: 'EaKJ', unit: 'molarEnergy' },
+      { key: 'lambda', unit: null },
+      { key: 'alpha', unit: null },
+      { key: 'deltaG', unit: 'molarEnergy' },
+      { key: 'K', unit: null },
+      { key: 'eutecticC', unit: 'temperature' },
+      { key: 'xA', unit: null },
+    ],
+  },
 ];
 
 /** Look up a formula by id. */
