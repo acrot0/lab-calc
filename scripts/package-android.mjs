@@ -259,6 +259,8 @@ try {
 } catch (e) {
   die(
     'Gradle 构建失败。常见原因：\n'
+    + '  · JDK 版本低于 21 —— capacitor.build.gradle 固定 sourceCompatibility 21，\n'
+    + '    低于它会在 Gradle 跑了几分钟后报 "invalid source release: 21"\n'
     + '  · 首次运行需下载 Gradle 与依赖，网络慢会超时（已设 networkTimeout=120s）\n'
     + '  · 代理未配：设置 HTTPS_PROXY=http://127.0.0.1:7897 后重试\n'
     + `  · 原始错误见上方 Gradle 输出（exit ${e.status ?? '?'}）`,

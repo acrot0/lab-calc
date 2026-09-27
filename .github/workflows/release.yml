@@ -51,6 +51,21 @@ jobs:
         with:
           node-version: '24.x'
 
+      - name: Install JDK 21
+        # Capacitor's generated `capacitor.build.gradle` pins
+        # `sourceCompatibility JavaVersion.VERSION_21`, and the runner's
+        # preinstalled JDK is 17 — which fails with "invalid source release: 21"
+        # several minutes into the Gradle build, after the whole Android
+        # toolchain has downloaded.
+        #
+        # Installed explicitly rather than relying on the runner image, so the
+        # version the build needs is stated where it can be read rather than
+        # inferred from a machine's defaults.
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install Rust
         # Pinned to the same toolchain the local build uses, so the artifact CI
         # produces is the artifact the developer tested.
