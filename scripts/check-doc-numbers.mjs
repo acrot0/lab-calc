@@ -26,8 +26,16 @@ import { staleNumbers } from './lib/doc-numbers.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** The documents that make claims about the build. */
-const DOCS = ['README.md', 'docs/ROADMAP.md'];
+/**
+ * The documents that make claims about the build.
+ *
+ * `docs/research-value.zh.md` was found by this script after it was written,
+ * not before — it said 750 tests while the suite had passed 1800. That is the
+ * argument for scanning a list of files rather than the two that prompted the
+ * script: the document that most needed checking was one nobody remembered,
+ * and it is the one whose whole subject is "you can verify this project".
+ */
+const DOCS = ['README.md', 'docs/ROADMAP.md', 'docs/research-value.zh.md'];
 
 function actualTestCount() {
   let out;
