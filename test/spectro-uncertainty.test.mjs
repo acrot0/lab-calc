@@ -244,3 +244,55 @@ describe('CurveTab burette budget', () => {
     HTMLCanvasElement.prototype.getContext = original;
   });
 });
+
+/*
+ * The percent tab, which shares the weighing tab's shape.
+ *
+ * The defect it was written against is not the arithmetic but the plumbing:
+ * every instrument field in the panel is a *text input*, so it holds a string,
+ * and the calc layer rejects a string with `mustBeFinite`. The first version
+ * passed them straight through, the throw was swallowed by the budget's own
+ * `try`, and the panel reported "the uncertainty cannot be computed" — which is
+ * the message for an unlisted flask size, so it read as a legitimate answer
+ * rather than as a bug.
+ *
+ * That is the failure mode worth a test: a caught exception that produces the
+ * same on-screen text as a real unsupported-input case.
+ */
+describe('PercentTab budget', () => {
+  it('should compute a budget rather than reporting it unavailable', async () => {
+    const { default: PercentTab } = await import('../src/ui/tabs/PercentTab.jsx');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        React.createElement(LocaleProvider, { store: zhStore },
+          React.createElement(PercentTab, { onRecord: () => {}, restored: null })),
+      );
+    });
+    const press = async (match) => {
+      const b = [...container.querySelectorAll('button')].find((x) => match(x.textContent));
+      if (!b) throw new Error(`no button matching ${match}`);
+      await act(async () => { b.click(); });
+    };
+    await press((s) => s.trim() === '计算');
+    await press((s) => s.includes('算不确定度'));
+
+    const panel = container.querySelector('.unc-panel').textContent;
+    expect(panel).not.toContain('算不出来');
+    expect(container.querySelector('.unc-relative')).not.toBeNull();
+
+    // The headline's ± and the panel's relative figure describe one measurement.
+    const mass = Number(container.querySelector('.result-main').textContent.match(/[\d.]+/)[0]);
+    const unc = Number(container.querySelector('.result-unc-value').textContent.match(/[\d.]+/)[0]);
+    const relPct = Number(container.querySelector('.unc-relative').textContent.match(/[\d.]+/)[0]);
+    // The headline carries the balance's own term, not the combined one, so it
+    // must be *smaller* than the relative figure — a preparation cannot be
+    // better determined than the balance that weighed it.
+    expect(unc / mass * 100).toBeLessThan(relPct);
+
+    await act(async () => { root.unmount(); });
+    container.remove();
+  });
+});

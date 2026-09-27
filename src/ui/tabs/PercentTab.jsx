@@ -2,11 +2,42 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { percentToMolarity, molarityToPercent, preparePercentSolution } from '../../calc/titration.mjs';
 import { molarMass } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, fmtSci, n, shownFor } from '../format.mjs';
+import { UncertaintyPanel, Contribution } from '../components/UncertaintyPanel.jsx';
+import { fmt, fmtSci, fmtMeasured, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import { glasswareUncertainty, weighingUncertainty } from '../../calc/instruments.mjs';
+import { productUncertainty } from '../../calc/uncertainty.mjs';
+
+/*
+ * The budget for a percent solution.
+ *
+ *   mass = (p/100) × V
+ *
+ * The same shape as the weighing tab — a solid into a flask — so it gets the
+ * same two terms and for the same reasons. `p` carries none of its own: it is
+ * the concentration the user *chose*, and the question is how well the
+ * preparation hits it, not whether the choice was right.
+ *
+ * A percent solution is w/v here, so the volume is the flask and the balance
+ * reads the mass directly; there is no molar mass in the path.
+ */
+function percentBudget({ massG, volumeMl, flaskMl, flaskGrade, tempC, readabilityG, linearityG }) {
+  const flask = glasswareUncertainty({
+    kind: 'flask', nominalMl: flaskMl, grade: flaskGrade, temperatureC: tempC,
+  });
+  const balance = weighingUncertainty({
+    massG, readabilityG, linearityG, tared: true,
+  });
+  return {
+    flask,
+    balance,
+    mass: { value: massG, unc: balance.unc },
+    volume: { value: volumeMl, unc: flask.unc },
+  };
+}
 
 export default function PercentTab({ onRecord, restored }) {
   const { t } = useI18n();
@@ -17,6 +48,20 @@ export default function PercentTab({ onRecord, restored }) {
   const [molarity, setMolarity] = useState(restored?.molarity != null ? String(restored.molarity) : '1');
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+
+  /*
+   * The glassware and the balance, collapsed by default.
+   *
+   * Defaults rather than blanks, for the reason the weighing tab states: a
+   * budget with a missing input reports *less* uncertainty than there is, and
+   * the user has no way to see that it was incomplete.
+   */
+  const [uncOpen, setUncOpen] = useState(false);
+  const [flaskMl, setFlaskMl] = useState('100');
+  const [flaskGrade, setFlaskGrade] = useState('A');
+  const [tempC, setTempC] = useState('20');
+  const [readabilityG, setReadabilityG] = useState('0.0001');
+  const [linearityG, setLinearityG] = useState('0.0002');
 
   useEffect(() => { setOut(null); setErr(null); }, [mode, formula, percent, volume, molarity]);
 
@@ -56,6 +101,44 @@ export default function PercentTab({ onRecord, restored }) {
   // render, so a mode switch would otherwise paint the previous direction's
   // result under the new direction's labels for one frame.
   const shown = shownFor(out, 'mode', mode);
+
+  /*
+   * The budget, with the relative figure computed on the *concentration*.
+   *
+   * The headline result is the mass to weigh, but what the preparation is
+   * trying to hit is a concentration — and that is `mass / volume`, so both
+   * instruments belong in the relative figure. The absolute figure printed
+   * beside the mass is the balance's own term, because that is the reading the
+   * user will watch on the display.
+   */
+  const budget = useMemo(() => {
+    if (!shown || shown.mode !== 'prepare') return null;
+    try {
+      /*
+       * Every instrument field arrives as a string — they are text inputs — and
+       * the calc layer rejects a string with `mustBeFinite`. Converting here
+       * rather than inside `percentBudget` keeps that module's contract the same
+       * as the other budget helpers, which all take numbers.
+       */
+      const b = percentBudget({
+        massG: shown.massG, volumeMl: shown.volumeMl,
+        flaskMl: n(flaskMl), flaskGrade,
+        tempC: n(tempC), readabilityG: n(readabilityG), linearityG: n(linearityG),
+      });
+      const combined = productUncertainty([
+        { value: b.mass.value, unc: b.mass.unc, power: 1 },
+        { value: b.volume.value, unc: b.volume.unc, power: 1 },
+      ]);
+      return {
+        ...b,
+        combined,
+        relative: combined.value === 0 ? 0 : combined.unc / combined.value,
+      };
+    } catch {
+      return null;
+    }
+  }, [shown, flaskMl, flaskGrade, tempC, readabilityG, linearityG]);
+
 
   /*
    * The conversion, shown.
@@ -151,6 +234,10 @@ export default function PercentTab({ onRecord, restored }) {
             [t('percent.equivalentConc'), `${fmtSci(shown.molarity, 4)} mol/L`],
             [t('common.molarMass'), `${fmt(shown.molarMass, 3)} g/mol`],
           ] : null}
+          unc={uncOpen && budget ? {
+            ...fmtMeasured(budget.mass.value, budget.mass.unc, { unit: ' g' }),
+            detail: `${t('unc.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,
+          } : null}
           worked={worked}
           workedLabel={t('common.worked')}
         />
@@ -167,6 +254,26 @@ export default function PercentTab({ onRecord, restored }) {
           worked={worked}
           workedLabel={t('common.worked')}
         />
+      )}
+
+      {/*
+        Only in prepare mode. The other direction is a unit conversion between
+        two ways of naming one solution — there is no instrument in it, and a
+        budget would have to invent one.
+      */}
+      {mode === 'prepare' && (
+        <UncertaintyPanel
+          open={uncOpen}
+          onToggle={() => setUncOpen((v) => !v)}
+          budget={budget}
+          state={{ flaskMl, setFlaskMl, flaskGrade, setFlaskGrade, tempC, setTempC,
+            readabilityG, setReadabilityG, linearityG, setLinearityG }}
+        >
+          <Contribution
+            label={t('unc.uncBalance')} value={budget?.mass.value}
+            unc={budget?.balance.unc} unit="g"
+          />
+        </UncertaintyPanel>
       )}
     </Card>
   );
