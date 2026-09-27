@@ -89,6 +89,19 @@ export const ICON_INK = {
   remove: { x: 32.0, y: 16.0, w: 192.0, h: 208.0 },
   replay: { x: 16.0, y: 32.0, w: 208.0, h: 192.0 },
   meta: { x: 32, y: 32, w: 211.31, h: 211.31 },
+  /*
+   * Derived from the glyph's own path data rather than from the browser audit
+   * that produced every other row.
+   *
+   * Phosphor draws `Plus` with its four stroke ends at 32 and 224 on both axes,
+   * which is the same 32..224 span seven other rows in this table carry. The
+   * shape is symmetric about the grid centre by construction, so the worst a
+   * wrong number here can do is make the glyph slightly the wrong *size* — the
+   * centring, which is what the normalisation is really for, cannot be wrong.
+   * Worth re-measuring through `tools/icon-audit.html` next time that page is
+   * open for another reason.
+   */
+  add: { x: 32, y: 32, w: 192, h: 192 },
   group: { x: 24, y: 48, w: 208, h: 168 },
   search: { x: 23.8, y: 23.8, w: 208.2, h: 208.2 },
   analytical: { x: 24.0, y: 40.0, w: 208.0, h: 176.0 },

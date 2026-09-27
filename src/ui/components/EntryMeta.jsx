@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
-import { META_FIELDS } from '../history.mjs';
+import { useFields } from '../FieldsContext.jsx';
+import { activeFields, labelOf } from '../field-template.mjs';
 
 /**
- * The per-record metadata editor: experiment, purpose, operator.
+ * The per-record metadata editor.
  *
  * Collapsed to a single line until asked for, and the line is the *values*
  * when they exist — a record carrying `EXP-2026-14` should show that in the
@@ -20,15 +21,32 @@ import { META_FIELDS } from '../history.mjs';
  * must not show three empty boxes on every row: the common case is a
  * calculation someone did not need to annotate, and three empty inputs per
  * record would turn the list into a form.
+ *
+ * ## Why the field list comes from context
+ *
+ * It used to be the `META_FIELDS` constant, which meant a user could not add a
+ * field. The list is now whatever the template in force says, and it changes
+ * while the app is running — the settings panel edits it and every record on
+ * screen has to follow. A hook is what makes that a re-render rather than a
+ * stale closure.
  */
 export default function EntryMeta({ entry, onSave, groups = [], onGroupChange }) {
   const { t, locale } = useI18n();
+  const { fields } = useFields();
   const [open, setOpen] = useState(false);
   // Local drafts, so typing does not round-trip through the store per keystroke.
   const [draft, setDraft] = useState({});
 
+  const active = activeFields(fields);
   const meta = entry?.meta ?? {};
-  const filled = META_FIELDS.filter((f) => meta[f.key]);
+  /*
+   * Values are shown for every key the record carries, not only for the fields
+   * still being asked for. A record annotated before a field was retired keeps
+   * its value, and hiding it would make the record look like it lost data.
+   */
+  const onRecord = Object.keys(meta).filter((k) => meta[k]);
+  const shown = onRecord;
+  const fieldByKey = (key) => fields.find((f) => f.key === key) ?? { key, label: { zh: key, en: key } };
   // The group is shown on the collapsed line as well: "which experiment was
   // this" is the question the feature exists to answer, and answering it only
   // after a click would leave the list as unreadable as it was before.
@@ -48,11 +66,11 @@ export default function EntryMeta({ entry, onSave, groups = [], onGroupChange })
             {group.name}
           </span>
         )}
-        {filled.length > 0 && (
+        {shown.length > 0 && (
           <span className="entry-meta-values">
-            {filled.map((f) => (
-              <span className="entry-meta-chip" key={f.key} title={f.label[locale] ?? f.label.zh}>
-                {meta[f.key]}
+            {shown.map((key) => (
+              <span className="entry-meta-chip" key={key} title={labelOf(fieldByKey(key), locale)}>
+                {meta[key]}
               </span>
             ))}
           </span>
@@ -62,12 +80,12 @@ export default function EntryMeta({ entry, onSave, groups = [], onGroupChange })
           className="link-btn entry-meta-toggle"
           aria-expanded={false}
           onClick={() => {
-            setDraft(Object.fromEntries(META_FIELDS.map((f) => [f.key, meta[f.key] ?? ''])));
+            setDraft(Object.fromEntries(active.map((f) => [f.key, meta[f.key] ?? ''])));
             setOpen(true);
           }}
         >
           <Icons.meta size={ICON_SIZE.inline} aria-hidden="true" />
-          {filled.length > 0 ? t('history.metaEdit') : t('history.metaAdd')}
+          {shown.length > 0 ? t('history.metaEdit') : t('history.metaAdd')}
         </button>
       </div>
     );
@@ -92,23 +110,38 @@ export default function EntryMeta({ entry, onSave, groups = [], onGroupChange })
           </select>
         </label>
       )}
-      {META_FIELDS.map((f) => (
+      {active.map((f) => (
         <label className="entry-meta-field" key={f.key}>
-          <span className="entry-meta-label">{f.label[locale] ?? f.label.zh}</span>
-          <input
-            type="text"
-            value={draft[f.key] ?? ''}
-            maxLength={f.maxLength}
-            placeholder={f.placeholder?.[locale] ?? f.placeholder?.zh ?? ''}
-            aria-label={f.label[locale] ?? f.label.zh}
-            onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-            onBlur={(e) => commit(f.key, e.target.value)}
-            onKeyDown={(e) => {
-              // Enter commits and closes, which is what a one-line field implies.
-              if (e.key === 'Enter') { commit(f.key, e.target.value); setOpen(false); }
-              if (e.key === 'Escape') setOpen(false);
-            }}
-          />
+          <span className="entry-meta-label">
+            {labelOf(f, locale)}
+            {f.required && <span className="entry-meta-req" aria-hidden="true">*</span>}
+          </span>
+          {f.type === 'select' ? (
+            <select
+              value={draft[f.key] ?? ''}
+              aria-label={labelOf(f, locale)}
+              onChange={(e) => { setDraft((d) => ({ ...d, [f.key]: e.target.value })); commit(f.key, e.target.value); }}
+            >
+              <option value="">{t('history.metaNone')}</option>
+              {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ) : (
+            <input
+              type={f.type === 'number' ? 'text' : f.type}
+              inputMode={f.type === 'number' ? 'decimal' : undefined}
+              value={draft[f.key] ?? ''}
+              maxLength={f.maxLength}
+              placeholder={f.placeholder?.[locale] ?? f.placeholder?.zh ?? ''}
+              aria-label={labelOf(f, locale)}
+              onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+              onBlur={(e) => commit(f.key, e.target.value)}
+              onKeyDown={(e) => {
+                // Enter commits and closes, which is what a one-line field implies.
+                if (e.key === 'Enter') { commit(f.key, e.target.value); setOpen(false); }
+                if (e.key === 'Escape') setOpen(false);
+              }}
+            />
+          )}
         </label>
       ))}
       <button type="button" className="link-btn" onClick={() => setOpen(false)}>

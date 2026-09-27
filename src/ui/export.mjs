@@ -12,8 +12,7 @@
  */
 
 import { fieldLabel } from './field-labels.mjs';
-import { META_FIELDS } from './history.mjs';
-import { DISCLAIMER_POINTS } from './disclaimer.mjs';
+import { getTemplate, fieldOf as templateField, labelOf } from './field-template.mjs';import { DISCLAIMER_POINTS } from './disclaimer.mjs';
 import { zh } from './locales/zh.mjs';
 import { en } from './locales/en.mjs';
 
@@ -33,20 +32,36 @@ const COLUMNS_BY_LOCALE = {
 };
 
 /**
- * The metadata fields at least one record actually carries, in declared order.
+ * The metadata fields at least one of these records actually carries, in
+ * template order.
  *
  * Appended to every export rather than always written: an empty column is a
  * claim that something was measured and came out blank, and every existing
- * user's spreadsheet would gain three columns of nothing. A user who never
- * annotates a record sees exactly the file they saw before.
+ * user's spreadsheet would gain columns of nothing. A user who never annotates
+ * a record sees exactly the file they saw before.
+ *
+ * The template is consulted for the *label* even when the field has since been
+ * retired. A record that carries a sample number must still export it under a
+ * heading; dropping the definition would emit a column with nothing to name it,
+ * which is the one thing the metadata whitelist exists to prevent.
  */
 function usedMetaFields(entries) {
-  return META_FIELDS.filter((f) => (entries ?? []).some((e) => e?.meta?.[f.key]));
+  const seen = new Set();
+  for (const e of entries ?? []) {
+    for (const k of Object.keys(e?.meta ?? {})) seen.add(k);
+  }
+  const template = getTemplate();
+  const ordered = template.filter((f) => seen.has(f.key));
+  // A key with no definition at all — a record from a build whose template has
+  // since been removed, or a hand-edited bundle. It gets a heading of its own
+  // key rather than being silently dropped, because the data is real.
+  const orphans = [...seen].filter((k) => !templateField(template, k));
+  return [...ordered, ...orphans.map((k) => ({ key: k, label: { zh: k, en: k } }))];
 }
 
 /** The metadata labels for the header row, in the reader's language. */
 function metaLabels(fields, locale = 'zh') {
-  return fields.map((f) => f.label[locale] ?? f.label.zh);
+  return fields.map((f) => labelOf(f, locale));
 }
 
 /** One record's metadata values, in the same order as `fields`. */

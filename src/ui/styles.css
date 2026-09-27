@@ -4808,6 +4808,119 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
    should go rather than the theme's own name. */
 .settings-menu .theme-credit { display: none; }
 
+/*
+ * The record-field editor.
+ *
+ * Reuses the `.settings-block` border like the other sections. The rows are a
+ * list of definitions rather than a set of controls, so each row is dense: the
+ * label, the storage key, and the four actions are one line, and the editable
+ * fields only appear when the row is opened. Three rows of always-open inputs
+ * would make the settings panel taller than the app.
+ */
+.fields-panel { margin-top: var(--s2); display: flex; flex-direction: column; gap: var(--s2); }
+
+.fields-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+}
+
+.fields-list { display: flex; flex-direction: column; gap: 1px; }
+
+.field-row {
+  border-radius: var(--r-sm);
+  padding: 1px 0;
+}
+.field-row:hover { background: var(--surface-2); }
+
+/* A retired field stays on screen — it is the only way back — but reads as
+   something the app will no longer ask for. Dimming rather than hiding is the
+   whole point: a field that vanished when retired would make the button that
+   retired it look like a delete. */
+.field-row.is-retired .field-row-label { color: var(--text-dim); text-decoration: line-through; }
+
+.field-row-head { display: flex; align-items: center; gap: var(--s1); min-height: 30px; }
+
+.field-row-label { font-size: var(--t-sm); white-space: nowrap; }
+
+/* The storage key, kept small: it is reference for someone debugging an
+   export, not something a user of the panel needs to read. */
+.field-row-key {
+  color: var(--text-dim);
+  font-family: var(--font-num);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+}
+
+.field-row-tag {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.field-row-tag.is-off { border-style: dashed; }
+
+.field-row-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s2);
+  padding: var(--s2) 0 var(--s1);
+}
+
+.field-row-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.field-row-field input {
+  min-width: 0;
+  padding: 3px var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+}
+.field-row-field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.field-row-check {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.fields-add { display: flex; align-items: center; gap: var(--s2); }
+
+.fields-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+}
+.fields-add input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.fields-warn { margin: 0; color: var(--err-ink); font-size: var(--t-xs); }
+
+/* A required marker, shared with the record editor's own field labels. */
+.entry-meta-req { color: var(--err-ink); margin-left: 2px; }
+
+/* The move-up glyph is the same caret the disclosure uses, rotated. Reading
+   direction is what makes it "up" rather than "which way will this open". */
+.icon-btn .up { transform: rotate(180deg); }
+
 /* ==========================================================================
    Keyboard shortcuts
    ========================================================================== */

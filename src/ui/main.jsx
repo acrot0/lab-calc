@@ -38,6 +38,7 @@ import { ThemeProvider } from './ThemeContext.jsx';
 import { MaterialProvider } from './MaterialContext.jsx';
 import { IconStyleProvider } from './IconStyleContext.jsx';
 import { DensityProvider } from './DensityContext.jsx';
+import { FieldsProvider } from './FieldsContext.jsx';
 import { resolveStore } from './history.mjs';
 
 // The locale store and the history store are the same localStorage; resolving
@@ -51,7 +52,13 @@ createRoot(document.getElementById('root')).render(
         <MaterialProvider store={store}>
           <IconStyleProvider store={store}>
             <DensityProvider store={store}>
-              <App />
+              {/* Inside the others and outside App: the record-field template
+                  has to be installed before App's mount effect reads the
+                  history, because `migrateHistory` drops metadata keys the
+                  template does not retain. */}
+              <FieldsProvider store={store}>
+                <App />
+              </FieldsProvider>
             </DensityProvider>
           </IconStyleProvider>
         </MaterialProvider>

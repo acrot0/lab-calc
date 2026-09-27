@@ -8,6 +8,7 @@ import { DensityToggle } from '../DensityContext.jsx';
 import { LocaleSelect } from './LocaleSelect.jsx';
 import { SHORTCUTS } from '../shortcuts.mjs';
 import CustomisePanel from './CustomisePanel.jsx';
+import FieldsPanel from './FieldsPanel.jsx';
 
 /*
  * The update control is loaded on demand, and only when this build can use it.
@@ -222,6 +223,13 @@ export default function SettingsMenu({ open, onOpenChange }) {
             are reference material — the panel's own ordering rule.
           */}
           <CustomisePanel />
+
+          {/*
+            The record fields, under the customisation it is a second instance
+            of: both change how the app looks or what it asks for, rather than
+            what it computes.
+          */}
+          <FieldsPanel />
 
           {/*
             The shortcut list.

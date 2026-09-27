@@ -31,6 +31,7 @@ import { ClockCounterClockwise } from '@phosphor-icons/react/dist/csr/ClockCount
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
 import { Trash } from '@phosphor-icons/react/dist/csr/Trash';
 import { Tag } from '@phosphor-icons/react/dist/csr/Tag';
+import { Plus } from '@phosphor-icons/react/dist/csr/Plus';
 import { FolderSimple } from '@phosphor-icons/react/dist/csr/FolderSimple';
 import { ArrowCounterClockwise } from '@phosphor-icons/react/dist/csr/ArrowCounterClockwise';
 import { DownloadSimple } from '@phosphor-icons/react/dist/csr/DownloadSimple';
@@ -228,6 +229,9 @@ export const Icons = {
   remove: styled(Trash, 'remove'),
   replay: styled(ArrowCounterClockwise, 'replay'),
   meta: styled(Tag, 'meta'),
+  // Adding a record field. A plus rather than a tag: the tag says "metadata",
+  // and the action a user takes on the field list is "add one of these".
+  add: styled(Plus, 'add'),
   group: styled(FolderSimple, 'group'),
   download: styled(DownloadSimple, 'download'),
   csv: styled(FileXls, 'csv'),

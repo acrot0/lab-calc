@@ -12,7 +12,15 @@
  *
  * Storage is an injected interface (`getItem`/`setItem`) rather than direct
  * localStorage access, so the logic is testable without a browser.
+ *
+ * The set of metadata fields a record may carry is not compiled in here any
+ * more — see `field-template.mjs`. It is installed through `setTemplate()`,
+ * which `App` does once on mount, before the first history read.
  */
+
+import {
+  BUILTIN_FIELDS, resolveTemplate, retainedKeys, fieldOf, currentKeys, currentMaxLength,
+} from './field-template.mjs';
 
 export const STORAGE_KEY = 'lab-calc.history.v1';
 export const MAX_ENTRIES = 500;
@@ -45,7 +53,7 @@ export function resolveStore(candidate) {
   }
 }
 
-export function loadHistory(store) {
+export function loadHistory(store, template = null) {
   const raw = store.getItem(STORAGE_KEY);
   if (!raw) return [];
   try {
@@ -54,6 +62,7 @@ export function loadHistory(store) {
     // A malformed row must not take the whole list with it.
     return migrateHistory(
       parsed.filter((e) => e && typeof e === 'object' && typeof e.kind === 'string'),
+      template,
     );
   } catch {
     return [];
@@ -279,28 +288,7 @@ export function planReplay(entry) {
  * record can add: 500 records × 3 fields × 200 chars is 300 KB at the very
  * worst, well inside a localStorage quota.
  */
-export const META_FIELDS = [
-  {
-    key: 'experiment',
-    label: { zh: '实验号', en: 'Experiment' },
-    placeholder: { zh: '如 EXP-2026-14', en: 'e.g. EXP-2026-14' },
-    maxLength: 60,
-  },
-  {
-    key: 'purpose',
-    label: { zh: '用途', en: 'Purpose' },
-    placeholder: { zh: '如 毕业论文第三章', en: 'e.g. thesis chapter 3' },
-    maxLength: 120,
-  },
-  {
-    key: 'operator',
-    label: { zh: '操作人', en: 'Operator' },
-    placeholder: { zh: '如 张三', en: 'e.g. your name' },
-    maxLength: 60,
-  },
-];
-
-const META_KEYS = META_FIELDS.map((f) => f.key);
+export const META_FIELDS = BUILTIN_FIELDS;
 
 /**
  * Set metadata on one record, merging with whatever is already there.
@@ -311,21 +299,24 @@ const META_KEYS = META_FIELDS.map((f) => f.key);
  * is a different claim.
  *
  * Unknown keys are dropped rather than stored: an undeclared key would export
- * as a column nothing can label.
+ * as a column nothing can label. "Declared" now means anything the template in
+ * force retains, which includes a retired field — its values are still on
+ * existing records and still need a heading.
  */
 export function setEntryMeta(entries, id, patch) {
   if (!id || !patch || typeof patch !== 'object') return entries;
+  const allowed = currentKeys();
   return (entries ?? []).map((e) => {
     if (!e || e.id !== id) return e;
     const meta = { ...(e.meta ?? {}) };
-    for (const key of META_KEYS) {
+    for (const key of allowed) {
       if (!(key in patch)) continue;
       const raw = patch[key];
       if (raw === null || raw === undefined) {
         delete meta[key];
         continue;
       }
-      const value = String(raw).trim().slice(0, maxLengthOf(key));
+      const value = String(raw).trim().slice(0, currentMaxLength(key));
       if (value === '') delete meta[key];
       else meta[key] = value;
     }
@@ -335,10 +326,6 @@ export function setEntryMeta(entries, id, patch) {
     }
     return { ...e, meta };
   });
-}
-
-function maxLengthOf(key) {
-  return META_FIELDS.find((f) => f.key === key)?.maxLength ?? 60;
 }
 
 /**
@@ -355,8 +342,19 @@ function maxLengthOf(key) {
  * valid, and a v1 reader given a record with extra keys ignores them. Bumping
  * would force a migration path for a change that needs none, and would make
  * older builds refuse a file they can read perfectly well.
+ *
+ * The `template` argument defaults to whatever is installed. It is only ever
+ * passed by a caller that has just loaded a template and wants the records
+ * normalised against it in the same breath — the two reads happen together on
+ * mount, and normalising against a different template than the one installed
+ * would drop exactly the values the template was loaded to preserve.
  */
-export function migrateHistory(entries) {
+export function migrateHistory(entries, tpl = null) {
+  const resolved = tpl ? resolveTemplate(tpl) : null;
+  const allowed = resolved ? retainedKeys(resolved) : currentKeys();
+  const cap = (key) => (resolved
+    ? (fieldOf(resolved, key)?.maxLength ?? 60)
+    : currentMaxLength(key));
   if (!Array.isArray(entries)) return [];
   return entries.map((e) => {
     if (!e || typeof e !== 'object') return e;
@@ -374,10 +372,10 @@ export function migrateHistory(entries) {
     }
     // Keep only declared keys, each a non-empty string.
     const meta = {};
-    for (const key of META_KEYS) {
+    for (const key of allowed) {
       const v = e.meta[key];
       if (typeof v === 'string' && v.trim() !== '') {
-        meta[key] = v.trim().slice(0, maxLengthOf(key));
+        meta[key] = v.trim().slice(0, cap(key));
       }
     }
     if (Object.keys(meta).length === 0) {

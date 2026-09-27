@@ -11,6 +11,8 @@ import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
 import { useTheme } from './ThemeContext.jsx';
+import { useFields } from './FieldsContext.jsx';
+import { defaultsOf } from './field-template.mjs';
 import SettingsMenu from './components/SettingsMenu.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
@@ -138,6 +140,7 @@ function initialTab() {
 export default function App() {
   const { t } = useI18n();
   const { resolved } = useTheme();
+  const { fields } = useFields();
   const [tab, setTab] = useState(initialTab);
   const [entries, setEntries] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -296,7 +299,22 @@ export default function App() {
     if (!acked) setNoticeOpen(true);
   }, [store]);
 
-  const record = useCallback((entry) => setEntries((prev) => addEntry(prev, entry)), []);
+  /*
+   * A new record is born with the template's default metadata.
+   *
+   * A user who annotates fifty records with the same operator and the same
+   * purpose should say it once, in settings. The defaults are applied here
+   * rather than in `addEntry` so the pure history module never has to know
+   * what the template in force is — and a template with no defaults produces
+   * no `meta` at all, which is the shape every record had before this existed.
+   */
+  const fieldDefaults = defaultsOf(fields);
+  const record = useCallback((entry) => setEntries((prev) => {
+    const seeded = Object.keys(fieldDefaults).length > 0
+      ? { ...entry, meta: { ...fieldDefaults, ...(entry?.meta ?? {}) } }
+      : entry;
+    return addEntry(prev, seeded);
+  }), [fieldDefaults]);
   const remove = useCallback((id) => setEntries((prev) => removeEntry(prev, id)), []);
   const restore = useCallback((id) => setEntries((prev) => restoreEntry(prev, id)), []);
   /*
