@@ -204,7 +204,7 @@ export function toMarkdown(entries, locale = 'zh') {
       ...metaValues(fields, e),
     ].map(escapeMd).join(' | ')
   } |`);
-  return [header, sep, ...rows, '', ...markdownNotes(entries, locale)].join('\n');
+  return [header, sep, ...rows, '', ...markdownNotes(entries, locale, fields)].join('\n');
 }
 
 /**
@@ -215,7 +215,7 @@ export function toMarkdown(entries, locale = 'zh') {
  * once already, when the pH tab gained activity correction and the version
  * written for the buffer tab alone became false.
  */
-function markdownNotes(entries, locale = 'zh') {
+function markdownNotes(entries, locale = 'zh', fields = null) {
   const zh = locale !== 'en';
   const limits = DISCLAIMER_POINTS.find((p) => p.titleEn === 'The model is simplified');
   const verify = DISCLAIMER_POINTS.find((p) => p.titleEn === 'Verify results yourself');
@@ -233,9 +233,9 @@ function markdownNotes(entries, locale = 'zh') {
    */
   const L = zh
     ? { use: '用途限制', limits: '已校正的与未建模的', unc: '不确定度', verify: '核对结果',
-        software: '软件', records: '记录条数' }
+        software: '软件', records: '记录条数', fields: '记录字段' }
     : { use: 'Intended use', limits: 'Corrected and not modelled', unc: 'Uncertainty', verify: 'Verify results',
-        software: 'Software', records: 'Records' };
+        software: 'Software', records: 'Records', fields: 'Record fields' };
   const section = (heading, p) => [`### ${heading}`, '', `**${zh ? p.titleZh : p.titleEn}**`, '', zh ? p.zh : p.en, ''];
 
   return [
@@ -248,6 +248,18 @@ function markdownNotes(entries, locale = 'zh') {
     ...section(L.verify, verify),
     `- ${L.software}: Lab Calc${version ? ` ${version}` : ''}`,
     `- ${L.records}: ${entries?.length ?? 0}`,
+    /*
+     * Which metadata columns this file carries, named.
+     *
+     * A table with extra columns and no statement of where they came from is
+     * unreadable six months later even to the person who made it — "样品号" is a
+     * column of strings until something says what produced it and what the
+     * field is for. Printed only when the file has such columns, which is when
+     * the question can arise.
+     */
+    ...(fields && fields.length > 0
+      ? [`- ${L.fields}: ${fields.map((f) => `${labelOf(f, locale)} (${f.key})`).join(', ')}`]
+      : []),
   ];
 }
 
