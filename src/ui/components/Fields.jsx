@@ -5,6 +5,7 @@ import { readNumberField, safeEvaluate } from '../field-input.mjs';
 import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { claimField } from '../field-bridge.mjs';
+import { useNumberReveal } from '../number-reveal.mjs';
 
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
 
@@ -314,13 +315,33 @@ export function Worked({ steps, label }) {
  * produce the same headline number with different secondary rows.
  */
 export function Result({ value, unit, note, rows, worked, workedLabel, unc }) {
+  /*
+   * The reveal is keyed on the value, so a second calculation replays it.
+   *
+   * Hooks cannot sit behind the early return below, so the reveal is driven
+   * from a stable `value` that is coerced to a string here rather than after
+   * the null check.
+   */
+  const shown = useNumberReveal(value ?? '', [String(value ?? '')]);
+
   if (value === null || value === undefined) return null;
   const stamp = `${value}|${rows?.map(([k, v]) => `${k}${v}`).join(',') ?? ''}`;
   return (
     <div className="result" role="status" aria-live="polite">
       <div className="result-body" key={stamp}>
         <div className="result-main">
-          {value}
+          {/*
+            The masked text is `aria-hidden` and the real value is announced
+            from a visually hidden twin.
+
+            Without this a screen reader in a live region reads every frame of
+            the reveal — "dot dot dot dot dot, dot dot dot dot" — and the user
+            hears punctuation instead of their answer. The hidden twin carries
+            the finished string from the first frame, so assistive technology
+            gets the value once, immediately, while the visible text resolves.
+          */}
+          <span aria-hidden="true">{shown}</span>
+          <span className="sr-only">{value}</span>
           {unit && <span className="unit">{unit}</span>}
         </div>
         {/*
