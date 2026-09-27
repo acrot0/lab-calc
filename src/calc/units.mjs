@@ -221,6 +221,40 @@ export function unitsOf(dimension) {
 }
 
 /**
+ * A unit's name in the reader's language, with its symbol — 「克 (g)」.
+ *
+ * ## Why this reads the registry instead of a table of its own
+ *
+ * Every unit has carried `name: { zh, en }` since the registry was written,
+ * and nothing read it. The converter's pickers rendered the symbol alone, so
+ * one card showed 「质量」 in the dimension dropdown and `kg, g, mg` in the two
+ * beneath it — two languages in one panel, and the Chinese one only where it
+ * was least needed, since the dimension is what the user picks first and
+ * already understands.
+ *
+ * Reading `REGISTRY` rather than a second hand-written map is the same
+ * single-source rule the rest of this module follows: a unit added there is
+ * named in every picker without an edit here, and the two cannot drift.
+ *
+ * ## The dimension argument is not decoration
+ *
+ * Ten symbols mean two things, and the resolver in `UNITS` picks the one the
+ * *expression evaluator* means. A user who has picked 「长度」 means the
+ * ångström, not the ampere, so the lookup goes through the registry entry for
+ * the dimension asked about rather than the global table.
+ *
+ * The fallback is the bare symbol: a picker row reading `g` is still usable,
+ * whereas one reading `undefined (g)` is a bug report.
+ */
+export function unitLabel(sym, dimension, locale = 'zh') {
+  const spec = REGISTRY.find((d) => d.id === dimension);
+  const unit = spec?.units.find((u) => u.sym === sym);
+  const name = unit?.name?.[locale === 'en' ? 'en' : 'zh'];
+  if (!name) return sym;
+  return `${name} (${sym})`;
+}
+
+/**
  * Which dimension a unit belongs to, or null if it is not a unit.
  *
  * A null rather than a throw: this is used to decide whether a token in an

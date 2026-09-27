@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  DIMENSIONS, UNITS, convert, unitsOf,
+  DIMENSIONS, UNITS, convert, unitsOf, unitLabel,
 } from '../../calc/units.mjs';
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
@@ -56,7 +56,7 @@ export const DIMENSIONS_SHOWN = [
  * makes the impossible pair unreachable rather than merely rejected.
  */
 export default function UnitConverter({ compact = false, onFill = null }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [value, setValue] = useState('1');
   const [dim, setDim] = useState('mass');
   const [from, setFrom] = useState('g');
@@ -155,7 +155,7 @@ export default function UnitConverter({ compact = false, onFill = null }) {
             value={from}
             onChange={(e) => setFrom(e.target.value)}
           >
-            {units.map((u) => <option key={u} value={u}>{u}</option>)}
+            {units.map((u) => <option key={u} value={u}>{unitLabel(u, dim, locale)}</option>)}
           </select>
         </div>
         <div className="field">
@@ -165,7 +165,7 @@ export default function UnitConverter({ compact = false, onFill = null }) {
             value={to}
             onChange={(e) => setTo(e.target.value)}
           >
-            {units.map((u) => <option key={u} value={u}>{u}</option>)}
+            {units.map((u) => <option key={u} value={u}>{unitLabel(u, dim, locale)}</option>)}
           </select>
         </div>
       </div>
