@@ -1680,6 +1680,104 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .result-note em { font-style: normal; color: var(--text); font-weight: 550; }
 
+/*
+ * The uncertainty under a result.
+ *
+ * Deliberately quieter than the value and louder than the note: it is a
+ * qualifier on the number above it, so it must not compete with it for the
+ * first glance, but it must not be missable either. The tabular numerals keep
+ * the ± column aligned as the value changes, which is what makes a series of
+ * results scannable.
+ */
+.result-unc {
+  margin-top: var(--s1);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-sm);
+  color: var(--text-mid);
+}
+
+.result-unc-value { font-weight: 550; }
+
+.result-unc-detail { color: var(--text-dim); font-size: var(--t-xs); }
+
+/*
+ * The uncertainty budget panel.
+ *
+ * Recessed relative to the result: it is reference material, opened on purpose
+ * by someone who wants it, and it must not compete with the number it explains.
+ * The dashed top edge marks it as attached to the result above rather than
+ * being another form section.
+ */
+.unc-panel {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--border);
+}
+
+.unc-body { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s3); }
+
+.unc-intro,
+.unc-caveat {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  line-height: 1.65;
+}
+
+.unc-relative {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+}
+
+/*
+ * `--text`, not `--accent`.
+ *
+ * The accent is the obvious choice for the number that matters, and it fails
+ * here: at 16px/700 this is not WCAG large text, so it needs 4.5:1, and the
+ * accent measures 3.95:1 on `--surface-3` in the light theme and 3.71:1 in
+ * Catppuccin Latte. The palette guard only requires 3:1 of the accent because
+ * it is documented as a component colour; as body-sized text it is not enough.
+ *
+ * The emphasis comes from the size and the weight against its 13px/400
+ * neighbours, which is what was doing the work anyway.
+ */
+.unc-relative strong {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-md);
+  color: var(--text);
+}
+
+.unc-contrib { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
+
+.unc-contrib > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  font-size: var(--t-sm);
+}
+
+.unc-contrib dt { color: var(--text-mid); }
+
+.unc-contrib dd {
+  margin: 0;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
 .result-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

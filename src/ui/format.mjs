@@ -1,3 +1,5 @@
+import { roundPair } from '../calc/uncertainty.mjs';
+
 /**
  * Shared display helpers for the UI layer.
  *
@@ -62,3 +64,57 @@ const superDigits = (exponent) => String(Number(exponent))
 export const shownFor = (out, key, value) => (
   out && value != null && out[key] === value ? out : null
 );
+
+/**
+ * Render a value and its uncertainty at the precision the uncertainty allows.
+ *
+ * The whole point of carrying an uncertainty is that it decides how many digits
+ * of the value mean anything. Quoting 0.10237 ± 0.04 is not more informative
+ * than 0.10 ± 0.04 — it is a claim that the last three digits were measured,
+ * and they were not.
+ *
+ * `roundPair` decides the decimal place once, from the uncertainty, and applies
+ * it to both. Doing it separately is where a hand calculation leaves the two
+ * inconsistent by a digit.
+ *
+ * The digits come from `roundPair`, so the text and the arithmetic cannot
+ * disagree; `fmt` is then given the decimal count implied by the rounded pair
+ * rather than a fixed one. `fmt` trims trailing zeros, which is right — 0.10
+ * and 0.1 are the same measurement and the shorter one reads better.
+ *
+ * An exact value (`unc === 0`) has no limit from this path, so the caller's
+ * `digits` is used unchanged. That is a count, a definition, or a molar mass
+ * built only from monoisotopic elements.
+ */
+export function fmtMeasured(value, unc, { digits = 4, unit = '' } = {}) {
+  if (!Number.isFinite(value)) return { text: '—', uncText: '' };
+  if (!Number.isFinite(unc) || unc === 0) {
+    return { text: `${fmtSci(value, digits)}${unit}`, uncText: '' };
+  }
+  const pair = roundPair({ value, unc });
+  // The decimal count of the rounded uncertainty, which is also the value's.
+  const places = decimalsOf(pair.unc);
+  return {
+    text: `${fmt(pair.value, places)}${unit}`,
+    uncText: `± ${fmt(pair.unc, places)}${unit}`,
+  };
+}
+
+/**
+ * Decimal places a rounded number actually occupies.
+ *
+ * `toFixed` cannot be used directly: 0.1 stored as a float is 0.10000000000000
+ * 000555, so a naive count reports 17 places. Going through the shortest
+ * round-trip representation (`toString`) gives the places a reader would count.
+ */
+function decimalsOf(v) {
+  const s = Math.abs(v).toString();
+  if (s.includes('e')) {
+    // Exponential form: the exponent is negative for anything under 1, and the
+    // places are that exponent plus whatever decimals the mantissa carries.
+    const [mantissa, exp] = s.split('e');
+    const frac = mantissa.split('.')[1]?.length ?? 0;
+    return Math.max(0, frac - Number(exp));
+  }
+  return s.split('.')[1]?.length ?? 0;
+}

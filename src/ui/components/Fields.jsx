@@ -27,7 +27,7 @@ import { claimField } from '../field-bridge.mjs';
  * number behaves exactly as it did.
  */
 export function NumField({ label, value, onChange, hint, error, step = 'any', min, disabled = false, id: idProp }) {
-  const id = idProp ?? `f-${label}`;
+  const id = idProp ?? `f-${typeof label === 'string' ? label : ''}`;
   const { t } = useI18n();
   const [draft, setDraft] = useState(null);
   const inputRef = useRef(null);
@@ -68,6 +68,17 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
    * is a field you cannot finish typing in.
    */
   const shown = draft ?? value;
+
+  /*
+   * The field's accessible name is the label, which may be a node.
+   *
+   * Every caller in the app passes a translated string, so this is a no-op for
+   * all of them — but a `label` holding an element would otherwise be used
+   * directly as a DOM id, and `document.getElementById` would take the
+   * element's stringification. Coercing here keeps the id a string whatever the
+   * caller passes.
+   */
+  const labelText = typeof label === 'string' ? label : String(label ?? '');
 
   /**
    * The expression's value, shown under the field while it is being typed.
@@ -249,7 +260,7 @@ export function Worked({ steps, label }) {
  * The key is the value *and* the row contents, because two different inputs can
  * produce the same headline number with different secondary rows.
  */
-export function Result({ value, unit, note, rows, worked, workedLabel }) {
+export function Result({ value, unit, note, rows, worked, workedLabel, unc }) {
   if (value === null || value === undefined) return null;
   const stamp = `${value}|${rows?.map(([k, v]) => `${k}${v}`).join(',') ?? ''}`;
   return (
@@ -259,6 +270,24 @@ export function Result({ value, unit, note, rows, worked, workedLabel }) {
           {value}
           {unit && <span className="unit">{unit}</span>}
         </div>
+        {/*
+          The uncertainty, when the tab computed one.
+          It sits directly under the value rather than in the rows: it is not
+          another output, it is a qualifier on the one above it, and a reader
+          who takes the headline number and stops must not miss it.
+        */}
+        {unc && (unc.uncText || unc.detail) && (
+          <div className="result-unc" title={unc.detail ?? undefined}>
+            {/*
+              The ± half only. `fmtMeasured` returns the value and the
+              uncertainty as a pair, and the value is already the headline
+              number directly above — rendering it again here printed the mass
+              twice and left the ± out entirely.
+            */}
+            {unc.uncText && <span className="result-unc-value">{unc.uncText}</span>}
+            {unc.detail && <span className="result-unc-detail">{unc.detail}</span>}
+          </div>
+        )}
         {note && <div className="result-note">{note}</div>}
         {rows && rows.length > 0 && (
           <div className="result-grid">
