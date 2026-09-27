@@ -206,17 +206,31 @@ function markdownNotes(entries, locale = 'zh') {
   const limits = DISCLAIMER_POINTS.find((p) => p.titleEn === 'The model is simplified');
   const verify = DISCLAIMER_POINTS.find((p) => p.titleEn === 'Verify results yourself');
   const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '';
-  // The same two headings the xlsx notes sheet uses, which are the headings the
-  // README's own section carries. One wording, three places it is read.
+  /*
+   * The same four headings the xlsx notes sheet uses, which are the headings
+   * the README's own section carries. One wording, four places it is read.
+   *
+   * `use` and `unc` were added after measuring a real export: it carried the
+   * model limits and the verify note, but not the teaching-only line, and said
+   * nothing at all about the ± now on seven tabs' results. A spreadsheet is the
+   * artefact that leaves — pasted into a report, opened six months later by
+   * someone who never saw the app — so it is the last place those can be
+   * missing.
+   */
   const L = zh
-    ? { limits: '已校正的与未建模的', verify: '核对结果', software: '软件', records: '记录条数' }
-    : { limits: 'Corrected and not modelled', verify: 'Verify results', software: 'Software', records: 'Records' };
+    ? { use: '用途限制', limits: '已校正的与未建模的', unc: '不确定度', verify: '核对结果',
+        software: '软件', records: '记录条数' }
+    : { use: 'Intended use', limits: 'Corrected and not modelled', unc: 'Uncertainty', verify: 'Verify results',
+        software: 'Software', records: 'Records' };
   const section = (heading, p) => [`### ${heading}`, '', `**${zh ? p.titleZh : p.titleEn}**`, '', zh ? p.zh : p.en, ''];
 
   return [
     '---',
     '',
+    ...section(L.use, DISCLAIMER_POINTS.find((p) => p.titleEn === 'Educational use only')),
+    ...section(L.use, DISCLAIMER_POINTS.find((p) => p.titleEn === 'Not for clinical, diagnostic, or production use')),
     ...section(L.limits, limits),
+    ...section(L.unc, DISCLAIMER_POINTS.find((p) => p.titleEn === 'Results carry an uncertainty')),
     ...section(L.verify, verify),
     `- ${L.software}: Lab Calc${version ? ` ${version}` : ''}`,
     `- ${L.records}: ${entries?.length ?? 0}`,
@@ -468,8 +482,22 @@ export function toXlsxNotes(locale, count, detail = {}) {
     ...(detail.timeZone ? [[zh ? '时区' : 'Time zone', detail.timeZone]] : []),
     ...fieldRows,
     [],
+    /*
+     * Four sections, and the order is deliberate: what the file is for, then
+     * what it does not model, then how much its numbers can be trusted, then
+     * what to do about that. A reader who stops after two has the two that
+     * matter most.
+     */
+    [zh ? '用途限制' : 'Intended use', ''],
+    ...point(DISCLAIMER_POINTS.find((p) => p.titleEn === 'Educational use only')),
+    [],
+    ...point(DISCLAIMER_POINTS.find((p) => p.titleEn === 'Not for clinical, diagnostic, or production use')),
+    [],
     [L.limits, ''],
     ...point(limits),
+    [],
+    [zh ? '不确定度' : 'Uncertainty', ''],
+    ...point(DISCLAIMER_POINTS.find((p) => p.titleEn === 'Results carry an uncertainty')),
     [],
     [L.verify, ''],
     ...point(verify),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toXlsxNotes } from '../src/ui/export.mjs';
+import { toXlsxNotes, toMarkdown } from '../src/ui/export.mjs';
 import { DISCLAIMER_POINTS } from '../src/ui/disclaimer.mjs';
 
 /**
@@ -65,5 +65,69 @@ describe('toXlsxNotes', () => {
     const en = toXlsxNotes('en', 1).flat().join('\n');
     expect(en).toContain('model is simplified');
     expect(en).not.toContain('已校正');
+  });
+});
+
+/*
+ * Every disclaimer point must reach the export.
+ *
+ * The notes sheet rendered two of the four points in `DISCLAIMER_POINTS` — the
+ * model limits and the verify note — and dropped the teaching-only line and the
+ * intended-use restriction. Measured on a real export, not assumed: the sheet
+ * carried 「已校正的与未建模的」 and 「核对结果」 and nothing else.
+ *
+ * Then the ± landed on seven tabs and the export said nothing about it, which is
+ * the worse half: a spreadsheet cell holds `14.61` and the uncertainty that says
+ * the fourth digit is not real lives in a panel the file does not travel with.
+ * Someone averaging a column six months later cannot know the numbers carry a ±
+ * at all.
+ *
+ * Written as a sweep over `DISCLAIMER_POINTS` rather than as assertions on the
+ * specific strings, so a fifth point added later fails this test until it is
+ * rendered — which is the failure mode that produced both omissions.
+ */
+describe('every disclaimer point reaches the export', () => {
+  const entries = [{
+    id: '1', at: '2026-09-27T10:00:00Z', kind: 'stockFromSolid', summary: '称取 14.61 g NaCl',
+    inputs: { formula: 'NaCl' }, outputs: { massG: 14.61 },
+  }];
+
+  it('should render every point in the xlsx notes sheet', () => {
+    const flat = toXlsxNotes('zh', 1, {
+      exported: '2026/09/27 10:00', inputKeys: ['formula'], outputKeys: ['massG'],
+    }).flat().join(' | ');
+    const missing = DISCLAIMER_POINTS
+      .filter((p) => !flat.includes(p.titleZh))
+      .map((p) => p.titleZh);
+    expect(missing, `未进说明 sheet: ${missing.join('、')}`).toEqual([]);
+  });
+
+  it('should render every point in the Markdown footer', () => {
+    const md = toMarkdown(entries, 'zh');
+    const missing = DISCLAIMER_POINTS
+      .filter((p) => !md.includes(p.titleZh))
+      .map((p) => p.titleZh);
+    expect(missing, `未进 Markdown: ${missing.join('、')}`).toEqual([]);
+  });
+
+  it('should render every point in English too', () => {
+    // The English export is a different document, not a translation of the
+    // Chinese one, and it reads the same array — so a point whose `titleEn` is
+    // missing would render as `undefined` rather than failing.
+    const md = toMarkdown(entries, 'en');
+    const missing = DISCLAIMER_POINTS
+      .filter((p) => !md.includes(p.titleEn))
+      .map((p) => p.titleEn);
+    expect(missing, `missing from English export: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('should state that results carry an uncertainty', () => {
+    // The specific omission that prompted this file. Asserted by content, not
+    // by title, because a heading with no text under it would pass the sweep
+    // above and tell the reader nothing.
+    const md = toMarkdown(entries, 'zh');
+    expect(md).toMatch(/±/);
+    expect(md).toMatch(/ISO 1042/);
+    expect(md).toMatch(/真实的不确定度通常比这个大/);
   });
 });

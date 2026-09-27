@@ -62,6 +62,24 @@ export const DISCLAIMER_POINTS = [
     zh: '在用于任何实际配制前，请与教材、药典、试剂说明书或经核实的来源对照并核对结果。配液前请确认计算所用数据与手上试剂的实际情况相符。',
     en: 'Before preparing anything, check the result against a textbook, a pharmacopoeia, a reagent certificate, or another trusted source — and against the actual reagent you have on the bench.',
   },
+  {
+    /*
+     * The ± is new, and a spreadsheet is the artefact most likely to lose it.
+     *
+     * A cell holds `14.61`; the uncertainty that says the fourth digit is not
+     * real lives in the panel that produced it, and the file travels without
+     * the panel. Someone averaging a column six months later has no way to know
+     * the numbers carry a ± at all. So the export states what the instrument
+     * terms cover and — more importantly — what they do not.
+     *
+     * Kept out of the in-app notice: it is about the export, and the notice is
+     * about the app.
+     */
+    titleZh: '结果带不确定度',
+    titleEn: 'Results carry an uncertainty',
+    zh: '七个页签的结果带 ± 与不确定度预算（称量配制、稀释、分光光度、滴定曲线、生物、百分比配制、浓试剂）。它只涵盖仪器本身：玻璃器皿允差（ISO 1042 / ASTM E288、ISO 648 / ASTM E969）、天平分度值与线性、光度计准确度、比色皿光程。手法、试剂纯度、吸湿性、样品本身的稀释或称量都不在内——真实的不确定度通常比这个大。',
+    en: 'Seven tabs report a ± and a budget: weighing, dilution, spectrophotometry, titration curve, molecular biology, percent solutions, concentrated reagents. It covers the instruments only — glassware tolerances (ISO 1042 / ASTM E288, ISO 648 / ASTM E969), balance readability and linearity, photometer accuracy, cuvette path length. Operator technique, reagent purity, hygroscopicity, and any dilution or weighing that produced the sample are not in it, so the real uncertainty is usually larger.',
+  },
 ];
 
 function readFlag(store) {
