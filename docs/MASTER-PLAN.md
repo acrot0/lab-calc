@@ -334,14 +334,30 @@ v0.4.0 — 教学用途须知、主题、视觉重构    Latest   ← 最新标�
 **怎么做**：`gh release edit v0.9.0 --latest`，并补 v0.5.0 的缺失 tag/release（或书面说明为何跳过）
 **验收**：仓库首页右侧显示 v0.9.0；`gh release list` 的 Latest 在 v0.9.0
 
-### P0-8　更新通道（Tauri updater）
-**改哪里**：`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/src/lib.rs`
-**怎么做**：
-1. `npx tauri signer generate` 生成 Ed25519 密钥对
-2. **私钥进 GitHub Secrets**（这一步只能你做，我不能碰你的密钥）
-3. `tauri.conf.json` 的 `plugins.updater` 填 `endpoints` + `pubkey`，`bundle.createUpdaterArtifacts: true`
-4. 前端只在**设置面板**显示版本与「检查更新」（用户已明确要求「不打扰」）
-**验收**：装 0.9.0 → 发 0.9.1 → 设置面板点检查 → 提示有新版本；签名不匹配的包被拒绝
+### P0-8　更新通道（Tauri updater）　✅ **已完成（2026-09-27）**
+
+**改哪里**：`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/src/lib.rs`、
+`.github/workflows/release.yml`、`src/ui/update.mjs`、`src/ui/components/UpdatePanel.jsx`
+
+**做了什么**：
+1. Ed25519 密钥对生成在 `~/.tauri/labcalc.key`，私钥进 GitHub Secrets
+   （`TAURI_SIGNING_PRIVATE_KEY`），公钥写进 `plugins.updater.pubkey`
+2. `endpoints` 指向 `releases/latest/download/latest.json`，`createUpdaterArtifacts: true`
+3. `lib.rs` 注册 updater + process 插件；capabilities 加 `updater:default`、
+   `process:allow-restart`（不是 `process:default`——前端只该能要求重启）
+4. 前端：`update.mjs` 纯状态机（可无浏览器测试）+ `UpdatePanel.jsx` 懒加载插件，
+   只在设置面板出现。`__TAURI_UPDATER__` 由 `TAURI_ENV_PLATFORM` 判定——
+   `--mode desktop` 同时被 Electron 和 Tauri 使用，区分不了
+5. 新增 Release workflow：只在 `v*` tag 触发，跑完整 verify + 断言 tag 与
+   `package.json` 版本一致 + 校验 `docs/releases/vX.Y.Z.md` 存在，然后签名发布
+
+**验收（2026-09-27 实测通过）**：构建一个 0.9.0 档的包 → 设置面板点检查 →
+显示「有新版本 v0.9.1 可用」→ 点安装 → 下载、验签、安装、自动重启 →
+`Get-Process` 显示运行的是 `%LOCALAPPDATA%\Lab Calc\lab-calc.exe`，版本 0.9.1。
+签名密钥 id 在 `latest.json` 与编译进程序的公钥之间一致（`1b2f3dae14c3e499`）。
+
+**顺带发现**：0.9.0 及更早的版本没有 updater，所以**第一个能自更新的版本是
+0.9.1**。已经装在 0.9.0 上的用户需要手动装一次 0.9.1，之后才能自动升级。
 
 > ⚠️ **顺序约束：P0-8 必须在 P0-1 之后。** 先修白屏再加更新通道——否则第一个通过更新通道推下去的包就可能白屏，而那时用户已经无法自救。
 
