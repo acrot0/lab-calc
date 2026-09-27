@@ -175,6 +175,15 @@ jobs:
         # it is built even though Tauri is the recommended artifact.
         shell: bash
         run: |
+          # The packager assembles the app around a cached Electron runtime
+          # rather than downloading one, so a fresh runner has nothing to work
+          # with. `electron --version` is what populates the cache.
+          #
+          # Pinned rather than `@latest`: the packager takes the highest cached
+          # version, so `@latest` would silently make CI's artifact a different
+          # Electron from the one the release was tested against. Bump this and
+          # the local cache together.
+          npx --yes electron@44.4.5 --version
           npm run package:desktop -- --no-build --out "$RUNNER_TEMP/electron"
           cd "$RUNNER_TEMP/electron"
           # The packager writes a directory; the README promises a zip.

@@ -73,6 +73,14 @@ if (!fs.existsSync(path.join(distDir, 'index.html'))) {
  *
  * The highest version wins: caches accumulate as projects pin different
  * versions, and the newest is the one most likely to be wanted.
+ *
+ * ## The consequence for CI
+ *
+ * "Highest cached" means the artifact depends on what happens to be on the
+ * machine. The release workflow therefore pins the version it downloads
+ * (`npx --yes electron@44.4.5`) rather than asking for `@latest`, so the
+ * Electron in a published zip is the one this build was tested with. Bumping
+ * one without the other is how a release ships an engine nobody ran.
  */
 function findElectronZip() {
   const cacheRoot = path.join(os.homedir(), 'AppData', 'Local', 'electron', 'Cache');
