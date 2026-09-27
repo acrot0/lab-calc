@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { errorMessage } from '../src/ui/errors.mjs';
-import { CalcError } from '../src/calc/errors.mjs';
+import { CalcError, requirePositive, requireNonNegative, requireFinite } from '../src/calc/errors.mjs';
 import { zh } from '../src/ui/locales/zh.mjs';
 import { en } from '../src/ui/locales/en.mjs';
 
@@ -55,5 +55,59 @@ describe('errorMessage', () => {
 
   it('should return an empty string for a missing error', () => {
     expect(errorMessage(null, t)).toBe('');
+  });
+});
+
+/*
+ * The guards themselves, as a group.
+ *
+ * These had no direct test — they were only exercised indirectly, through
+ * whatever a calc function happened to pass. That is how an empty number field
+ * reached the user as 「浓度不能为负数（当前为 NaN）」: the value was NaN, the
+ * guard rejected it, and the message was about **negativity** because
+ * `NaN < 0` is false and `NaN >= 0` is false too, so the guard fell through to
+ * whichever branch its ordering put second.
+ *
+ * The refusal was right. The wording was not, and nothing in the suite could
+ * see the difference because nothing asserted on the guards' own contract.
+ */
+describe('numeric guards', () => {
+  it('should refuse NaN and name it as not-a-number, not as a sign problem', () => {
+    // `mustBeFinite` says 「必须是有效数字」; the sign codes say "must be
+    // greater than 0" / "must not be negative", which is a claim about a
+    // number the user never typed.
+    for (const [fn, name] of [
+      [requirePositive, 'requirePositive'],
+      [requireNonNegative, 'requireNonNegative'],
+    ]) {
+      let err;
+      try { fn(NaN, 'volume'); } catch (e) { err = e; }
+      expect(err, `${name} must reject NaN`).toBeDefined();
+      expect(err.code, `${name} must report mustBeFinite for NaN`).toBe('mustBeFinite');
+    }
+  });
+
+  it('should still refuse a genuine sign violation with the sign code', () => {
+    expect(() => requirePositive(-1, 'volume')).toThrowError(
+      expect.objectContaining({ code: 'mustBePositive' }),
+    );
+    expect(() => requireNonNegative(-1, 'volume')).toThrowError(
+      expect.objectContaining({ code: 'mustNotBeNegative' }),
+    );
+  });
+
+  it('should refuse a non-number', () => {
+    expect(() => requirePositive('0.5', 'volume')).toThrowError(
+      expect.objectContaining({ code: 'mustBeFinite' }),
+    );
+    expect(() => requireFinite(undefined, 'volume')).toThrowError(
+      expect.objectContaining({ code: 'mustBeFinite' }),
+    );
+  });
+
+  it('should accept a value that is finite and in range', () => {
+    expect(() => requirePositive(0.5, 'volume')).not.toThrow();
+    expect(() => requireNonNegative(0, 'volume')).not.toThrow();
+    expect(() => requireFinite(0, 'volume')).not.toThrow();
   });
 });

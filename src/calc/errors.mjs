@@ -24,14 +24,32 @@ export const fail = (code, params) => {
   throw new CalcError(code, params);
 };
 
+/*
+ * The three guards, ordered so the message names the actual problem.
+ *
+ * `Number.isFinite` is checked **before** the sign, and that ordering is the
+ * whole point. `NaN < 0` is false and `NaN <= 0` is false too, so with the
+ * sign first, NaN falls through both sign branches and is reported as a sign
+ * violation — an empty number field produced 「浓度不能为负数（当前为 NaN）」,
+ * a message about a number the user never typed. Not-a-number is its own
+ * failure with its own wording (「必须是有效数字」), and the only way to reach
+ * it is to test for it first.
+ */
+
 export function requirePositive(value, field) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    fail('mustBeFinite', { name: field });
+  }
+  if (value <= 0) {
     fail('mustBePositive', { name: field, value });
   }
 }
 
 export function requireNonNegative(value, field) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    fail('mustBeFinite', { name: field });
+  }
+  if (value < 0) {
     fail('mustNotBeNegative', { name: field, value });
   }
 }

@@ -79,6 +79,30 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
   function handle(e) {
     const next = e.target.value;
     setDraft(next);
+    /*
+     * An emptied box is a signal, not an absent one.
+     *
+     * `readNumberField` returns null for the empty string — correctly, since
+     * "nothing" is not a number — and null means "leave the tab's value
+     * alone". So clearing the box left the tab holding the number that was
+     * deleted, and pressing the button calculated with it: `0.5` in
+     * 目标浓度, box cleared, 计算, and 14.61 g came back with nothing in the
+     * field and no error anywhere.
+     *
+     * Reporting `''` instead is what makes the tab stop holding it. Each tab
+     * then reads its own state through `n()`, which turns `''` into NaN, and
+     * the calc layer refuses NaN with a named message — "定容体积必须是有效
+     * 数字" — which is the right answer to an empty required field.
+     *
+     * Only *empty* takes this path. Text that is neither empty nor readable
+     * (`2..5` mid-typing, `abc`) still leaves the tab alone, because blanking
+     * a working result on every keystroke is a worse failure than the one
+     * being fixed here.
+     */
+    if (next.trim() === '') {
+      onChange('');
+      return;
+    }
     // A plain number goes straight through; an expression is evaluated and its
     // value passed up, so the tab always sees a number. Anything unreadable
     // leaves the tab holding its previous value rather than a partial parse.
