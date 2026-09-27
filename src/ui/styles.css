@@ -1869,6 +1869,86 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The per-record annotation.
+ *
+ * Collapsed it is one line: the values as chips, plus a small toggle. Three
+ * empty inputs on every row would turn a list of calculations into a form,
+ * and the common case is a record nobody needed to annotate.
+ *
+ * The chips are what make the feature useful at a glance — a record tagged
+ * EXP-2026-14 shows that without anyone opening anything, which is the whole
+ * point of tagging it.
+ */
+.entry-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.entry-meta-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  min-width: 0;
+}
+
+.entry-meta-chip {
+  padding: 1px var(--s2);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-full);
+  color: var(--accent);
+  font-size: var(--t-xs);
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-meta-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.entry-meta-toggle:hover { color: var(--accent); }
+
+.entry-meta-open {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--s2);
+  align-items: end;
+  width: 100%;
+  padding: var(--s2) 0 0;
+}
+
+.entry-meta-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.entry-meta-label { color: var(--text-dim); font-size: var(--t-xs); }
+
+.entry-meta-field input {
+  width: 100%;
+  min-height: 30px;
+  padding: 0 var(--s2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-xs);
+}
+
+.entry-meta-field input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: var(--focus-ring) var(--accent-soft);
+}
+
 .empty {
   padding: var(--s8) var(--s4);
   color: var(--text-dim);

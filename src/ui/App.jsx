@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Icons, ICON_SIZE } from './icons.jsx';
 import {
-  resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay, MAX_ENTRIES,
+  resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
+  setEntryMeta, MAX_ENTRIES,
 } from './history.mjs';
 import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
@@ -243,6 +244,15 @@ export default function App() {
   const remove = useCallback((id) => setEntries((prev) => removeEntry(prev, id)), []);
   const clear = useCallback(() => setEntries(clearHistory()), []);
 
+  /*
+   * Annotating a record writes straight through to state, which the existing
+   * save effect persists. No separate debounce: the editor commits on blur,
+   * so the write rate is one per field edited rather than one per keystroke.
+   */
+  const setMeta = useCallback((id, patch) => {
+    setEntries((prev) => setEntryMeta(prev, id, patch));
+  }, []);
+
   // Import merges rather than replaces: a backup is usually one machine's
   // history being added to another's, and overwriting would destroy work the
   // user never agreed to lose.
@@ -329,7 +339,7 @@ export default function App() {
             </Suspense>
           </div>
           <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear}
-            onImport={importEntries} />
+            onImport={importEntries} onMeta={setMeta} />
         </main>
       </div>
 

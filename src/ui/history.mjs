@@ -52,7 +52,9 @@ export function loadHistory(store) {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     // A malformed row must not take the whole list with it.
-    return parsed.filter((e) => e && typeof e === 'object' && typeof e.kind === 'string');
+    return migrateHistory(
+      parsed.filter((e) => e && typeof e === 'object' && typeof e.kind === 'string'),
+    );
   } catch {
     return [];
   }
@@ -96,7 +98,12 @@ export function filterHistory(entries, query) {
   const q = String(query ?? '').trim().toLowerCase();
   if (q.length === 0) return entries;
   return entries.filter((e) => {
-    const hay = `${e.summary ?? ''} ${JSON.stringify(e.inputs ?? {})}`.toLowerCase();
+    // The metadata is searched alongside the summary and inputs: an experiment
+    // number is exactly the thing a user types into this box. It is joined as
+    // its values rather than as JSON so a search for `EXP-1` does not have to
+    // match the quotes and braces around it.
+    const meta = Object.values(e.meta ?? {}).join(' ');
+    const hay = `${e.summary ?? ''} ${meta} ${JSON.stringify(e.inputs ?? {})}`.toLowerCase();
     return hay.includes(q);
   });
 }
@@ -139,4 +146,132 @@ export function planReplay(entry) {
   const inputs = replayInputs(entry);
   if (!tab || !inputs) return null;
   return { tab, inputs };
+}
+
+/* ==========================================================================
+   Record metadata — "which experiment is this, and what is it for"
+   --------------------------------------------------------------------------
+   Every record the app writes is anonymous: a timestamp, a kind, a summary.
+   That is enough to find a calculation again, and not enough to answer the
+   question a lab notebook exists to answer.
+
+   Three fields, fixed rather than free-form. The value of a field is that it
+   can be filtered and exported as a column; a free-text blob can be neither,
+   and the summary line already is one. A user who needs prose has the summary
+   and the export notes.
+
+   The fields live in `entry.meta`, beside the record rather than inside
+   `inputs`. `inputs` is what gets replayed into a tab — a field that is not
+   an input to the calculation must not be fed back as one, and an experiment
+   number is not a concentration.
+   ========================================================================== */
+
+/**
+ * The fields a record can carry.
+ *
+ * `key` is the storage key and must not change when a label is reworded — the
+ * same rule as `field-labels.mjs`. `maxLength` bounds the storage a single
+ * record can add: 500 records × 3 fields × 200 chars is 300 KB at the very
+ * worst, well inside a localStorage quota.
+ */
+export const META_FIELDS = [
+  {
+    key: 'experiment',
+    label: { zh: '实验号', en: 'Experiment' },
+    placeholder: { zh: '如 EXP-2026-14', en: 'e.g. EXP-2026-14' },
+    maxLength: 60,
+  },
+  {
+    key: 'purpose',
+    label: { zh: '用途', en: 'Purpose' },
+    placeholder: { zh: '如 毕业论文第三章', en: 'e.g. thesis chapter 3' },
+    maxLength: 120,
+  },
+  {
+    key: 'operator',
+    label: { zh: '操作人', en: 'Operator' },
+    placeholder: { zh: '如 张三', en: 'e.g. your name' },
+    maxLength: 60,
+  },
+];
+
+const META_KEYS = META_FIELDS.map((f) => f.key);
+
+/**
+ * Set metadata on one record, merging with whatever is already there.
+ *
+ * Returns a new list; the input is not mutated. A field set to whitespace is
+ * **removed** rather than stored empty — a blank-but-present key exports as a
+ * column that reads "measured and empty" instead of "never filled in", which
+ * is a different claim.
+ *
+ * Unknown keys are dropped rather than stored: an undeclared key would export
+ * as a column nothing can label.
+ */
+export function setEntryMeta(entries, id, patch) {
+  if (!id || !patch || typeof patch !== 'object') return entries;
+  return (entries ?? []).map((e) => {
+    if (!e || e.id !== id) return e;
+    const meta = { ...(e.meta ?? {}) };
+    for (const key of META_KEYS) {
+      if (!(key in patch)) continue;
+      const raw = patch[key];
+      if (raw === null || raw === undefined) {
+        delete meta[key];
+        continue;
+      }
+      const value = String(raw).trim().slice(0, maxLengthOf(key));
+      if (value === '') delete meta[key];
+      else meta[key] = value;
+    }
+    if (Object.keys(meta).length === 0) {
+      const { meta: _drop, ...rest } = e;
+      return rest;
+    }
+    return { ...e, meta };
+  });
+}
+
+function maxLengthOf(key) {
+  return META_FIELDS.find((f) => f.key === key)?.maxLength ?? 60;
+}
+
+/**
+ * Normalise records read from storage.
+ *
+ * v1 records have no `meta` and must keep working — they are the entire
+ * history of every existing user, so the migration adds nothing and removes
+ * nothing. What it does do is drop a `meta` that is not a plain object, which
+ * a hand-edited or corrupted file can produce; the UI reads `.experiment` off
+ * it, and a string there would render as undefined rather than failing loudly.
+ *
+ * Deliberately not a version bump. The storage key stays `v1` because the
+ * format is unchanged in the direction that matters: every v1 record is still
+ * valid, and a v1 reader given a record with extra keys ignores them. Bumping
+ * would force a migration path for a change that needs none, and would make
+ * older builds refuse a file they can read perfectly well.
+ */
+export function migrateHistory(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.map((e) => {
+    if (!e || typeof e !== 'object') return e;
+    if (e.meta === undefined) return e;
+    if (e.meta === null || typeof e.meta !== 'object' || Array.isArray(e.meta)) {
+      const { meta: _drop, ...rest } = e;
+      return rest;
+    }
+    // Keep only declared keys, each a non-empty string.
+    const meta = {};
+    for (const key of META_KEYS) {
+      const v = e.meta[key];
+      if (typeof v === 'string' && v.trim() !== '') {
+        meta[key] = v.trim().slice(0, maxLengthOf(key));
+      }
+    }
+    if (Object.keys(meta).length === 0) {
+      const { meta: _drop, ...rest } = e;
+      return rest;
+    }
+    return { ...e, meta };
+  });
 }

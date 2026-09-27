@@ -8,7 +8,7 @@ sequencing has dependencies that are not obvious from the feature list.
 16 calculation tabs, a 118-element periodic table with exam properties, six
 charts drawn from the calculations themselves, bilingual UI, six themes plus
 follow-the-system, PWA-installable, offline-capable, and a portable Windows
-build. 1,765 tests. 592 KB of JS (185 KB gzipped), no charting dependency — the
+build. 1,792 tests. 592 KB of JS (185 KB gzipped), no charting dependency — the
 charts are hand-drawn canvas, and the .xlsx writer is hand-written too.
 
 The calculator panel works on a phone: 44px touch targets, a bottom sheet that

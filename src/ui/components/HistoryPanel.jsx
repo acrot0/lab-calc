@@ -5,6 +5,7 @@ import { filterHistory } from '../history.mjs';
 import {
   downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
 } from '../export.mjs';
+import EntryMeta from './EntryMeta.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import { recordSummary } from '../summaries.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
@@ -24,7 +25,9 @@ import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
  */
 const Report = lazy(() => import('./Report.jsx'));
 
-export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onImport }) {
+export default function HistoryPanel({
+  entries, onRemove, onReplay, onClear, onImport, onMeta,
+}) {
   const { t, locale } = useI18n();
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -204,6 +207,7 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
                 <div className="body">
                   <div className="summary">{summary}</div>
                   <div className="when">{new Date(e.at).toLocaleString()}</div>
+                  {onMeta && <EntryMeta entry={e} onSave={onMeta} />}
                 </div>
                 <button
                   className="icon-btn"

@@ -12,6 +12,7 @@
  */
 
 import { fieldLabel } from './field-labels.mjs';
+import { META_FIELDS } from './history.mjs';
 import { DISCLAIMER_POINTS } from './disclaimer.mjs';
 
 export const CSV_COLUMNS = ['时间', '类型', '说明', '输入', '结果'];
@@ -28,6 +29,28 @@ const COLUMNS_BY_LOCALE = {
   zh: CSV_COLUMNS,
   en: ['Time', 'Type', 'Summary', 'Inputs', 'Results'],
 };
+
+/**
+ * The metadata fields at least one record actually carries, in declared order.
+ *
+ * Appended to every export rather than always written: an empty column is a
+ * claim that something was measured and came out blank, and every existing
+ * user's spreadsheet would gain three columns of nothing. A user who never
+ * annotates a record sees exactly the file they saw before.
+ */
+function usedMetaFields(entries) {
+  return META_FIELDS.filter((f) => (entries ?? []).some((e) => e?.meta?.[f.key]));
+}
+
+/** The metadata labels for the header row, in the reader's language. */
+function metaLabels(fields, locale = 'zh') {
+  return fields.map((f) => f.label[locale] ?? f.label.zh);
+}
+
+/** One record's metadata values, in the same order as `fields`. */
+function metaValues(fields, entry) {
+  return fields.map((f) => entry?.meta?.[f.key] ?? '');
+}
 
 function columnsFor(locale = 'zh') {
   return COLUMNS_BY_LOCALE[locale] ?? COLUMNS_BY_LOCALE.zh;
@@ -121,7 +144,8 @@ export function localStamp(at, locale = 'zh') {
 }
 
 export function toCsv(entries, locale = 'zh') {
-  const rows = [columnsFor(locale).join(',')];
+  const fields = usedMetaFields(entries);
+  const rows = [[...columnsFor(locale), ...metaLabels(fields, locale)].join(',')];
   for (const e of entries ?? []) {
     rows.push([
       localStamp(e?.at, locale),
@@ -129,6 +153,7 @@ export function toCsv(entries, locale = 'zh') {
       e?.summary ?? '',
       flatten(e?.inputs, locale),
       flatten(e?.outputs, locale),
+      ...metaValues(fields, e),
     ].map(escapeCsvField).join(','));
   }
   // Trailing newline: POSIX convention, and it keeps `wc -l` honest.
@@ -151,7 +176,8 @@ const escapeMd = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' '
  * that function, and the short version is that a CSV's value is being parsed.
  */
 export function toMarkdown(entries, locale = 'zh') {
-  const columns = columnsFor(locale);
+  const fields = usedMetaFields(entries);
+  const columns = [...columnsFor(locale), ...metaLabels(fields, locale)];
   const header = `| ${columns.join(' | ')} |`;
   const sep = `|${columns.map(() => '---').join('|')}|`;
   const rows = (entries ?? []).map((e) => `| ${
@@ -161,6 +187,7 @@ export function toMarkdown(entries, locale = 'zh') {
       e?.summary ?? '',
       flatten(e?.inputs, locale),
       flatten(e?.outputs, locale),
+      ...metaValues(fields, e),
     ].map(escapeMd).join(' | ')
   } |`);
   return [header, sep, ...rows, '', ...markdownNotes(entries, locale)].join('\n');
@@ -241,7 +268,8 @@ function cell(v) {
 }
 
 function toXlsxRows(entries, locale = 'zh') {
-  const rows = [columnsFor(locale)];
+  const fields = usedMetaFields(entries);
+  const rows = [[...columnsFor(locale), ...metaLabels(fields, locale)]];
   for (const e of entries ?? []) {
     rows.push([
       localStamp(e?.at, locale),
@@ -249,6 +277,7 @@ function toXlsxRows(entries, locale = 'zh') {
       e?.summary ?? '',
       flatten(e?.inputs, locale),
       flatten(e?.outputs, locale),
+      ...metaValues(fields, e),
     ]);
   }
   return rows;
@@ -274,10 +303,14 @@ function toXlsxDetailedRows(entries, locale = 'zh', only) {
   const inputKeys = only?.inputKeys ?? derived.inputKeys;
   const outputKeys = only?.outputKeys ?? derived.outputKeys;
   const io = locale === 'en' ? { in: 'in', out: 'out' } : { in: '输入', out: '结果' };
+  const fields = usedMetaFields(entries);
   const header = [
     ...detailMeta(locale),
     ...inputKeys.map((k) => `${fieldLabel(k, locale)}（${io.in}）`),
     ...outputKeys.map((k) => `${fieldLabel(k, locale)}（${io.out}）`),
+    // Metadata last, and with no (输入)/(结果) suffix: it is neither, and a
+    // suffix would invite a reader to treat it as a replayed input.
+    ...metaLabels(fields, locale),
   ];
   const rows = [header];
   for (const e of entries ?? []) {
@@ -287,6 +320,7 @@ function toXlsxDetailedRows(entries, locale = 'zh', only) {
       e?.summary ?? '',
       ...inputKeys.map((k) => cell(e?.inputs?.[k])),
       ...outputKeys.map((k) => cell(e?.outputs?.[k])),
+      ...metaValues(fields, e),
     ]);
   }
   return rows;
