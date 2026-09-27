@@ -826,6 +826,16 @@ export const zh = {
     replay: '重新载入这次计算的参数',
     remove: '删除这条记录',
     dismiss: '关闭提示',
+    // 删除是标记而非抹除，所以这里必须有回来的路——否则「可撤销」只是
+    // 数据层面成立，用户看不到也点不到。
+    trashShow: '已删除 {n} 条',
+    trashHide: '收起已删除',
+    trashEmpty: '没有已删除的记录。',
+    trashHint: '删除的记录保留在这里，随时可以恢复。',
+    deletedAt: '删除于 {at}',
+    restore: '恢复这条记录',
+    restoreAll: '全部恢复',
+    restored: '已恢复 {n} 条记录。',
     exportFailed: "导出失败，请重试。",
   },
   reaction: {

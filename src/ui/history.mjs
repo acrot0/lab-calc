@@ -60,9 +60,39 @@ export function loadHistory(store) {
   }
 }
 
-export function saveHistory(store, entries) {
+/**
+ * Persist the history.
+ *
+ * The cap counts **visible** records, not total rows. Counting tombstones
+ * would mean a user who deleted a hundred records silently started losing live
+ * ones — the cap exists to bound what the list shows, and a deleted record
+ * shows nothing. The tombstones themselves are kept, which is the point of
+ * them; they are small, and the quota is checked by the write failing rather
+ * than by arithmetic that could be wrong.
+ */
+export function saveHistory(store, entries, max = MAX_ENTRIES) {
   try {
-    store.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
+    const all = entries ?? [];
+    /*
+     * Counted by position, not by id.
+     *
+     * The first version collected the surviving ids into a Set and filtered on
+     * membership — which silently kept everything when a record had no id,
+     * because `undefined` is not in the set and the filter's `e.deletedAt ||`
+     * arm did not save it either. Records without ids do occur: they are what
+     * the fixtures build, and an older hand-written bundle can produce them.
+     *
+     * Walking once and counting is both correct and simpler: keep every
+     * tombstone, keep live records until the cap is reached, drop the rest.
+     */
+    const out = [];
+    let live = 0;
+    for (const e of all) {
+      if (!e) continue;
+      if (e.deletedAt) { out.push(e); continue; }
+      if (live < max) { out.push(e); live += 1; }
+    }
+    store.setItem(STORAGE_KEY, JSON.stringify(out));
     return true;
   } catch {
     return false;
@@ -85,19 +115,77 @@ export function addEntry(entries, entry, now = new Date()) {
   return [withMeta, ...entries].slice(0, MAX_ENTRIES);
 }
 
-export function removeEntry(entries, id) {
-  return entries.filter((e) => e.id !== id);
+/**
+ * Delete a record — by marking it, not by removing it.
+ *
+ * The largest gap against ALCOA, the standard an electronic lab notebook is
+ * held to. Its **Original** principle protects the ability to answer "what did
+ * I actually write down" after the fact, and a filter destroys exactly that.
+ *
+ * This is not a theoretical concern for this app. The history holds real
+ * thesis data, and "clear all" was one click with nothing to undo — a mis-click
+ * destroyed the only copy, and the summary that would have identified it went
+ * with it.
+ *
+ * So the body stays and the record gains a `deletedAt`. It leaves the list the
+ * user sees and stays in the file. The cost is bytes in localStorage; the
+ * alternative costs data that cannot be recovered.
+ *
+ * Not re-stamped on a second delete: the timestamp records when the user
+ * deleted the record, not when they last clicked the icon.
+ */
+export function removeEntry(entries, id, now = new Date()) {
+  return (entries ?? []).map((e) => {
+    if (!e || e.id !== id || e.deletedAt) return e;
+    return { ...e, deletedAt: now.toISOString() };
+  });
 }
 
-export function clearHistory() {
-  return [];
+/** Undo a deletion, body and all. */
+export function restoreEntry(entries, id) {
+  return (entries ?? []).map((e) => {
+    if (!e || e.id !== id || !e.deletedAt) return e;
+    const { deletedAt: _drop, ...rest } = e;
+    return rest;
+  });
+}
+
+/**
+ * The records the user should see.
+ *
+ * The whole rest of the app reads this rather than the raw list, so a deleted
+ * record cannot leak back into a count, a search result, or an export by one
+ * caller forgetting to filter.
+ */
+export function visibleEntries(entries) {
+  return (entries ?? []).filter((e) => e && !e.deletedAt);
+}
+
+/** The deleted records, most recently deleted first. */
+export function deletedEntries(entries) {
+  return (entries ?? [])
+    .filter((e) => e && e.deletedAt)
+    .sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)));
+}
+
+/**
+ * Clear the history — which, like a single delete, marks rather than erases.
+ *
+ * This was the most destructive control in the app: one click, no confirmation,
+ * no undo, and the records were gone before the user could see how many there
+ * had been. Marking makes the button reversible, which is what makes it safe
+ * to have on screen at all.
+ */
+export function clearHistory(entries = [], now = new Date()) {
+  const stamp = now.toISOString();
+  return (entries ?? []).map((e) => (e && !e.deletedAt ? { ...e, deletedAt: stamp } : e));
 }
 
 /** Case-insensitive search across the summary line and the raw inputs. */
 export function filterHistory(entries, query) {
   const q = String(query ?? '').trim().toLowerCase();
   if (q.length === 0) return entries;
-  return entries.filter((e) => {
+  return visibleEntries(entries).filter((e) => {
     // The metadata is searched alongside the summary and inputs: an experiment
     // number is exactly the thing a user types into this box. It is joined as
     // its values rather than as JSON so a search for `EXP-1` does not have to
@@ -255,6 +343,13 @@ export function migrateHistory(entries) {
   if (!Array.isArray(entries)) return [];
   return entries.map((e) => {
     if (!e || typeof e !== 'object') return e;
+    const cleanDeleted = typeof e.deletedAt === 'string' && e.deletedAt !== ''
+      ? e.deletedAt
+      : undefined;
+    if (cleanDeleted === undefined && e.deletedAt !== undefined) {
+      const { deletedAt: _drop, ...rest } = e;
+      return rest;
+    }
     if (e.meta === undefined) return e;
     if (e.meta === null || typeof e.meta !== 'object' || Array.isArray(e.meta)) {
       const { meta: _drop, ...rest } = e;

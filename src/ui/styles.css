@@ -1908,6 +1908,29 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
 /*
+ * The deleted-records section.
+ *
+ * Visually recessed rather than hidden: a deleted record is still a record, and
+ * the whole point of keeping it is that the user can find it again. Dimming and
+ * a dashed edge say "this is out of the list" without saying "this is gone".
+ */
+.trash {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--border);
+}
+
+.trash-body { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s3); }
+
+.trash-hint { color: var(--text-dim); font-size: var(--t-xs); margin: 0; }
+
+.history-item.is-deleted { opacity: 0.62; border-style: dashed; }
+
+.history-item.is-deleted:hover { opacity: 1; }
+
+.history-item.is-deleted .summary { text-decoration: line-through; text-decoration-color: var(--border-strong); }
+
+/*
  * The per-record annotation.
  *
  * Collapsed it is one line: the values as chips, plus a small toggle. Three

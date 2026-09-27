@@ -7,6 +7,7 @@ import {
   addEntry,
   removeEntry,
   clearHistory,
+  visibleEntries,
   filterHistory,
   replayInputs,
   planReplay,
@@ -142,20 +143,34 @@ describe('addEntry', () => {
 });
 
 describe('removeEntry / clearHistory', () => {
-  it('should remove by id', () => {
+  /*
+   * These three asserted the destructive behaviour and are rewritten rather
+   * than deleted: the operation changed from "erase" to "mark", and the old
+   * assertions were pinning the data-loss bug that `test/audit-trail.test.mjs`
+   * now covers in full. Kept here so the shape of the change is visible at the
+   * place it happened.
+   */
+  it('should mark the record deleted rather than removing it', () => {
     const list = addEntry(addEntry([], entry('a')), entry('b'));
     const out = removeEntry(list, list[0].id);
-    expect(out).toHaveLength(1);
-    expect(out[0].kind).toBe('a');
+    // Both records are still in the list; one carries a tombstone.
+    expect(out).toHaveLength(2);
+    expect(out[0].deletedAt).toBeTruthy();
+    expect(visibleEntries(out).map((e) => e.kind)).toEqual(['a']);
   });
 
   it('should ignore an unknown id', () => {
     const list = [entry()];
-    expect(removeEntry(list, 'nope')).toHaveLength(1);
+    const out = removeEntry(list, 'nope');
+    expect(out).toHaveLength(1);
+    expect(out[0].deletedAt).toBeUndefined();
   });
 
-  it('should clear everything', () => {
-    expect(clearHistory()).toEqual([]);
+  it('should mark everything on clear, keeping the records', () => {
+    const list = [entry('a'), entry('b')];
+    const out = clearHistory(list);
+    expect(out).toHaveLength(2);
+    expect(visibleEntries(out)).toEqual([]);
   });
 });
 

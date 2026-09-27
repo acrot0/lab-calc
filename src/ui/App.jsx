@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Icons, ICON_SIZE } from './icons.jsx';
 import {
-  resolveStore, loadHistory, saveHistory, addEntry, removeEntry, clearHistory, planReplay,
-  setEntryMeta, MAX_ENTRIES,
+  resolveStore, loadHistory, saveHistory, addEntry, removeEntry, restoreEntry, clearHistory,
+  planReplay, setEntryMeta, visibleEntries, deletedEntries, MAX_ENTRIES,
 } from './history.mjs';
 import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
@@ -242,7 +242,29 @@ export default function App() {
 
   const record = useCallback((entry) => setEntries((prev) => addEntry(prev, entry)), []);
   const remove = useCallback((id) => setEntries((prev) => removeEntry(prev, id)), []);
-  const clear = useCallback(() => setEntries(clearHistory()), []);
+  const restore = useCallback((id) => setEntries((prev) => restoreEntry(prev, id)), []);
+  /*
+   * `prev` has to be passed through.
+   *
+   * The first version called `clearHistory()` with no argument, which falls
+   * back to its `entries = []` default and returns an empty array — so "clear
+   * all" wiped the tombstones along with the live records, which is precisely
+   * the destruction the audit trail exists to prevent. The module was right and
+   * the call site was wrong, which is why the module's own test stayed green.
+   */
+  const clear = useCallback(() => setEntries((prev) => clearHistory(prev)), []);
+
+  /*
+   * Two views of the same list, split here rather than inside the panel.
+   *
+   * `entries` keeps the deleted records — the file is the archive, and the
+   * audit trail is only real if the record is still in it. Everything that
+   * *presents* history reads `visible`; everything that *stores* it reads
+   * `entries`. Splitting at the boundary is what keeps a deleted record from
+   * reappearing in a count or an export because one caller forgot to filter.
+   */
+  const visible = useMemo(() => visibleEntries(entries), [entries]);
+  const deleted = useMemo(() => deletedEntries(entries), [entries]);
 
   /*
    * Annotating a record writes straight through to state, which the existing
@@ -338,7 +360,8 @@ export default function App() {
               <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
             </Suspense>
           </div>
-          <HistoryPanel entries={entries} onRemove={remove} onReplay={replay} onClear={clear}
+          <HistoryPanel entries={visible} allEntries={entries} deleted={deleted}
+            onRemove={remove} onRestore={restore} onReplay={replay} onClear={clear}
             onImport={importEntries} onMeta={setMeta} />
         </main>
       </div>

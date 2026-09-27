@@ -828,6 +828,16 @@ export const en = {
     replay: 'Reload the inputs from this calculation',
     remove: 'Delete this entry',
     dismiss: 'Dismiss notice',
+    // Deleting marks rather than erases, so there has to be a way back that
+    // the user can actually see and click.
+    trashShow: '{n} deleted',
+    trashHide: 'Hide deleted',
+    trashEmpty: 'Nothing deleted.',
+    trashHint: 'Deleted entries stay here until you restore them.',
+    deletedAt: 'Deleted {at}',
+    restore: 'Restore this entry',
+    restoreAll: 'Restore all',
+    restored: 'Restored {n} entries.',
     exportFailed: "Export failed. Try again.",
   },
   reaction: {

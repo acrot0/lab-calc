@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons, ICON_SIZE } from '../icons.jsx';
-import { filterHistory } from '../history.mjs';
+import { filterHistory, visibleEntries } from '../history.mjs';
 import {
   downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
   detailColumns,
@@ -28,18 +28,29 @@ import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 const Report = lazy(() => import('./Report.jsx'));
 
 export default function HistoryPanel({
-  entries, onRemove, onReplay, onClear, onImport, onMeta,
+  entries, allEntries, deleted = [], onRemove, onRestore, onReplay, onClear, onImport, onMeta,
 }) {
   const { t, locale } = useI18n();
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   const fileRef = useRef(null);
   // Which fields the data view carries. `null` means all of them — see the
   // note on ColumnPicker for why "everything" is the honest default.
   const [columns, setColumns] = useState(null);
   const [colsOpen, setColsOpen] = useState(false);
-  const shown = useMemo(() => filterHistory(entries, query), [entries, query]);
+  /*
+   * Deleted records never reach the list, search or not.
+   *
+   * `filterHistory` returns its input unchanged for an empty query, so without
+   * this the deleted records would show up in the list whenever the search box
+   * was empty — which is most of the time. Belt and braces with the caller
+   * passing `visibleEntries`, because this component is also mounted directly
+   * by tests and by any future caller that hands it the raw list.
+   */
+  const live = useMemo(() => visibleEntries(entries), [entries]);
+  const shown = useMemo(() => filterHistory(live, query), [live, query]);
   // What the data view could offer, computed from the records actually being
   // exported rather than from the whole history — the picker must not offer a
   // column the file will not contain.
@@ -53,7 +64,10 @@ export default function HistoryPanel({
     // the user is looking at, rather than whatever language wrote the record.
     const rows = shown.map((e) => ({ ...e, summary: recordSummary(e, t) }));
     if (format === 'csv') downloadCsv(rows, locale);
-    else if (format === 'json') downloadBundle(entries);
+    // The backup is the archive, deleted records included. Excluding them
+    // would make "export a backup, then delete the app data" lose the very
+    // records the audit trail exists to keep.
+    else if (format === 'json') downloadBundle(allEntries ?? entries);
     else if (format === 'xlsx' || format === 'xlsxData') {
       // Async because the .xlsx writer is fetched on demand — see the note on
       // `downloadXlsx`. A failure here is a fetch that did not arrive, which is
@@ -97,17 +111,18 @@ export default function HistoryPanel({
   async function doImport(file) {
     if (!file) return;
     const result = parseBundle(await file.text());
+    const source = allEntries ?? entries;
     if (!result.ok) {
       setNotice({ kind: 'err', text: t(`history.importErr_${result.code}`) });
     } else if (result.entries.length === 0) {
       setNotice({ kind: 'err', text: t('history.importErr_empty') });
     } else {
-      const before = entries.length;
+      const before = source.length;
       onImport(result.entries);
       // The count reported is what the merge actually kept, not what the file
       // held — otherwise importing the same file twice claims new records.
       const dup = before + result.entries.length - new Set(
-        [...entries, ...result.entries].map((e) => e.id),
+        [...source, ...result.entries].map((e) => e.id),
       ).size;
       const key = dup > 0 ? 'history.importDup' : 'history.importOk';
       const extra = result.dropped > 0 ? t('history.importDropped', { dropped: result.dropped }) : '';
@@ -123,7 +138,7 @@ export default function HistoryPanel({
           <Icons.history size={ICON_SIZE.inline} style={{ verticalAlign: '-2px', marginRight: 6 }} aria-hidden="true" />
           {t('history.title')}
         </h2>
-        {entries.length > 0 && (
+        {(allEntries ?? entries).length > 0 && (
           <div className="head-actions">
             <div className="export-wrap">
               <button
@@ -175,7 +190,16 @@ export default function HistoryPanel({
               aria-label={t('history.import')}
               onChange={(e) => doImport(e.target.files?.[0])}
             />
-            <button className="link-btn" onClick={onClear}>{t('history.clearAll')}</button>
+            {/* Disabled when there is nothing left to clear: the button marks
+                records rather than erasing them, so with an empty live list it
+                would silently do nothing and look broken. */}
+            <button
+              className="link-btn"
+              onClick={onClear}
+              disabled={live.length === 0}
+            >
+              {t('history.clearAll')}
+            </button>
           </div>
         )}
       </div>
@@ -196,7 +220,7 @@ export default function HistoryPanel({
         </div>
       )}
 
-      {entries.length > 0 && (
+      {live.length > 0 && (
         <div className="search">
           <Icons.search size={ICON_SIZE.inline} aria-hidden="true" />
           <label className="sr-only" htmlFor="hist-search">{t('history.search')}</label>
@@ -210,7 +234,7 @@ export default function HistoryPanel({
         </div>
       )}
 
-      {entries.length === 0 ? (
+      {live.length === 0 ? (
         <div className="empty">
           <ArtEmptyHistory />
           {t('history.empty')}<br />
@@ -256,14 +280,87 @@ export default function HistoryPanel({
       )}
 
       {/*
+        The way back.
+        Deleting marks rather than erases, but a mark nobody can reach is the
+        same as an erasure from where the user is standing. This section is the
+        only thing that makes the audit trail true rather than merely stored.
+      */}
+      {deleted.length > 0 && (
+        <div className="trash">
+          <button
+            className="link-btn"
+            onClick={() => setTrashOpen((v) => !v)}
+            aria-expanded={trashOpen}
+          >
+            <Icons.remove size={ICON_SIZE.inline} style={{ verticalAlign: '-1px', marginRight: 3 }} aria-hidden="true" />
+            {trashOpen ? t('history.trashHide') : t('history.trashShow', { n: deleted.length })}
+          </button>
+          {trashOpen && (
+            <div className="trash-body">
+              <p className="trash-hint">{t('history.trashHint')}</p>
+              <div className="history-list">
+                {deleted.map((e) => {
+                  const summary = recordSummary(e, t);
+                  return (
+                    <div className="history-item is-deleted" key={e.id}>
+                      <div className="body">
+                        <div className="summary">{summary}</div>
+                        <div className="when">
+                          {t('history.deletedAt', { at: new Date(e.deletedAt).toLocaleString() })}
+                        </div>
+                      </div>
+                      <button
+                        className="icon-btn"
+                        title={t('history.restore')}
+                        aria-label={`${t('history.restore')}: ${summary}`}
+                        onClick={() => onRestore(e.id)}
+                      >
+                        <Icons.replay size={ICON_SIZE.inline} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Bulk restore, because "clear all" is a bulk action and its
+                  undo has to be one too — otherwise recovering 200 records is
+                  200 clicks, which is a different thing from an undo. */}
+              {deleted.length > 1 && (
+                <button
+                  className="link-btn"
+                  onClick={() => {
+                    deleted.forEach((e) => onRestore(e.id));
+                    setNotice({ kind: 'ok', text: t('history.restored', { n: deleted.length }) });
+                  }}
+                >
+                  {t('history.restoreAll')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/*
         Print-only, and portalled to <body> rather than rendered here.
         The print stylesheet hides `.app`, and this panel is inside `.app` —
         so rendering the report in place meant the rule that reveals the report
         and the rule that hides the app cancelled out, and the printed page was
         blank. It has to be a sibling of the app, not a descendant.
       */}
+      {/*
+        The Suspense boundary is not decoration.
+        `Report` is `lazy`, and this portal has no boundary above it — React
+        bubbles a suspended child up to the nearest one, and there is none, so
+        the *entire app* unmounts to its fallback while the chunk downloads.
+        On a cold load that is a blank page; in a test it is an empty container
+        with nothing logged, which is how it was found. `null` is the right
+        fallback: the report is print-only and invisible on screen, so there is
+        nothing to show while it is absent.
+      */}
       {typeof document !== 'undefined' && createPortal(
-        <Report entries={shown.map((e) => ({ ...e, summary: recordSummary(e, t) }))} />,
+        <Suspense fallback={null}>
+          <Report entries={shown.map((e) => ({ ...e, summary: recordSummary(e, t) }))} />
+        </Suspense>,
         document.body,
       )}
     </div>
