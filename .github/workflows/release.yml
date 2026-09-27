@@ -139,3 +139,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release edit "${GITHUB_REF_NAME}" --notes-file "docs/releases/v${GITHUB_REF_NAME#v}.md" --draft
+
+      - name: Assert the release carries what the README promises
+        # The install table offers four ways to get the app; v0.9.1 and v0.9.2
+        # each shipped one of them, and the table kept offering the other three
+        # until someone clicked. This compares the two while both are in hand.
+        #
+        # A draft release is still a release as far as the API is concerned, so
+        # this runs before publishing — which is the point. The step fails the
+        # job, and the failure is a missing attachment rather than a 404 a
+        # chemist finds a week later.
+        #
+        # `gh` needs the token explicitly here: `GITHUB_TOKEN` is not in the
+        # environment of a step unless it is put there, and the runner's `gh`
+        # has no other credentials.
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/check-release-assets.mjs "${GITHUB_REF_NAME}"

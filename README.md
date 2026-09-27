@@ -14,13 +14,13 @@
 | **主题** | 11 套（含 Catppuccin、Rosé Pine、Gruvbox、Solarized）+ 跟随系统 + 自定义强调色/圆角/密度/动效 |
 | **导出** | Excel（.xlsx）· CSV · Markdown · PDF 报告 · JSON 备份（可再导入）|
 | **许可** | MIT |
-| **状态** | v0.9.2 · 测试 2087 通过 / 103 文件 · 三平台 CI 全绿 |
+| **状态** | v0.9.2 · 测试 2094 通过 / 104 文件 · 三平台 CI 全绿 |
 
 ```bash
 npm install
 npm run dev      # 开发服务器
 npm run build    # 构建到 dist/，纯静态，可直接托管
-npm test         # 2087 个测试
+npm test         # 2094 个测试
 npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项计算对已知答案的冒烟检查
 ```
 
@@ -158,11 +158,17 @@ Excel 导出把每个输入输出放成独立一列，可直接排序筛选作�
 | 形式 | 体积 | 怎么拿 | 适合 |
 |---|---|---|---|
 | **网页 / PWA** | 0（浏览器缓存） | 打开 <https://acrot0.github.io/lab-calc/>，浏览器菜单选「安装应用」/「添加到主屏幕」 | 最省事。手机、平板、电脑都能装，装完断网也能用 |
-| **Android APK** | 4.5 MB | 下载 `lab-calc-<版本>.apk`，传到手机点击安装 | 要发给别人、或浏览器没有「添加到主屏幕」的场合 |
-| **Windows 免安装** | 268 MB | 下载 `labcalc-v<版本>-win-x64.zip`，解压双击 `LabCalc.exe` | 完全自包含：自带浏览器引擎，不依赖系统组件 |
-| **Windows 安装包（Tauri）** | 待构建 | 同上，走 WebView2 | 体积小、内存低，依赖系统 WebView2（Win11 自带） |
+| **Android APK** | 4.9 MB | 从 [Releases](https://github.com/acrot0/lab-calc/releases/latest) 下载 `lab-calc-<版本>.apk`，传到手机点击安装 | 要发给别人、或浏览器没有「添加到主屏幕」的场合 |
+| **Windows 安装包（Tauri）** | 3.3 MB | 下载 `Lab.Calc_<版本>_x64-setup.exe` | **推荐**。体积小、内存低，用系统 WebView2（Win11 自带） |
+| **Windows 免安装（Electron）** | 125 MB | 下载 `labcalc-v<版本>-win-x64.zip`，解压双击 `LabCalc.exe` | 完全自包含：自带浏览器引擎，不依赖系统组件 |
+
+四个产物都会随 tag 一起附在 release 上，`scripts/check-release-assets.mjs` 在**发布前**比对这张表和实际附件，缺一个就 fail——这张表在 v0.9.1 和 v0.9.2 都只兑现了四分之一，靠的是没人点那个链接才没被发现。
 
 Electron 版和 Tauri 版是同一个应用的两条打包路径，不是两个功能集。前者把浏览器引擎一起带上（所以大，但在任何 Windows 上都一样），后者用系统已有的 WebView2（所以小，但依赖那个组件可用）。**默认用 Tauri 版；机器上 WebView2 缺失或损坏时用 Electron 版。**
+
+体积一栏写的是实测值，不是估计：APK 与 Electron 包的大小来自 `scripts/package-*.mjs` 每次构建的实测输出，安装包来自 `gh release view` 的字节数。写「约 5 MB」看起来更安全，但那个「约」会慢慢替一个不再成立的数字打掩护。
+
+**Android 版目前用调试密钥签名**（`CN=Android Debug`）。它能装、能用、能覆盖安装，但不是发布密钥，也不该被当成发布密钥。换正式密钥需要一份不与任何人共享的 keystore 和 CI 密钥，在那之前这里不假装它是正式签名包。
 
 手机端的计算器是底部抽屉，触控目标 ≥44px，软键盘弹起时抽屉会抬起来让开；横屏时改成左右两栏，键盘在右、输入和读数在左。
 
