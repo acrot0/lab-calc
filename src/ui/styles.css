@@ -81,11 +81,35 @@
   --t-display: calc(34px * var(--density-type));
 
   /*
-   * Motion.
+   * Motion — two duration scales, not one.
    *
-   * Three durations and three curves, named for what they do rather than how
-   * long they are — a rule that wants "something arrives" reaches for
-   * `--dur-enter`, and the value can be retuned in one place.
+   *   --dur-move-*   how long something takes to *travel*
+   *   --dur-fx-*     how long a *state change* takes to register
+   *
+   * The split is the one thing big design systems do that this did not, and it
+   * is what 「动效不如大厂」 was pointing at. A panel sliding across the screen
+   * and a button acknowledging a press are different kinds of event; giving
+   * them the same number makes one feel abrupt and the other sluggish, and no
+   * single value fixes both. Material 3 draws the line at 300/350ms — below it
+   * is feedback, above it is travel.
+   *
+   * This app had one scale (120/180/260/140) used for both, so a hover state
+   * and a window opening were timed by the same token.
+   *
+   *   move-s  350ms   a small element relocating — a chip, a row reordering
+   *   move-m  500ms   a panel or sheet crossing part of the screen
+   *   move-l  650ms   a full-surface transition, e.g. a view swap
+   *
+   *   fx-s    120ms   hover, focus ring, a colour settling
+   *   fx-m    200ms   a value changing, a disclosure opening
+   *   fx-l    300ms   the slowest feedback; anything longer stops reading as
+   *                   a response to the user's action and starts reading as lag
+   *
+   * The two scales must not overlap: the slowest effect is faster than the
+   * fastest move. A test holds that, because collapsing them back into one
+   * scale is exactly the regression this exists to prevent.
+   *
+   * Curves, named for what they do rather than how they are shaped:
    *
    *   --ease       the default: fast out of the gate, gentle into the finish.
    *                Right for anything the user is waiting on, because most of
@@ -102,10 +126,24 @@
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --dur-fast: 120ms;
-  --dur: 180ms;
-  --dur-enter: 260ms;
-  --dur-exit: 140ms;
+
+  /* Movement. */
+  --dur-move-s: 350ms;
+  --dur-move-m: 500ms;
+  --dur-move-l: 650ms;
+
+  /* Feedback. */
+  --dur-fx-s: 120ms;
+  --dur-fx-m: 200ms;
+  --dur-fx-l: 300ms;
+
+  /* The pre-split names, kept because a hundred rules use them. `--dur-fast`
+     and `--dur` are feedback — hover, focus, a colour settling — which is what
+     they were always used for. `--dur-enter`/`--dur-exit` are movement. */
+  --dur-fast: var(--dur-fx-s);
+  --dur: var(--dur-fx-m);
+  --dur-enter: var(--dur-move-s);
+  --dur-exit: var(--dur-fx-l);
 
   /*
    * Fonts — three faces, three jobs, and the display face is no longer a serif.
@@ -767,7 +805,7 @@ select.control {
   background: var(--surface);
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   box-shadow: var(--shadow-3);
-  animation: sheet-in var(--dur) var(--ease);
+  animation: sheet-in var(--dur-move-m) var(--ease-out);
   /* Clear the bar itself, so the last row of the grid is not under it. */
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
@@ -2195,7 +2233,7 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-3);
-  animation: window-in var(--dur) var(--ease);
+  animation: window-in var(--dur-move-s) var(--ease-out);
   overflow: hidden;
 }
 
@@ -2257,7 +2295,7 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
        up too: it then reads as a little breathing room above the keys, which is
        cheaper than a rule that tries to tell the two cases apart. */
     padding-bottom: var(--safe-bottom);
-    animation: sheet-in var(--dur) var(--ease);
+    animation: sheet-in var(--dur-move-m) var(--ease-out);
   }
 
   /* The grab handle's affordance: a bar that says "this is a sheet", so the
@@ -4245,7 +4283,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     border-bottom: none;
     padding-bottom: calc(var(--s5) + env(safe-area-inset-bottom, 0px));
-    animation: sheet-in var(--dur) var(--ease);
+    animation: sheet-in var(--dur-move-m) var(--ease-out);
   }
 }
 
@@ -4514,7 +4552,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   to   { opacity: 1; transform: none; }
 }
 
-.worked { animation: panel-open var(--dur) var(--ease); }
+.worked { animation: panel-open var(--dur-fx-m) var(--ease); }
 
 /* A warning or error appearing. Slightly lateral, because it is a change of
    status rather than new content, and the eye should be caught. */
