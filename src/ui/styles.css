@@ -5073,3 +5073,62 @@ body,
 .molecule-svg .element {
   fill: var(--text);
 }
+
+/*
+ * The export column picker.
+ *
+ * A grid of checkboxes rather than a list of chips: the fields come in two
+ * groups and a reader scanning for "the mass columns" needs to see them
+ * together, which a wrapping chip row does not guarantee once the set is
+ * large. The count beside each group heading is what makes "everything is on"
+ * visible without counting ticks.
+ */
+.col-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  align-items: flex-start;
+  padding: var(--s3);
+  margin-bottom: var(--s3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.col-picker { display: flex; flex-direction: column; gap: var(--s3); width: 100%; }
+.col-picker-group { display: flex; flex-direction: column; gap: var(--s1); }
+
+.col-picker-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+  font-weight: 550;
+}
+
+.col-picker-count { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+.col-picker-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 2px var(--s3);
+}
+
+.col-picker-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--t-xs);
+  color: var(--text);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.col-picker-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-picker-item input { flex-shrink: 0; accent-color: var(--accent); }

@@ -4,8 +4,10 @@ import { Icons, ICON_SIZE } from '../icons.jsx';
 import { filterHistory } from '../history.mjs';
 import {
   downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
+  detailColumns,
 } from '../export.mjs';
 import EntryMeta from './EntryMeta.jsx';
+import ColumnPicker from './ColumnPicker.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import { recordSummary } from '../summaries.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
@@ -33,7 +35,15 @@ export default function HistoryPanel({
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState(null);
   const fileRef = useRef(null);
+  // Which fields the data view carries. `null` means all of them — see the
+  // note on ColumnPicker for why "everything" is the honest default.
+  const [columns, setColumns] = useState(null);
+  const [colsOpen, setColsOpen] = useState(false);
   const shown = useMemo(() => filterHistory(entries, query), [entries, query]);
+  // What the data view could offer, computed from the records actually being
+  // exported rather than from the whole history — the picker must not offer a
+  // column the file will not contain.
+  const available = useMemo(() => detailColumns(shown), [shown]);
 
   // Export what is currently visible, not the whole history — after a search,
   // "export" plainly means "export these results".
@@ -53,7 +63,7 @@ export default function HistoryPanel({
       // ways, and the only thing the menu decides is which. Record is listed
       // first because it is the one that fits on screen — see `xlsxPlan`.
       const view = format === 'xlsxData' ? 'data' : 'record';
-      downloadXlsx(rows, { locale, view })
+      downloadXlsx(rows, { locale, view, columns: columns ?? undefined })
         .catch(() => setNotice({ kind: 'err', text: t('history.exportFailed') }));
     } else downloadMarkdown(rows, locale);
   }
@@ -139,6 +149,11 @@ export default function HistoryPanel({
                   <button role="menuitem" onClick={() => doExport('xlsxData')}>
                     <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportXlsxData')}
                   </button>
+                  {/* Opens a picker rather than exporting: choosing columns is
+                      a step before the export, not a kind of export. */}
+                  <button role="menuitem" onClick={() => { setMenuOpen(false); setColsOpen((v) => !v); }}>
+                    <Icons.meta size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.colPicker')}
+                  </button>
                   <button role="menuitem" onClick={() => doExport('json')}>
                     <Icons.json size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportJson')}
                   </button>
@@ -164,6 +179,15 @@ export default function HistoryPanel({
           </div>
         )}
       </div>
+
+      {colsOpen && (
+        <div className="col-picker-wrap">
+          <ColumnPicker available={available} selected={columns} onChange={setColumns} />
+          <button type="button" className="link-btn" onClick={() => setColsOpen(false)}>
+            {t('history.metaDone')}
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div className={`notice notice-${notice.kind}`} role="status">

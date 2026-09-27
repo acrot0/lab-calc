@@ -244,7 +244,7 @@ const DETAIL_META = { zh: ['时间', '类型', '说明'], en: ['Time', 'Type', '
 const detailMeta = (locale) => DETAIL_META[locale] ?? DETAIL_META.zh;
 
 /** Every input/output key across the set, in first-seen order. */
-function detailColumns(entries) {
+export function detailColumns(entries) {
   const inputKeys = [];
   const outputKeys = [];
   for (const e of entries ?? []) {
