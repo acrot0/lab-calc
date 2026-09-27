@@ -605,7 +605,19 @@ select.control {
   position: sticky;
   top: var(--s4);
   z-index: 20;
-  width: 56px;
+  /*
+   * 68px, not 56px.
+   *
+   * The old width was sized for a 38px item in a rail with no scrollbar. The
+   * list scrolls now (twenty destinations cannot fit a laptop height), and
+   * measured at 56px the arithmetic left the items 29px wide — narrower than
+   * the 24px icon they hold plus its 9px padding, so the icons sat against the
+   * scrollbar. 68 = 8 padding + 44 item + 8 scrollbar + 8 padding.
+   *
+   * The rail is sticky and the content column reflows around it, so the extra
+   * 12px comes out of the gutter rather than out of anything the user reads.
+   */
+  width: 68px;
   max-height: calc(100dvh - var(--s10));
   padding: var(--s2);
   background: var(--chrome);
@@ -629,6 +641,35 @@ select.control {
   gap: var(--s1);
   min-height: 0;
   overflow-y: auto;
+  /*
+   * `flex: 1` — the list takes the rail's remaining height and scrolls inside
+   * it, instead of shrinking to fit.
+   *
+   * Without this the list is `flex: 0 1 auto`, so it *shrinks*, and the items
+   * inside it are squashed rather than scrolled. Measured: 20 items at a
+   * specified 38px rendered at 35.27px, because the container gave them less
+   * room and `height` on a flex item yields to the parent's squeeze. The
+   * `overflow-y: auto` below was never reached — there was nothing to scroll,
+   * the content had already been compressed to fit.
+   *
+   * That is also why the touch targets were under the 44px floor: not a padding
+   * mistake but arithmetic. Twenty destinations need 20 × 44 = 880px plus gaps;
+   * a 900px window offers about 800. Something has to give, and the right thing
+   * to give is the scroll, not the target size.
+   */
+  flex: 1 1 auto;
+  /*
+   * `thin`, because the default scrollbar is 16px of a 39px column.
+   *
+   * Measured before this line: the inner list was 39px wide, the scrollbar took
+   * 16 of it, and the items were left 23px — narrower than the icon they hold.
+   * A scrollbar wider than a third of its container is not a scrollbar, it is a
+   * second column.
+   *
+   * Same declaration the history list already uses, so the two scrollbars in
+   * the app are the same width.
+   */
+  scrollbar-width: thin;
 }
 
 /* The toggle is separated by a rule: it is the one control in the rail that is
@@ -647,9 +688,21 @@ select.control {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  /* Fixed height rather than padding: the icon must not shift when the label
-     appears beside it, and the icon is the only thing visible when collapsed. */
-  height: 38px;
+  /*
+   * Fixed height rather than padding: the icon must not shift when the label
+   * appears beside it, and the icon is the only thing visible when collapsed.
+   *
+   * 44px, the same floor the mobile bar and every other control in the app
+   * meets. It was 38, which measured 35.27 once the list was being squeezed —
+   * and on a touch laptop the rail is the only navigation there is, since the
+   * bottom bar is hidden above 940px. A 35px target is one a thumb misses.
+   *
+   * Safe to raise because `.rail-inner` scrolls (see `flex: 1` there): the list
+   * is taller than its container at twenty items whatever this number is, and
+   * the choice is between a scroll and a squashed target, not between a scroll
+   * and no scroll.
+   */
+  height: 44px;
   padding: 0 9px;
   background: none;
   border: none;
@@ -661,6 +714,7 @@ select.control {
   font-weight: 500;
   text-align: left;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 
@@ -981,10 +1035,11 @@ select.control {
 }
 
 @media (min-width: 941px) {
-  /* 56px, the collapsed width — not the 208px it expands to. Reserving the
-     expanded width would leave a permanent 152px gutter and defeat the point
-     of collapsing at all. */
-  .shell { grid-template-columns: 56px minmax(0, 1fr); }
+  /* The collapsed width — not the 208px it expands to. Reserving the expanded
+     width would leave a permanent 140px gutter and defeat the point of
+     collapsing at all. Must match `.rail`'s own width or the rail overlaps the
+     content it sits beside. */
+  .shell { grid-template-columns: 68px minmax(0, 1fr); }
   .rail { display: flex; }
   .mobile-nav { display: none; }
 

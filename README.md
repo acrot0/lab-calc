@@ -20,7 +20,7 @@
 npm install
 npm run dev      # 开发服务器
 npm run build    # 构建到 dist/，纯静态，可直接托管
-npm test         # 2064 个测试
+npm test         # 2067 个测试
 npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项计算对已知答案的冒烟检查
 ```
 

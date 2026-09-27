@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { PRIMARY_TABS, isPrimary, primaryTabs, secondaryTabs } from '../src/ui/nav.mjs';
 
 /*
@@ -63,5 +64,53 @@ describe('phone navigation', () => {
   it('should not offer a tab in the bar that is also in the sheet', () => {
     for (const id of PRIMARY_TABS) expect(isPrimary(id)).toBe(true);
     expect(isPrimary('convert')).toBe(false);
+  });
+});
+
+/*
+ * The desktop rail's touch targets, read out of the stylesheet.
+ *
+ * The rail is the only navigation above 940px — the bottom bar is hidden there
+ * — so on a touch laptop it is what a thumb has to hit. Measured in the browser
+ * before this test existed: the items were 35.27px tall, because `.rail-inner`
+ * was `flex: 0 1 auto` and *shrank* to fit twenty destinations rather than
+ * scrolling, squashing the items inside it. The `overflow-y: auto` was never
+ * reached: there was nothing to scroll, the content had already been compressed.
+ *
+ * A rendered-size assertion would need a browser and a layout engine. Reading
+ * the two declarations that decide it is enough to catch the regression, and it
+ * fails on the actual cause rather than on a symptom — 44px is no use if the
+ * container is allowed to shrink it again.
+ */
+describe('rail touch targets', () => {
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+  const rule = (selector) => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(css);
+    return m ? m[1] : null;
+  };
+
+  it('should give a rail item at least the 44px touch floor', () => {
+    const body = rule('.rail-item');
+    expect(body, '.rail-item rule not found').not.toBeNull();
+    const m = /height:\s*(\d+)px/.exec(body);
+    expect(m, '.rail-item has no fixed height').not.toBeNull();
+    expect(Number(m[1])).toBeGreaterThanOrEqual(44);
+  });
+
+  it('should let the rail list scroll rather than shrink', () => {
+    // `flex: 1 1 auto` is the line that makes `overflow-y: auto` reachable.
+    // Without it the list shrinks and squashes its children instead.
+    const body = rule('.rail-inner');
+    expect(body, '.rail-inner rule not found').not.toBeNull();
+    expect(body).toMatch(/flex:\s*1/);
+    expect(body).toMatch(/overflow-y:\s*auto/);
+  });
+
+  it('should keep the rail items from shrinking once the list scrolls', () => {
+    // Belt and braces: a flex item in a column can still be compressed by a
+    // smaller parent even when its own height is set.
+    const body = rule('.rail-item');
+    expect(body).toMatch(/flex-shrink:\s*0/);
   });
 });
