@@ -105,6 +105,20 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
+          # `tauri-action` defaults to `npm run tauri build`, and this repository
+          # has no `tauri` script — the local build goes through
+          # `scripts/package-tauri.mjs`, which exists to find cargo and to give a
+          # useful error when it is missing. Neither is needed here: the
+          # toolchain step above puts cargo on the PATH, and this runner has the
+          # MSVC linker.
+          #
+          # The script's only pre-build work is syncing the version into
+          # `tauri.conf.json` and `Cargo.toml`, and the gate above now fails the
+          # release if they disagree — so nothing is lost by calling the CLI
+          # directly, and the frontend build still runs through
+          # `beforeBuildCommand`.
+          tauriScript: npx tauri
+          args: --bundles nsis
           tagName: ${{ github.ref_name }}
           releaseName: 'Lab Calc ${{ github.ref_name }}'
           releaseBody: ''
