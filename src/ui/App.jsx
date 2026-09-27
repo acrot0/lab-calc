@@ -274,7 +274,6 @@ export default function App() {
           <BrandMark size={30} />
           <div className="brand-text">
             <h1>{t('app.title')}</h1>
-            <p className="brand-sub">{t('app.tagline')}</p>
           </div>
         </div>
         <div className="topbar-actions">

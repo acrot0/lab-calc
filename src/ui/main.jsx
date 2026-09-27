@@ -2,37 +2,33 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 
 /*
- * Three typefaces, each with a job.
+ * Two typefaces, each with a job.
  *
  * `wght.css` rather than `index.css`: the variable build ships one file per
  * axis and `index.css` pulls in every axis the family has. Only weight is used
  * here, so the axes nobody asked for would be bytes on every load.
  *
- * Instrument Serif for the brand and headings, Geist for the interface,
- * JetBrains Mono for anything numeric. The split is not decoration — it is the
- * same division a technical document makes: a display face for the few words
- * that carry identity, a neutral face for the many that carry information, and
- * a monospaced face wherever digits must line up in a column.
+ * Geist for the interface and the headings, JetBrains Mono for anything
+ * numeric. The split is not decoration — it is the same division a technical
+ * document makes: a face for the words that carry identity and information,
+ * and a monospaced face wherever digits must line up in a column.
  *
- * Space Grotesk was the display face before Instrument Serif replaced it, and
- * its import outlived the change: no rule referenced it any more, so the files
- * were built and shipped for nothing. Removed rather than left, because a
- * face that is loaded but unused is invisible in review and permanent in the
- * bundle.
+ * There were three until recently. Instrument Serif held the headings, and it
+ * was a Latin-only face asked to render two Chinese ones — so those two fell
+ * through to the system serif and the app had two display faces it never
+ * chose. The full reasoning is on `--font-display` in `styles.css`. Both
+ * remaining faces are OFL-1.1, so the licence check passes unchanged.
  *
- * All three are OFL-1.1, so the licence check passes unchanged. Chinese is
- * deliberately NOT loaded: a CJK webfont is several megabytes, and the system
- * fallbacks (PingFang SC, Microsoft YaHei) are already on every machine that
- * would read it.
+ * Chinese is deliberately NOT loaded: a CJK webfont is several megabytes, and
+ * the system fallbacks (PingFang SC, Microsoft YaHei) are already on every
+ * machine that would read it. Measured before choosing: Noto Serif SC pulls
+ * 500 KB of subset files for the fourteen characters in the drawer title,
+ * because a CJK face cannot be subset per-glyph the way a Latin one can.
  *
- * `instrument-serif` is Latin-only by design, and that is not a gap. Measured
- * before choosing: the same heading in Noto Serif SC pulls 500 KB of subset
- * files for the fourteen characters in the drawer title, because a CJK face
- * cannot be subset per-glyph the way a Latin one can. Latin headings take the
- * serif; Chinese ones fall through to the system serif (`Songti SC`, `SimSun`),
- * which is the correct face for the script and costs nothing.
+ * A face whose import outlives its last rule is invisible in review and
+ * permanent in the bundle — Space Grotesk did that, and then Instrument Serif
+ * did it. Check that a removal also removed the import.
  */
-import '@fontsource/instrument-serif/400.css';
 import '@fontsource-variable/geist/wght.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
 import './styles.css';

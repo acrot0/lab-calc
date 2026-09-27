@@ -108,37 +108,43 @@
   --dur-exit: 140ms;
 
   /*
-   * Fonts — four faces, four jobs.
+   * Fonts — three faces, three jobs, and the display face is no longer a serif.
    *
-   * `--font-display` is the headline face, and it is a **serif**.
+   * It was Instrument Serif: a high-contrast Latin serif chosen for the
+   * wordmark, on the pairing the reference products in this space converged on.
+   * The reasoning was sound and the result was not, for a reason that has
+   * nothing to do with taste. Measured against the three rules that ask for it:
    *
-   * The pairing is the one the reference products in this space converged on:
-   * a high-contrast serif for the wordmark and headings against a clean
-   * sans for everything else. Instrument Serif carries far more character at
-   * 28px than Space Grotesk did, which is what "the title has no personality"
-   * was about — and at that size the contrast costs nothing in legibility.
+   *     .brand h1            `Lab Calc`   — Latin, renders
+   *     .nav-sheet-head h2   `全部功能`    — Chinese, no glyphs
+   *     .calc-head h2        `计算器`      — Chinese, no glyphs
    *
-   * It ships at weight 400 only, so the headings that use it must not ask for
-   * 700: a browser given one weight will synthesise a bold by smearing the
-   * outline, which looks like a rendering fault. The rules below set 400 and
-   * get their emphasis from size and letter-spacing instead.
+   * Instrument Serif has no CJK coverage, so two of the three headings fell
+   * through to `Songti SC` / `SimSun` — a different typeface from the one the
+   * stylesheet names, on every machine, since the day those rules were written.
+   * The comment here used to call that "the intended face". It was not intended;
+   * it was what happened. A Latin serif and a Chinese system serif side by side
+   * in one header is the thing that reads as "the font is wrong", and no amount
+   * of adjusting the Latin half could fix it.
    *
-   * The Chinese counterpart is not a separate variable: it is the tail of this
-   * one's own stack. Instrument Serif has no CJK glyphs, so a Chinese heading
-   * falls through to `Songti SC` / `SimSun` — which is the intended face, not a
-   * failure to load. A dedicated CJK webfont was measured and rejected: Noto
-   * Serif SC is 500 KB of subset files for the fourteen characters in the
-   * drawer title, because a CJK face cannot be subset per-glyph. The system
-   * serifs are already on every machine that reads Chinese.
+   * So the display face is Geist — the same family as the interface, already
+   * imported, now at 600 for the two places that want emphasis. The headings
+   * and the labels finally come from one family, and the CJK tail is the same
+   * stack the body text falls through to, so Chinese and Latin headings are
+   * consistent with each other rather than merely each internally consistent.
    *
-   * `--font` is the interface face. Geist is engineered for UI constraints —
-   * tight grids, dark themes, small sizes — which is exactly this app.
+   * This costs zero new bytes: Instrument Serif's import is gone and Geist's
+   * was already there. A dedicated CJK webfont remains rejected on the same
+   * measurement as before — Noto Serif SC is 500 KB of subset files for the
+   * fourteen characters in the drawer title, because a CJK face cannot be
+   * subset per-glyph. The system stack is already on every machine that reads
+   * Chinese.
    *
    * `--font-num` is for anything a reader compares down a column: results,
    * table cells, history values. Tabular figures make 1.234 and 12.340 line up,
    * which proportional digits do not.
    */
-  --font-display: "Instrument Serif", "Songti SC", "SimSun", "Noto Serif CJK SC", Georgia, serif;
+  --font-display: "Geist Variable", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
   --font: "Geist Variable", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
   --font-num: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
 
@@ -404,11 +410,10 @@ body {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--t-xl);
-  /* 400, not 700: Instrument Serif has one weight, and asking for a bold it
-     does not have makes the browser synthesise one by smearing the outline.
-     A high-contrast serif already reads as heavier than a sans at the same
-     size, so the emphasis comes from the size and the tighter tracking. */
-  font-weight: 400;
+  /* 600, not 700. Geist is a variable face so the weight is real rather than
+     synthesised, and 600 is where a 26px wordmark reads as deliberate without
+     the counters starting to close up. */
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
   background: linear-gradient(
@@ -421,13 +426,6 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-
-.brand-sub {
-  margin: 1px 0 0;
-  font-size: var(--t-xs);
-  color: var(--text-dim);
-  letter-spacing: 0.01em;
 }
 
 .topbar-actions {
@@ -786,7 +784,7 @@ select.control {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--t-lg);
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -2226,9 +2224,8 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--t-lg);
-  /* Weight 400 for the same reason as the wordmark above — the face has one
-     weight, and a synthesised bold of a serif looks like a mistake. */
-  font-weight: 400;
+  /* Weight 600 for the same reason as the wordmark above. */
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -4825,22 +4822,14 @@ body,
     gap: var(--s3);
   }
 
-  /* The brand takes the whole first line, so the subtitle has room to be a
-     sentence rather than a column of characters. */
+  /* The brand takes the whole first line, so the wordmark has room to breathe
+     rather than being a column of characters. */
   .brand {
     flex: 1 1 100%;
     min-width: 0;
   }
 
   .brand-text { flex: 1 1 auto; }
-
-  .brand-sub {
-    /* One line, ellipsised. A wrapped subtitle on a phone pushes the tabs off
-       the first screen, and the tabs are what the user came for. */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
   .topbar-actions {
     /* Both of these are set on the base rule and both fight this one:
