@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useI18n } from '../LocaleContext.jsx';
 import { chartColors } from '../chart-colors.mjs';
+import { useChartDraw, sizeCanvas } from '../chart-animate.mjs';
 import { niceTicks } from './chart-axis.mjs';
 import { fmt } from '../format.mjs';
 
@@ -29,17 +30,12 @@ export default function PhaseDiagram({ result, theme = 'dark', width = 520, heig
   const ref = useRef(null);
   const c = useMemo(() => chartColors(theme), [theme]);
 
-  useEffect(() => {
+  useChartDraw((progress) => {
     const canvas = ref.current;
-    if (!canvas || !result?.exists || !result.curve?.length) return undefined;
+    if (!canvas || !result?.exists || !result.curve?.length) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 54, r: 16, t: 16, b: 40 };
@@ -105,6 +101,11 @@ export default function PhaseDiagram({ result, theme = 'dark', width = 520, heig
         const stable = isLeftOfEutectic ? p.xA <= result.xA : p.xA >= result.xA;
         if (!stable) continue;
         const x = X(p.xA);
+        // The sweep runs along the composition axis, so a point whose x the
+        // reveal has not reached is skipped even when it belongs to the solid
+        // branch — otherwise the stable segment would be drawn to the right of
+        // a liquidus that is still growing towards it.
+        if (x > sweepX) continue;
         const y = Y(p[key]);
         if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
       }
@@ -116,7 +117,7 @@ export default function PhaseDiagram({ result, theme = 'dark', width = 520, heig
       started = false;
       for (const p of curve) {
         const stable = isLeftOfEutectic ? p.xA <= result.xA : p.xA >= result.xA;
-        if (stable) continue;
+        if (stable || X(p.xA) > sweepX) continue;
         const x = X(p.xA);
         const y = Y(p[key]);
         if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
@@ -132,35 +133,54 @@ export default function PhaseDiagram({ result, theme = 'dark', width = 520, heig
      * failure this avoids is a hardcoded hex that reads on one theme and
      * vanishes on another.
      */
+    /*
+     * The sweep runs along the composition axis, left to right.
+     *
+     * The curves are already sampled point by point along x, so unlike the
+     * parametric plots there is nothing to interpolate: the reveal is a cut-off
+     * at `sweepX` and the line is drawn exactly as it will look when finished.
+     * `visibleCount` is not used here because it counts samples, and the sample
+     * spacing is not the axis the reader is watching.
+     */
+    const sweepX = pad.l + pw * Math.min(1, Math.max(0, progress));
+
     // A is the left-hand component: its liquidus is stable up to the eutectic.
     drawCurve('tA', 'tB', true, c.curve);
     drawCurve('tB', 'tA', false, c.fit);
 
     // --- the eutectic -------------------------------------------------------
+    /*
+     * The eutectic is the answer — the composition and temperature where the
+     * two liquidus curves meet — so its crosshair waits for the sweep to arrive
+     * at the composition that defines it. Drawn up front it would be a labelled
+     * point in an empty frame, which is a spoiler rather than a chart.
+     */
     const ex = X(result.xA);
     const ey = Y(result.eutecticTempK);
-    ctx.strokeStyle = c.label;
-    ctx.setLineDash([3, 3]);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(ex, ey);
-    ctx.lineTo(ex, pad.t + ph);
-    ctx.moveTo(pad.l, ey);
-    ctx.lineTo(ex, ey);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (ex <= sweepX) {
+      ctx.strokeStyle = c.label;
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex, pad.t + ph);
+      ctx.moveTo(pad.l, ey);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-    ctx.fillStyle = c.label;
-    ctx.beginPath();
-    ctx.arc(ex, ey, 4, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.fillStyle = c.label;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+      ctx.fill();
 
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(
-      t('physical.eutecticLabel', { temp: fmt(result.eutecticTempC, 4) }),
-      ex + 8, ey - 6,
-    );
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(
+        t('physical.eutecticLabel', { temp: fmt(result.eutecticTempC, 4) }),
+        ex + 8, ey - 6,
+      );
+    }
 
     // --- axis titles --------------------------------------------------------
     ctx.fillStyle = c.label;

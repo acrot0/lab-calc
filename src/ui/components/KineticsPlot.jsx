@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useI18n } from '../LocaleContext.jsx';
 import { chartColors } from '../chart-colors.mjs';
+import { useChartDraw, sizeCanvas } from '../chart-animate.mjs';
 import { niceTicks } from './chart-axis.mjs';
 import { fmt } from '../format.mjs';
 
@@ -28,17 +29,12 @@ export default function KineticsPlot({ points, fit, theme = 'dark', width = 520,
   const ref = useRef(null);
   const c = useMemo(() => chartColors(theme), [theme]);
 
-  useEffect(() => {
+  useChartDraw((progress) => {
     const canvas = ref.current;
-    if (!canvas || !fit || !points?.length) return undefined;
+    if (!canvas || !fit || !points?.length) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 56, r: 16, t: 16, b: 38 };
@@ -98,7 +94,21 @@ export default function KineticsPlot({ points, fit, theme = 'dark', width = 520,
      * falls inside the measured range — the check the parameters alone cannot
      * express.
      */
-    if (fit.km > 0 && fit.km <= xMax) {
+    /*
+     * The curve sweeps left to right and everything that annotates it waits.
+     *
+     * Both the Km crosshair and the data points are read *off* the curve, so
+     * each one is gated on the sweep having passed its x. Drawing them up front
+     * would fill the plot with marks whose curve is missing, and would give
+     * away Km — the number the assay was run to find — before the fit has been
+     * drawn to it.
+     */
+    const steps = 160;
+    const curveSteps = Math.round(steps * Math.min(1, Math.max(0, progress)));
+    const curveX = X((curveSteps / steps) * xMax);
+    const reached = (x) => x <= curveX;
+
+    if (fit.km > 0 && fit.km <= xMax && reached(X(fit.km))) {
       ctx.save();
       ctx.setLineDash([4, 4]);
       ctx.strokeStyle = c.eq;
@@ -130,8 +140,7 @@ export default function KineticsPlot({ points, fit, theme = 'dark', width = 520,
     ctx.strokeStyle = c.curve;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    const steps = 160;
-    for (let i = 0; i <= steps; i++) {
+    for (let i = 0; i <= curveSteps; i++) {
       const s = (i / steps) * xMax;
       const v = (fit.vmax * s) / (fit.km + s);
       const x = X(s);
@@ -143,6 +152,10 @@ export default function KineticsPlot({ points, fit, theme = 'dark', width = 520,
     // --- the measurements ---------------------------------------------------
     for (const p of points) {
       const x = X(p.s);
+      // A measurement the sweep has not reached yet stays off the plot. The
+      // points are the evidence for the curve, so they should arrive with it
+      // rather than ahead of it.
+      if (!reached(x)) continue;
       const y = Y(p.v);
       // A vertical tie from the point to the curve: that segment is the
       // residual, and seeing it is the point of drawing the data at all.
@@ -172,8 +185,6 @@ export default function KineticsPlot({ points, fit, theme = 'dark', width = 520,
     ctx.textBaseline = 'top';
     ctx.fillText(t('bio.axisRate'), 0, 0);
     ctx.restore();
-
-    return undefined;
   }, [points, fit, width, height, c, t]);
 
   if (!fit || !points?.length) return null;

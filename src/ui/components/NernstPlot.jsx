@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useI18n } from '../LocaleContext.jsx';
 import { chartColors } from '../chart-colors.mjs';
+import { useChartDraw, visibleCount, sizeCanvas } from '../chart-animate.mjs';
 import { niceTicks } from './chart-axis.mjs';
 import { fmt } from '../format.mjs';
 
@@ -32,17 +33,12 @@ export default function NernstPlot({ line, theme = 'dark', width = 520, height =
   const ref = useRef(null);
   const c = useMemo(() => chartColors(theme), [theme]);
 
-  useEffect(() => {
+  useChartDraw((progress) => {
     const canvas = ref.current;
-    if (!canvas || !line?.points?.length) return undefined;
+    if (!canvas || !line?.points?.length) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 56, r: 16, t: 16, b: 38 };
@@ -135,18 +131,30 @@ export default function NernstPlot({ line, theme = 'dark', width = 520, height =
     }
 
     // --- the line -----------------------------------------------------------
+    // The line is swept left to right because that is the direction the axis
+    // runs: the reader's eye follows Q upward and the potential falls away from
+    // them, which is the relationship the chart exists to show.
+    const last = visibleCount(progress, points.length) - 1;
     ctx.strokeStyle = c.curve;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    for (let i = 0; i < points.length; i++) {
+    for (let i = 0; i <= last; i++) {
       const x = X(points[i].logQ);
       const y = Y(points[i].e);
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.stroke();
 
+    /*
+     * Everything below marks a point *on* the line, so each waits for the sweep
+     * to reach its x. Drawing them up front would put a floating dot in empty
+     * space and, worse, answer the question the chart asks — "where does the
+     * cell stop driving the reaction" — before the curve has been drawn to it.
+     */
+    const reached = (logQ) => last >= 0 && points[last].logQ >= logQ;
+
     // --- the crossing, when the range reaches it ----------------------------
-    if (line.zeroCrossing != null) {
+    if (line.zeroCrossing != null && reached(line.zeroCrossing)) {
       const x = X(line.zeroCrossing);
       ctx.fillStyle = c.eq;
       ctx.beginPath();
@@ -164,7 +172,7 @@ export default function NernstPlot({ line, theme = 'dark', width = 520, height =
 
     // --- the cell's own operating point --------------------------------------
     const op = line.operatingPoint;
-    if (op.logQ >= logQMin && op.logQ <= logQMax) {
+    if (op.logQ >= logQMin && op.logQ <= logQMax && reached(op.logQ)) {
       ctx.save();
       ctx.setLineDash([3, 4]);
       ctx.strokeStyle = c.point;
@@ -200,8 +208,6 @@ export default function NernstPlot({ line, theme = 'dark', width = 520, height =
     ctx.textBaseline = 'top';
     ctx.fillText(t('electro.axisPotential'), 0, 0);
     ctx.restore();
-
-    return undefined;
   }, [line, width, height, c, t]);
 
   if (!line?.points?.length) return null;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useChartDraw, sizeCanvas } from '../chart-animate.mjs';
 import { beerLambert, standardCurve, predictFromCurve, LINEAR_ABSORBANCE_MAX } from '../../calc/reagent.mjs';
 import { NumField, Result, Warn, Err, Worked } from '../components/Fields.jsx';
 import { UncertaintyPanel, Contribution } from '../components/UncertaintyPanel.jsx';
@@ -21,14 +22,11 @@ function CurvePlot({ points, fit, reading, width = 520, height = 220, theme = 'd
     grid: c.grid, label: c.label, line: c.curve, dot: c.point, read: c.eq,
   }), [c]);
 
-  useEffect(() => {
-    const c = ref.current;
-    if (!c || points.length === 0) return;
-    const dpr = window.devicePixelRatio || 1;
-    c.width = width * dpr; c.height = height * dpr;
-    c.style.width = `${width}px`; c.style.height = `${height}px`;
-    const ctx = c.getContext('2d');
-    ctx.scale(dpr, dpr);
+  useChartDraw((progress) => {
+    const canvas = ref.current;
+    if (!canvas || points.length === 0) return;
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 52, r: 16, t: 14, b: 32 };
@@ -57,22 +55,35 @@ function CurvePlot({ points, fit, reading, width = 520, height = 220, theme = 'd
       ctx.textAlign = 'center'; ctx.fillText(v.toFixed(2), X(v), height - 10);
     }
 
+    /*
+     * The fitted line is swept left to right, and both the standards and the
+     * reading wait behind it.
+     *
+     * The line is a *fit to the standards*, so the standards are its evidence —
+     * they should arrive with it, not stand there as loose dots the line then
+     * happens to pass through. The reading line is the quantity being inverted,
+     * which is the answer, so it comes last of all.
+     */
+    const sweepX = pad.l + pw * Math.min(1, Math.max(0, progress));
+
     // Fitted line
     ctx.strokeStyle = palette.line;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(X(xMin), Y(fit.slope * xMin + fit.intercept));
-    ctx.lineTo(X(xMax), Y(fit.slope * xMax + fit.intercept));
+    ctx.lineTo(X(Math.min(xMax, xMin + ((sweepX - pad.l) / pw) * (xMax - xMin))),
+      Y(fit.slope * Math.min(xMax, xMin + ((sweepX - pad.l) / pw) * (xMax - xMin)) + fit.intercept));
     ctx.stroke();
 
     // Standard points
     ctx.fillStyle = palette.dot;
     for (const p of points) {
+      if (X(p.x) > sweepX) continue;
       ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill();
     }
 
     // The reading being inverted
-    if (reading != null) {
+    if (reading != null && progress >= 1) {
       ctx.strokeStyle = palette.read;
       ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(pad.l, Y(reading)); ctx.lineTo(width - pad.r, Y(reading)); ctx.stroke();
@@ -104,17 +115,12 @@ function ResidualPlot({ points, fit, width = 520, height = 110, theme = 'dark' }
   const c = useMemo(() => chartColors(theme), [theme]);
   const palette = useMemo(() => ({ grid: c.grid, label: c.label, dot: c.point }), [c]);
 
-  useEffect(() => {
-    const c = ref.current;
-    if (!c || !fit?.residuals?.length) return;
+  useChartDraw((progress) => {
+    const canvas = ref.current;
+    if (!canvas || !fit?.residuals?.length) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    c.width = width * dpr;
-    c.height = height * dpr;
-    c.style.width = `${width}px`;
-    c.style.height = `${height}px`;
-    const ctx = c.getContext('2d');
-    ctx.scale(dpr, dpr);
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 52, r: 16, t: 12, b: 22 };
@@ -145,8 +151,13 @@ function ResidualPlot({ points, fit, width = 520, height = 110, theme = 'dark' }
     ctx.fillText('0', pad.l - 6, Y(0) + 3);
     ctx.fillText(`-${span.toFixed(3)}`, pad.l - 6, pad.t + ph);
 
+    // The residuals are read left to right in the same order as the standards
+    // above, so they arrive in that order too — and only after the calibration
+    // line has been drawn, since they are what that line got wrong.
+    const sweepX = pad.l + pw * Math.min(1, Math.max(0, progress));
     ctx.fillStyle = palette.dot;
     points.forEach((p, i) => {
+      if (X(p.x) > sweepX) return;
       ctx.beginPath();
       ctx.arc(X(p.x), Y(fit.residuals[i]), 3.5, 0, Math.PI * 2);
       ctx.fill();

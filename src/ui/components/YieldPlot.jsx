@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
+import { useChartDraw, visibleCount, sizeCanvas } from '../chart-animate.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { chartColors } from '../chart-colors.mjs';
 import { niceTicks } from './chart-axis.mjs';
@@ -40,17 +41,12 @@ export default function YieldPlot({ sweep, theme = 'dark', width = 520, height =
   const ref = useRef(null);
   const c = useMemo(() => chartColors(theme), [theme]);
 
-  useEffect(() => {
+  useChartDraw((progress) => {
     const canvas = ref.current;
-    if (!canvas || !sweep?.points?.length) return undefined;
+    if (!canvas || !sweep?.points?.length) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 62, r: 16, t: 16, b: 40 };
@@ -113,8 +109,13 @@ export default function YieldPlot({ sweep, theme = 'dark', width = 520, height =
     ctx.fillText(`${sweep.yieldOf} (g)`, 0, 0);
     ctx.restore();
 
+    // The corner guide and the marker below it arrive together with the lines,
+    // not before them: a dashed line marking where the run bends, sitting on an
+    // empty grid, gives away the answer before the curve has drawn it.
+    const reveal = progress;
+
     // --- the corner ---------------------------------------------------------
-    if (cornerMoles > 0 && cornerMoles <= xMax) {
+    if (reveal >= 1 && cornerMoles > 0 && cornerMoles <= xMax) {
       ctx.save();
       ctx.setLineDash([4, 4]);
       ctx.strokeStyle = c.eq;
@@ -161,15 +162,24 @@ export default function YieldPlot({ sweep, theme = 'dark', width = 520, height =
     let cornerIdx = points.findIndex((p) => p.molesVary >= cornerMoles);
     if (cornerIdx < 0) cornerIdx = points.length - 1;
 
-    draw(0, cornerIdx, c.curve);
-    draw(cornerIdx, points.length - 1, c.fit);
+    // Both runs share one reveal, so the corner is where the second colour
+    // starts rather than a point the first line reaches on its own. Splitting
+    // the budget by segment length would be more literal and would make the
+    // kink arrive at the wrong moment relative to the marker that names it.
+    const last = visibleCount(reveal, points.length) - 1;
+    draw(0, Math.min(cornerIdx, last), c.curve);
+    if (last > cornerIdx) draw(cornerIdx, last, c.fit);
 
     // --- the corner marker --------------------------------------------------
-    const cp = points[cornerIdx];
-    ctx.fillStyle = c.curve;
-    ctx.beginPath();
-    ctx.arc(X(cp.molesVary), Y(cp.massProduct), 4, 0, Math.PI * 2);
-    ctx.fill();
+    // Pinned to `last`, so it rides the head of the growing line and stops at
+    // the corner instead of appearing there before the curve gets there.
+    if (last >= cornerIdx) {
+      const cp = points[cornerIdx];
+      ctx.fillStyle = c.curve;
+      ctx.beginPath();
+      ctx.arc(X(cp.molesVary), Y(cp.massProduct), 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }, [sweep, c, t, width, height]);
 
   if (!sweep?.points?.length) return null;

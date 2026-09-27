@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useI18n } from '../LocaleContext.jsx';
 import { chartColors } from '../chart-colors.mjs';
+import { useChartDraw, visibleCount, sizeCanvas } from '../chart-animate.mjs';
 import { fmt } from '../format.mjs';
 import { niceTicks } from './chart-axis.mjs';
 
@@ -33,17 +34,12 @@ export default function SpeciationPlot({
   const ref = useRef(null);
   const c = useMemo(() => chartColors(theme), [theme]);
 
-  useEffect(() => {
+  useChartDraw((progress) => {
     const canvas = ref.current;
-    if (!canvas || !curve?.points?.length) return undefined;
+    if (!canvas || !curve?.points?.length) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 46, r: 14, t: 14, b: 38 };
@@ -110,12 +106,16 @@ export default function SpeciationPlot({
     ctx.restore();
 
     // --- the species --------------------------------------------------------
+    // Every curve shares one sweep, so the crossing at pH = pKa — the fact the
+    // chart is drawn to show — arrives as a crossing rather than as two lines
+    // that were each complete before the other started.
     const count = curve.species.length;
+    const last = visibleCount(progress, points.length) - 1;
     for (let s = 0; s < count; s++) {
       ctx.strokeStyle = speciesInk(c, s, count);
       ctx.lineWidth = 2;
       ctx.beginPath();
-      for (let i = 0; i < points.length; i++) {
+      for (let i = 0; i <= last; i++) {
         const x = X(points[i].ph);
         const y = Y(points[i].fractions[s] ?? 0);
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -124,7 +124,10 @@ export default function SpeciationPlot({
     }
 
     // --- where the tab's own calculation sits -------------------------------
-    if (currentPh != null && currentPh >= phMin && currentPh <= phMax) {
+    // Gated on the sweep, like every other marker: this line says "your answer
+    // is here", which means nothing until the curves it sits among are drawn.
+    if (currentPh != null && currentPh >= phMin && currentPh <= phMax
+      && last >= 0 && points[last].ph >= currentPh) {
       ctx.save();
       ctx.strokeStyle = c.point;
       ctx.lineWidth = 2;
@@ -152,8 +155,6 @@ export default function SpeciationPlot({
     ctx.textBaseline = 'top';
     ctx.fillText(t('ph.axisFraction'), 0, 0);
     ctx.restore();
-
-    return undefined;
   }, [curve, currentPh, width, height, c, t]);
 
   if (!curve?.points?.length) return null;

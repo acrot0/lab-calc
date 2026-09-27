@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useChartDraw, visibleCount, sizeCanvas } from '../chart-animate.mjs';
 import {
   titrationCurve, findEquivalencePoint, equivalenceVolumes, locateEquivalencePoint,
 } from '../../calc/curve.mjs';
@@ -62,18 +63,12 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
   // parent render, redrawing an unchanged chart.
   const palette = useMemo(() => chartColors(theme), [theme]);
 
-  useEffect(() => {
+  useChartDraw((progress) => {
     const canvas = ref.current;
     if (!canvas || points.length === 0) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
+    const ctx = sizeCanvas(canvas, width, height);
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
     const pad = { l: 46, r: 16, t: 16, b: 34 };
@@ -126,12 +121,23 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
       ctx.fillRect(x(half * 0.5), pad.t, x(half * 1.5) - x(half * 0.5), plotH);
     }
 
+    /*
+     * The curve sweeps in, and the markers wait for it.
+     *
+     * Every dashed line here names a volume the reader is meant to read off the
+     * curve — the equivalence points and the half-equivalence point where
+     * pH = pKa. Drawing them before the curve arrives puts the answers on the
+     * axis first, which is the one thing a titration curve is for.
+     */
+    const sweepV = maxV * Math.min(1, Math.max(0, progress));
+    const reached = (v) => v <= sweepV;
+
     // One dashed marker per equivalence point — a polyprotic acid has several,
     // and drawing only the first would misrepresent the curve.
     ctx.strokeStyle = palette.eq;
     ctx.setLineDash([4, 4]);
     for (const v of eqVolumes) {
-      if (v > maxV) continue;
+      if (v > maxV || !reached(v)) continue;
       ctx.beginPath();
       ctx.moveTo(x(v), pad.t);
       ctx.lineTo(x(v), pad.t + plotH);
@@ -140,7 +146,7 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
 
     // The half-equivalence point, where pH = pKa. Labelled because the
     // coincidence is the reason the point is worth marking.
-    if (Number.isFinite(firstEq) && firstEq > 0) {
+    if (Number.isFinite(firstEq) && firstEq > 0 && reached(firstEq / 2)) {
       const half = firstEq / 2;
       ctx.beginPath();
       ctx.moveTo(x(half), pad.t);
@@ -152,7 +158,12 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
     ctx.strokeStyle = palette.curve;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    points.forEach((p, i) => (i === 0 ? ctx.moveTo(x(p.volumeMl), y(p.ph)) : ctx.lineTo(x(p.volumeMl), y(p.ph))));
+    const last = visibleCount(progress, points.length) - 1;
+    for (let i = 0; i <= last; i++) {
+      const p = points[i];
+      if (i === 0) ctx.moveTo(x(p.volumeMl), y(p.ph));
+      else ctx.lineTo(x(p.volumeMl), y(p.ph));
+    }
     ctx.stroke();
 
     ctx.fillStyle = palette.label;
