@@ -172,6 +172,7 @@ export const zh = {
     group_light: '浅色主题',
   },
   common: {
+    shareCard: '存为图片',
     formula: '化学式',
     formulaPlaceholder: '如 NaCl、Ca(OH)2、CuSO4·5H2O',
     expressionValue: '表达式结果',

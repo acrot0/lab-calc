@@ -171,6 +171,7 @@ export const en = {
     group_light: 'Light themes',
   },
   common: {
+    shareCard: 'Save as image',
     formula: 'Formula',
     formulaPlaceholder: 'e.g. NaCl, Ca(OH)2, CuSO4·5H2O',
     expressionValue: 'Expression equals',

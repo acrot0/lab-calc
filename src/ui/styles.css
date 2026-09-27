@@ -5310,6 +5310,26 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .worked { animation: panel-open var(--dur-fx-m) var(--ease); }
 
+/*
+ * "Save as image", under the result rows.
+ *
+ * Quiet, because it is a secondary action next to a number the user is reading
+ * — it should be findable when wanted and invisible when not. The top margin
+ * separates it from the last row without a rule, which would read as a section
+ * break rather than as an action.
+ */
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  color: var(--text-dim);
+  font-size: var(--t-sm);
+}
+
+.share-btn:hover:not(:disabled) { color: var(--accent); }
+.share-btn:disabled { opacity: 0.55; cursor: progress; }
+
 /* A warning or error appearing. Slightly lateral, because it is a change of
    status rather than new content, and the eye should be caught. */
 @keyframes msg-in {

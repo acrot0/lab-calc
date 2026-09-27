@@ -3,6 +3,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Card from '../src/ui/components/Card.jsx';
 import { Result } from '../src/ui/components/Fields.jsx';
+import { LocaleProvider } from '../src/ui/LocaleContext.jsx';
 
 /**
  * `Card` splits a tab into a form column and a results column.
@@ -19,9 +20,17 @@ import { Result } from '../src/ui/components/Fields.jsx';
  * assert on what actually comes out.
  */
 
-/** Render a Card and return its markup. */
+/**
+ * Render a Card and return its markup.
+ *
+ * Wrapped in a `LocaleProvider` because `Result` now carries a share button,
+ * and that button translates its own label. In the app the provider is always
+ * above it; here it has to be supplied, and leaving it out fails as a thrown
+ * context error rather than as a wrong string.
+ */
 const render = (children) => renderToStaticMarkup(
-  React.createElement(Card, null, children),
+  React.createElement(LocaleProvider, null,
+    React.createElement(Card, null, children)),
 );
 
 /** A Result with no value, which is what a tab has before its calculation runs. */

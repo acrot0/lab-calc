@@ -314,7 +314,7 @@ export function Worked({ steps, label }) {
  * The key is the value *and* the row contents, because two different inputs can
  * produce the same headline number with different secondary rows.
  */
-export function Result({ value, unit, note, rows, worked, workedLabel, unc }) {
+export function Result({ value, unit, note, rows, worked, workedLabel, unc, title }) {
   /*
    * The reveal is keyed on the value, so a second calculation replays it.
    *
@@ -370,9 +370,89 @@ export function Result({ value, unit, note, rows, worked, workedLabel, unc }) {
             ))}
           </div>
         )}
+        <ShareButton
+          value={value}
+          unit={unit}
+          note={unc?.uncText || note || ''}
+          rows={rows}
+          /* The note is the tab's own one-line description of what it just
+             computed — "称取 14.61 g NaCl，定容至 500 mL" — which is exactly
+             what the card should be headed with. No tab passes a separate
+             title, and asking twenty of them to start would be twenty chances
+             to forget. */
+          label={title ?? note ?? ''}
+        />
       </div>
       {worked && <Worked steps={worked} label={workedLabel} />}
     </div>
+  );
+}
+
+/**
+ * "Share as an image", under every result.
+ *
+ * It lives here rather than on each tab for the same reason the example button
+ * lives in the topbar: twenty tabs would otherwise carry twenty copies, and the
+ * card's contents are exactly what this component already holds — the value,
+ * the unit, the rows and the note. Nothing needs to be threaded down.
+ *
+ * The PNG is produced only on click. Building it eagerly would put an `Image`
+ * decode and a 2× canvas on the render path of every calculation, for a button
+ * most people never press.
+ */
+function ShareButton({ value, unit, rows, note, label }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+
+  async function share() {
+    setBusy(true);
+    try {
+      const { shareCardSvg, renderShareCard, shareCardFilename } = await import('../share-card.mjs');
+      /*
+       * `data-theme-scheme`, not `data-theme`.
+       *
+       * The latter holds the palette *key* — "gruvbox", "solarized-light" — so
+       * testing it against "light" matched nothing and every card came out dark,
+       * including on the light themes. `themeScheme` is the resolved
+       * light/dark, which is what the card actually needs to choose colours.
+       */
+      const scheme = globalThis.document?.documentElement?.dataset?.themeScheme;
+      const theme = scheme === 'light' ? 'light' : 'dark';
+      const markup = shareCardSvg({
+        title: label ?? '',
+        value: String(value),
+        unit: unit ?? '',
+        rows: rows ?? [],
+        note,
+        software: 'Lab Calc',
+        version: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '',
+        theme,
+      });
+      const blob = await renderShareCard(markup, {
+        background: theme === 'light' ? '#fbfaf7' : '#12161f',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = shareCardFilename({ title: label ?? '' });
+      a.click();
+      // Revoked on the next task rather than immediately: revoking before the
+      // browser has started the download cancels it in some engines.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      // A failed card is not a failed calculation. The number is on screen
+      // either way, so this stays silent rather than reporting an error against
+      // a result that is perfectly good.
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button type="button" className="link-btn share-btn" onClick={share} disabled={busy}>
+      <Icons.download size={ICON_SIZE.inline} aria-hidden="true" />
+      {t('common.shareCard')}
+    </button>
   );
 }
 
