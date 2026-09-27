@@ -242,6 +242,16 @@ const COMMON = {
   plates: { zh: '理论塔板数', en: 'Theoretical plates' },
   recovery: { zh: '回收率 (%)', en: 'Recovery (%)' },
   mean: { zh: '均值', en: 'Mean' },
+  /*
+   * The equilibrium mode's three keys. `eqPreset` is an id, not prose — the
+   * label says so and the value is translated from the locale dictionary at
+   * print time, because a stored record must not freeze the language it was
+   * saved in.
+   */
+  eqPreset: { zh: '平衡体系', en: 'Equilibrium system' },
+  eqPh: { zh: 'pH', en: 'pH' },
+  topSpecies: { zh: '主要物种', en: 'Dominant species' },
+  topConc: { zh: '主要物种浓度 (mol/L)', en: 'Dominant species concentration (mol/L)' },
 
   /* --- Physical chemistry. --- */
   order: { zh: '反应级数', en: 'Reaction order' },

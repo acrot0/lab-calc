@@ -1119,6 +1119,20 @@ export const zh = {
       vanishes: '第 {n} 管起线性轴已看不出',
     },
   },
+  /*
+   * 平衡体系的名字按 id 存放，供历史摘要使用。不放在 analytical 块里：摘要用的是
+   * 完整路径 equilibrium.preset_<id>，而 t() 按路径取值，嵌在 analytical 下会取不到。
+   */
+  /*
+   * 平衡体系的名字按 id 存放，供历史摘要使用。不放在 analytical 块里：摘要用的是
+   * 完整路径 equilibrium.preset_<id>，而 t() 按路径取值，嵌在 analytical 下会取不到。
+   */
+  equilibrium: {
+    'preset_agcl-water': 'AgCl 在水中',
+    'preset_agcl-ammonia': 'AgCl 在氨水中',
+    'preset_caco3-water': 'CaCO₃ 在水中',
+    'preset_cu-ammonia': 'Cu²⁺ 与氨的逐级络合',
+  },
   kinds: {
     stockFromSolid: '称量配制',
     massForMolarity: '称量配制',
@@ -1188,6 +1202,7 @@ export const zh = {
     analyticalRecovery: "加标回收 {recovery}%（均值 {mean}%）",
     analyticalLod: "检出限 {lod}，定量限 {loq}",
     analyticalChromatography: "分离度 {resolution}，理论塔板数 {plates}",
+    analyticalEquilibrium: "{preset}：pH {ph} 时 {species} 为主（{conc} mol/L）",
     physicalKinetics: "{order} 级反应，k = {k}（R² = {r2}）",
     physicalArrhenius: "活化能 {ea} kJ/mol（R² = {r2}）",
     physicalConductivity: "摩尔电导率 {lambda} S·cm²/mol，解离度 {alpha}",

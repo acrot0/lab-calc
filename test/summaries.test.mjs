@@ -3,6 +3,7 @@ import { recordSummary } from '../src/ui/summaries.mjs';
 import { makeTranslator } from '../src/ui/i18n.mjs';
 import { zh } from '../src/ui/locales/zh.mjs';
 import { en } from '../src/ui/locales/en.mjs';
+import { EQUILIBRIUM_PRESETS } from '../src/calc/equilibrium-presets.mjs';
 
 const t = makeTranslator(zh);
 const tEn = makeTranslator(en);
@@ -316,6 +317,49 @@ describe('recordSummary — language independence', () => {
     for (const mode of ['stock', 'volume', 'normality', 'molality', 'ionic', 'unknown-mode']) {
       const s = sum({ kind: 'reagent', inputs: { mode, ions: [] }, outputs: { molarity: 1, volumeMl: 1, normality: 1, molality: 1, ionicStrength: 1 } });
       expect(s, `mode ${mode} leaked a key`).not.toMatch(/summaries\.|reagent\./);
+    }
+  });
+});
+
+describe('recordSummary — equilibrium', () => {
+  /*
+   * The equilibrium summary translates a *second* key — the preset id — inside
+   * the summary's own translation, so it can leak a key the mode-level guard
+   * above would not catch. It did: the preset names were first placed inside
+   * the `analytical` block while the summary asked for the full path
+   * `equilibrium.preset_<id>`, and `t()` resolves paths, so the history line
+   * read "equilibrium.preset_agcl-ammonia: at pH 9.5 …" in one language and
+   * correctly in the other. Nothing failed; the text was simply wrong.
+   */
+  const record = {
+    kind: 'analytical',
+    inputs: { mode: 'equilibrium', eqPreset: 'agcl-ammonia', eqPh: 9.5 },
+    outputs: { preset: 'agcl-ammonia', ph: 9.5, topSpecies: '[Ag(NH₃)₂]⁺', topConc: 0.0329 },
+  };
+
+  it('should name the system rather than printing its id', () => {
+    const s = recordSummary(record, t);
+    expect(s).not.toMatch(/equilibrium\.|summaries\.|analytical\./);
+    expect(s).toContain('AgCl 在氨水中');
+  });
+
+  it('should translate the preset name, not only the sentence around it', () => {
+    // The failure this pins: a summary can be "translated" and still carry a
+    // raw key, because the untranslated part is a nested lookup.
+    const en = recordSummary(record, tEn);
+    expect(en).not.toMatch(/equilibrium\./);
+    expect(en).toContain('AgCl in ammonia');
+    expect(en).not.toBe(recordSummary(record, t));
+  });
+
+  it('should resolve every preset, so no id can be added without a name', () => {
+    // Adding a preset to the solver without a name here would show its id in
+    // the history list — a label the user cannot read.
+    for (const id of EQUILIBRIUM_PRESETS.map((p) => p.id)) {
+      for (const [lang, tr] of [['zh', t], ['en', tEn]]) {
+        const s = recordSummary({ ...record, outputs: { ...record.outputs, preset: id } }, tr);
+        expect(s, `${id} in ${lang}`).not.toContain(id);
+      }
     }
   });
 });

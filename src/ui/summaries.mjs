@@ -272,6 +272,16 @@ const analytical = byMode({
   chromatography: (i, o, t) => t('summaries.analyticalChromatography', {
     resolution: fmt(o.resolution, 3), plates: fmt(o.plates, 0),
   }),
+  /*
+   * The preset name comes from the locale dictionary by id, not from a label
+   * stored on the record: a label baked into a saved record would keep
+   * whatever language it was saved in, so switching to English would leave a
+   * Chinese summary in the history list.
+   */
+  equilibrium: (i, o, t) => t('summaries.analyticalEquilibrium', {
+    preset: t(`equilibrium.preset_${o.preset}`),
+    species: o.topSpecies, conc: fmtSci(o.topConc, 3), ph: fmt(o.ph, 2),
+  }),
 }, 'edta');
 
 const physical = byMode({

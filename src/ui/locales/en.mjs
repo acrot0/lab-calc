@@ -1119,6 +1119,17 @@ export const en = {
       vanishes: 'from tube {n} the linear view shows nothing',
     },
   },
+  /*
+   * Equilibrium system names, keyed by id for the history summaries. Not under
+   * : the summary asks for the full path equilibrium.preset_<id>
+   * and t() resolves paths, so nesting them one level down would not resolve.
+   */
+  equilibrium: {
+    'preset_agcl-water': 'AgCl in water',
+    'preset_agcl-ammonia': 'AgCl in ammonia',
+    'preset_caco3-water': 'CaCO₃ in water',
+    'preset_cu-ammonia': 'Stepwise complexation of Cu²⁺ with ammonia',
+  },
   kinds: {
     stockFromSolid: 'Weigh out',
     massForMolarity: 'Weigh out',
@@ -1188,6 +1199,7 @@ export const en = {
     analyticalRecovery: "Spike recovery {recovery}% (mean {mean}%)",
     analyticalLod: "LOD {lod}, LOQ {loq}",
     analyticalChromatography: "Resolution {resolution}, {plates} theoretical plates",
+    analyticalEquilibrium: "{preset}: at pH {ph} the dominant species is {species} ({conc} mol/L)",
     physicalKinetics: "Order {order}, k = {k} (R2 = {r2})",
     physicalArrhenius: "Activation energy {ea} kJ/mol (R2 = {r2})",
     physicalConductivity: "Molar conductivity {lambda} S·cm²/mol, dissociation {alpha}",
@@ -1630,6 +1642,12 @@ export const en = {
     eqSolids: 'Precipitated solids',
     eqNoSolid: 'None',
     eqResidual: 'Equation residual',
+    /*
+     * Preset names live here by id rather than being read from the label in
+     * `equilibrium-presets.mjs`. A history summary has to follow the interface
+     * language, and the preset module's bilingual label is a second copy
+     * maintained in parallel — two places to change is one place to forget.
+     */
     equilibriumNotConverged: 'The system did not converge (residual {residual}). The result is unusable — check that the total concentrations and equilibrium constants are of sensible magnitude.',
     equilibriumNoSolidFormed: 'No solid forms under these conditions: the ion product stays below the solubility product.',
     equilibriumChargeImbalance: 'Charge imbalance of {value} mol/L. This is usually not an arithmetic error but a missing counter-ion — a neutral salt solution ought to be electrically neutral.',
