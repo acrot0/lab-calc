@@ -5,11 +5,14 @@ import {
 } from '../../calc/reagent.mjs';
 import { molarMass } from '../../calc/solution.mjs';
 import { NumField, TextField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, fmtSci, n, shownFor } from '../format.mjs';
+import { UncertaintyPanel } from '../components/UncertaintyPanel.jsx';
+import { fmt, fmtSci, fmtMeasured, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import { glasswareUncertainty } from '../../calc/instruments.mjs';
+import { productUncertainty } from '../../calc/uncertainty.mjs';
 
 /**
  * Concentrated reagents with their published density and weight percentage.
@@ -43,6 +46,36 @@ export default function ReagentTab({ onRecord, restored }) {
   const [solventKg, setSolventKg] = useState(restored?.solventKg != null ? String(restored.solventKg) : '1');
   const [ions, setIons] = useState(restored?.ions ?? [{ conc: '0.1', charge: '1' }, { conc: '0.1', charge: '-1' }]);
   const [out, setOut] = useState(null);
+
+  /*
+   * The glassware, collapsed by default.
+   *
+   * Only the `volume` mode has a budget: it is the one that answers "pipette
+   * this much stock into a flask", and it is the same calculation as the
+   * dilution tab's — a volume delivered by a pipette into a made-up volume.
+   * The other modes return a concentration, a normality or an ionic strength
+   * from values the user supplied as *premises*, and a budget there would have
+   * to invent an instrument.
+   */
+  const [uncOpen, setUncOpen] = useState(false);
+  /*
+   * Which instrument delivers the stock, and how big it is.
+   *
+   * Not fixed to a pipette: a stock volume here routinely runs past 25 mL —
+   * the default inputs ask for 82.8 mL — and a pipette cannot deliver that.
+   * Charging a 25 mL pipette's tolerance to an 82.8 mL transfer reports 0.069%
+   * for a measurement that would actually take four pipettings, which is both
+   * wrong and wrong in the direction that flatters the result.
+   *
+   * The tab does not pretend to know how the user would split it, so it offers
+   * the instrument that can do it in one go and warns when the chosen one
+   * cannot.
+   */
+  const [deliver, setDeliver] = useState('pipette');
+  const [pipetteMl, setPipetteMl] = useState('25');
+  const [flaskMl, setFlaskMl] = useState('100');
+  const [flaskGrade, setFlaskGrade] = useState('A');
+  const [tempC, setTempC] = useState('20');
   const [err, setErr] = useState(null);
 
   useEffect(() => { setOut(null); setErr(null); }, [mode, formula, percent, density, targetM, targetV, molarity, nEq, moles, solventKg, ions]);
@@ -107,6 +140,61 @@ export default function ReagentTab({ onRecord, restored }) {
   // on that tag, is what stops a mode switch from painting the previous mode's
   // numbers under the new mode's labels for one frame.
   const shown = shownFor(out, 'mode', mode);
+
+  /*
+   * The budget on the stock volume.
+   *
+   *   V_stock = (C_target × V_target) / C_stock
+   *
+   * The pipette delivers the stock and the flask makes up the final volume, so
+   * both belong — the same two terms as the dilution tab, which is the same
+   * operation reached from a different direction.
+   *
+   * The stock's own concentration carries nothing here, and that is a choice
+   * worth naming: it comes from a published density and weight percentage,
+   * which are *catalogue values* rather than measurements this user made. A
+   * real budget would have to include them — a 37% HCl bottle is 36-38% — but
+   * the figure would be a guess about the bottle, and the caveat says so
+   * instead of putting a made-up number on screen.
+   */
+  const budget = useMemo(() => {
+    if (!shown || shown.mode !== 'volume') return null;
+    try {
+      const pipette = glasswareUncertainty({
+        kind: deliver, nominalMl: n(pipetteMl), grade: flaskGrade, temperatureC: n(tempC),
+      });
+      const flask = glasswareUncertainty({
+        kind: 'flask', nominalMl: n(flaskMl), grade: flaskGrade, temperatureC: n(tempC),
+      });
+      const combined = productUncertainty([
+        { value: shown.volumeMl, unc: pipette.unc, power: 1 },
+        { value: n(targetV), unc: flask.unc, power: 1 },
+      ]);
+      /*
+       * Whether the chosen instrument can deliver the volume at all.
+       *
+       * Reported rather than folded in. A tolerance table describes an
+       * instrument of a given size; applying it to a transfer the instrument
+       * cannot make in one go is not a bigger uncertainty, it is a different
+       * procedure — and the honest thing is to say which.
+       */
+      const overCapacity = shown.volumeMl > n(pipetteMl);
+      const kindName = t(deliver === 'burette' ? 'unc.uncDeliverBurette' : 'unc.uncDeliverPipette');
+      return {
+        pipette,
+        flask,
+        combined,
+        overCapacity,
+        // The panel names its own row; this tab's instrument is not always the
+        // pipette that label assumes.
+        pipetteLabel: `${kindName} · ${fmt(n(pipetteMl), 0)} mL`,
+        delivered: { value: shown.volumeMl, unc: pipette.unc },
+        relative: combined.value === 0 ? 0 : combined.unc / combined.value,
+      };
+    } catch {
+      return null;
+    }
+  }, [shown, deliver, pipetteMl, flaskMl, flaskGrade, tempC, targetV]);
 
   /*
    * The arithmetic, spelled out.
@@ -310,13 +398,50 @@ export default function ReagentTab({ onRecord, restored }) {
       )}
 
       {shown?.mode === 'volume' && (
-        <Result value={fmt(shown.volumeMl, 2)} unit="mL"
-          note={t('reagent.volumeNote', { molarity: targetM, volume: targetV })}
-          worked={worked} workedLabel={t('common.worked')}
-          rows={[
-            [t('reagent.stockMolarity'), `${fmt(shown.stockMolarity, 2)} mol/L`],
-            [t('reagent.volume'), `${fmt(shown.volumeMl, 3)} mL`],
-          ]} />
+        <>
+          <Result value={fmt(shown.volumeMl, 2)} unit="mL"
+            note={t('reagent.volumeNote', { molarity: targetM, volume: targetV })}
+            unc={uncOpen && budget ? {
+              ...fmtMeasured(budget.delivered.value, budget.delivered.unc, { unit: ' mL' }),
+              detail: `${t('unc.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,
+            } : null}
+            worked={worked} workedLabel={t('common.worked')}
+            rows={[
+              [t('reagent.stockMolarity'), `${fmt(shown.stockMolarity, 2)} mol/L`],
+              [t('reagent.volume'), `${fmt(shown.volumeMl, 3)} mL`],
+            ]} />
+          <UncertaintyPanel
+            open={uncOpen}
+            onToggle={() => setUncOpen((v) => !v)}
+            budget={budget}
+            balance={false}
+            state={{ flaskMl, setFlaskMl, flaskGrade, setFlaskGrade, tempC, setTempC,
+              pipetteMl, setPipetteMl }}
+            pipetteSizeLabel={t(deliver === 'burette' ? 'unc.uncBuretteSize' : 'unc.uncPipetteSize')}
+            fields={(
+              <label className="field">
+                <span className="field-label">{t('unc.uncDeliverInstrument')}</span>
+                <select value={deliver} onChange={(e) => setDeliver(e.target.value)}>
+                  <option value="pipette">{t('unc.uncDeliverPipette')}</option>
+                  <option value="burette">{t('unc.uncDeliverBurette')}</option>
+                </select>
+              </label>
+            )}
+          />
+
+          {/* Outside the panel: it is a statement about the procedure, not a
+              contribution to the budget, and the panel's list is a <dl> whose
+              only legal children are <dt>/<dd> pairs. */}
+          {uncOpen && budget?.overCapacity && (
+            <Warn>
+              {t('unc.uncDeliverCapacity', {
+                size: fmt(n(pipetteMl), 0),
+                kind: t(deliver === 'burette' ? 'unc.uncDeliverBurette' : 'unc.uncDeliverPipette'),
+                volume: fmt(budget.delivered.value, 1),
+              })}
+            </Warn>
+          )}
+        </>
       )}
 
       {shown?.mode === 'normality' && (

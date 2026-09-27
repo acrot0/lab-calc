@@ -41,6 +41,7 @@ export function Contribution({ label, value, unc, unit }) {
 
 export function UncertaintyPanel({
   open, onToggle, budget, state, balance = true, children, intro, fields, caveats,
+  pipetteSizeLabel,
 }) {
   const { t } = useI18n();
   const {
@@ -82,7 +83,10 @@ export function UncertaintyPanel({
                 </label>
               </div>
               {setPipetteMl && (
-                <NumField label={t('unc.uncPipetteSize')} value={pipetteMl} onChange={setPipetteMl} min="0" />
+                <NumField
+                  label={pipetteSizeLabel ?? t('unc.uncPipetteSize')}
+                  value={pipetteMl} onChange={setPipetteMl} min="0"
+                />
               )}
               <NumField label={t('unc.uncTemp')} value={tempC} onChange={setTempC} />
               {balance && (
@@ -138,7 +142,12 @@ export function UncertaintyPanel({
                 )}
                 {budget.pipette && (
                   <Contribution
-                    label={t('unc.uncPipette')} value={budget.pipette.value}
+                    // Named by the tab when it is not a pipette: the reagent
+                    // tab can deliver with a burette, and a row labelled
+                    // "pipette" under a burette reading is a caption for a
+                    // different instrument.
+                    label={budget.pipetteLabel ?? t('unc.uncPipette')}
+                    value={budget.pipette.value}
                     unc={budget.pipette.unc} unit="mL"
                   />
                 )}
