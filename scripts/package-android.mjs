@@ -335,7 +335,15 @@ if (RELEASE) {
        * repository lives under a directory with a space in the name: unquoted,
        * apksigner received `E:\trae` as the APK and the rest as stray arguments.
        */
-      out = execFileSync(apksigner, ['verify', '--print-certs', '--verbose', `"${apk}"`], {
+      /*
+       * `2>&1` because apksigner does not write the certificate details to a
+       * stream consistently across platforms and versions: locally they land on
+       * stdout, and on the CI runner they did not — the verification passed,
+       * the APK was signed, and the fingerprint line was simply not in what
+       * `execFileSync` returned. Merging the streams is what makes the parse
+       * independent of that choice.
+       */
+      out = execFileSync(apksigner, ['verify', '--print-certs', `"${apk}"`, '2>&1'], {
         encoding: 'utf8',
         shell: true,
         env: { ...process.env, JAVA_HOME, ANDROID_HOME, ANDROID_SDK_ROOT: ANDROID_HOME },
@@ -361,7 +369,12 @@ if (RELEASE) {
      * a keystore regenerated on purpose should not require editing this script.
      */
     const actual = /Signer #1 certificate SHA-256 digest:\s*([0-9a-f:]+)/i.exec(out)?.[1]?.toUpperCase();
-    if (!actual) die('apksigner 通过了但没有报出指纹 —— 输出格式可能变了。');
+    if (!actual) {
+      // Printing what came back rather than only the failure: the first
+      // version said "the output format may have changed" and gave nothing to
+      // check that against, which cost a second release run to diagnose.
+      die(`apksigner 通过了但没有报出指纹。它的输出是：\n${out.slice(0, 600)}`);
+    }
     const recorded = /SHA-256:\s*([0-9A-F:]{95})/i.exec(
       fs.readFileSync(keystoreProps, 'utf8'),
     )?.[1]?.toUpperCase();
