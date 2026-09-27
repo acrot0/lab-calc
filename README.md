@@ -7,6 +7,10 @@
 
 [**在线使用**](https://acrot0.github.io/lab-calc/) · 无需安装 · 可离线使用（PWA）· 数据只存在你自己的设备上
 
+![称量配制标签页：化学式 NaCl 解析出摩尔质量 58.440 g/mol，目标浓度 0.5 mol/L、定容 500 mL 算出需称取 14.61 g](docs/images/app-weigh.webp)
+
+*不需要注册，不需要上传，打开就能算——算完的记录留在右侧，不会随页面刷新消失。*
+
 | | |
 |---|---|
 | **平台** | 网页（PWA）· Windows 桌面（Tauri）· Android |
@@ -14,13 +18,13 @@
 | **主题** | 11 套（含 Catppuccin、Rosé Pine、Gruvbox、Solarized）+ 跟随系统 + 自定义强调色/圆角/密度/动效 |
 | **导出** | Excel（.xlsx）· CSV · Markdown · PDF 报告 · JSON 备份（可再导入）|
 | **许可** | MIT |
-| **状态** | v0.9.2 · 测试 2094 通过 / 104 文件 · 三平台 CI 全绿 |
+| **状态** | v0.9.2 · 测试 2102 通过 / 106 文件 · 三平台 CI 全绿 |
 
 ```bash
 npm install
 npm run dev      # 开发服务器
 npm run build    # 构建到 dist/，纯静态，可直接托管
-npm test         # 2094 个测试
+npm test         # 2102 个测试
 npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项计算对已知答案的冒烟检查
 ```
 
@@ -95,6 +99,18 @@ pH 标签页给出同样的两个数并排：理想模型与活度校正后。�
 | **单位换算** | 质量 / 体积 / 浓度单位互换（跨维度会被拒绝，不会静默给错值）|
 
 历史记录可导出为 **Excel 表格（.xlsx）**、**CSV**（含 BOM 防中文乱码）、**Markdown**（直接贴进实验记录本）、**PDF 报告**（浏览器打印，矢量文字可搜索）或 **JSON 备份**（可再导入，换电脑不丢）。
+
+![滴定曲线标签页：0.1 mol/L 乙酸 25 mL 用 0.1 mol/L NaOH 滴定，曲线在 25 mL 处陡升，标出等当点 pH 8.73 与半等当点 pH ≈ pKa 4.76](docs/images/app-curve.webp)
+
+<details>
+<summary>展开：元素周期表与不确定度传播</summary>
+
+![元素周期表标签页：按元素类别着色的 118 个元素，右侧选中钠的详情面板给出相对原子质量 22.99 g/mol、电负性 0.93、熔点 370.95 K](docs/images/app-elements.webp)
+
+![不确定度传播标签页：三个输入量合成后给出 1461 ± 0.9，相对不确定度 0.0624%](docs/images/app-uncertainty.webp)
+
+</details>
+
 
 Excel 导出把每个输入输出放成独立一列，可直接排序筛选作图；PDF 报告带字段中文名，是能贴进实验记录本的形式。
 
