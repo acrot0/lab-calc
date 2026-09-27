@@ -13,6 +13,7 @@ export const en = {
     tabList: 'Calculators',
     navRailLabel: 'Calculator navigation',
     expandNav: 'Expand navigation',
+    example: 'Example',
     collapseNav: 'Collapse navigation',
     settings: 'Settings',
     closeSettings: 'Close settings',

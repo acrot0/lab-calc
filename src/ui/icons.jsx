@@ -58,6 +58,7 @@ import { Shapes } from '@phosphor-icons/react/dist/csr/Shapes';
 import { DotsThreeOutline } from '@phosphor-icons/react/dist/csr/DotsThreeOutline';
 import { Sidebar } from '@phosphor-icons/react/dist/csr/Sidebar';
 import { CaretDoubleLeft } from '@phosphor-icons/react/dist/csr/CaretDoubleLeft';
+import { Sparkle } from '@phosphor-icons/react/dist/csr/Sparkle';
 import { GearSix } from '@phosphor-icons/react/dist/csr/GearSix';
 import { Keyboard } from '@phosphor-icons/react/dist/csr/Keyboard';
 import { CaretDown } from '@phosphor-icons/react/dist/csr/CaretDown';
@@ -270,4 +271,13 @@ export const Icons = {
   dna: styled(Dna, 'dna'),
   syringe: styled(Syringe, 'syringe'),
   beaker: styled(Flask, 'beaker'),
+
+  /*
+   * The worked-example button.
+   *
+   * A sparkle rather than a beaker or a book: the button fills the form with a
+   * *suggested* experiment, and the icon has to say "here is an idea" rather
+   * than "here is a substance" — every substance icon is already a tab.
+   */
+  example: styled(Sparkle, 'example'),
 };

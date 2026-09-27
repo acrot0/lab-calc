@@ -70,6 +70,7 @@ export const ICON_INK = {
   download: { x: 32.0, y: 24.0, w: 192.0, h: 192.0 },
   electro: { x: 40.0, y: 8.0, w: 176.0, h: 239.9 },
   elements: { x: 32.0, y: 32.0, w: 192.0, h: 192.0 },
+  example: { x: 26.38, y: 16.0, w: 221.62, h: 213.62 },
   expandNav: { x: 24.0, y: 40.0, w: 208.0, h: 176.0 },
   gauge: { x: 16.0, y: 40.0, w: 224.0, h: 152.0 },
   history: { x: 24.0, y: 32.0, w: 199.9, h: 192.0 },

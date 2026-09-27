@@ -14,6 +14,7 @@ import { useTheme } from './ThemeContext.jsx';
 import { useFields } from './FieldsContext.jsx';
 import { defaultsOf } from './field-template.mjs';
 import { tabDirection } from './tab-motion.mjs';
+import { scenarioFor } from './scenarios.mjs';
 import SettingsMenu from './components/SettingsMenu.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
@@ -139,7 +140,7 @@ function initialTab() {
 }
 
 export default function App() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { resolved } = useTheme();
   const { fields } = useFields();
   const [tab, setTab] = useState(initialTab);
@@ -432,6 +433,20 @@ export default function App() {
 
   const active = TABS.find((x) => x.id === tab) ?? TABS[0];
   const ActiveTab = active.Component;
+  const scenario = scenarioFor(active.id);
+
+  /*
+   * Fill the current tab with its worked example.
+   *
+   * This reuses the exact mechanism the history replay uses — `restored` plus a
+   * nonce to remount — so no tab needs to know scenarios exist. It is the same
+   * call `replay` makes, with inputs from a file instead of from a record.
+   */
+  const runScenario = useCallback(() => {
+    if (!scenario) return;
+    setRestored(scenario.inputs);
+    setNonce((k) => k + 1);
+  }, [scenario]);
 
   return (
     <div className="app">
@@ -443,6 +458,29 @@ export default function App() {
           </div>
         </div>
         <div className="topbar-actions">
+          {/*
+            The worked example for the tab you are on.
+
+            In the topbar rather than inside each tab, because all twenty tabs
+            would need the same control and the same `restored` plumbing —
+            twenty copies of one button is twenty places for it to drift. Here
+            it is one button that reads the active tab's scenario and hands it
+            to the tab through the mechanism the history replay already uses.
+
+            Absent on the periodic table, which is a reference rather than a
+            form and has no scenario to run.
+          */}
+          {scenario && (
+            <button
+              type="button"
+              className="control example-btn"
+              onClick={runScenario}
+              title={scenario.why[locale] ?? scenario.why.zh}
+            >
+              <Icons.example size={ICON_SIZE.control} aria-hidden="true" />
+              <span className="control-label">{t('app.example')}</span>
+            </button>
+          )}
           {/* A visible affordance for a keyboard-only feature: the shortcut is
               the fast path, and this is how anyone finds out it exists. */}
           <button

@@ -516,6 +516,34 @@ body {
 
 .control-label { white-space: nowrap; }
 
+/*
+ * The worked-example button.
+ *
+ * Tinted with the accent rather than left plain, because it is the one control
+ * in the topbar that changes what is in the form — the others open panels. It
+ * should be findable without competing with the Calculate button inside the
+ * card, so it gets colour rather than weight.
+ *
+ * The label hides below the width where the topbar would wrap. The icon stays:
+ * a first-time user on a phone is exactly who the example is for, so the
+ * affordance cannot disappear entirely.
+ */
+.example-btn {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.example-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .example-btn .control-label { display: none; }
+  .example-btn { padding: 0 var(--s2); }
+}
+
 select.control {
   appearance: none;
   padding-right: 26px;

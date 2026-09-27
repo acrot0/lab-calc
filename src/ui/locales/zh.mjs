@@ -10,6 +10,7 @@ export const zh = {
     navRailLabel: '功能导航',
     expandNav: '展开导航',
     collapseNav: '收起导航',
+    example: '示例',
     settings: '设置',
     closeSettings: '收起设置',
     setLang: '语言',
