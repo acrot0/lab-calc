@@ -99,6 +99,43 @@ const childEnv = {
   PATH: `${cargoBin}${path.delimiter}${process.env.PATH ?? ''}`,
 };
 
+/*
+ * The updater signing key.
+ *
+ * `tauri.conf.json` declares a public key and `createUpdaterArtifacts: true`,
+ * so the build wants to sign the updater bundle — and refuses to finish without
+ * the matching private key. The error it gives is "A public key has been found,
+ * but no private key", which reads as a configuration mistake rather than a
+ * missing environment variable.
+ *
+ * Read from `~/.tauri/labcalc.key`, the location Tauri's own `signer generate`
+ * writes to, so a machine that already has the key needs no setup. Only the
+ * *path* is passed; the key material stays in the file. The build succeeds
+ * without it — the installer is produced — but the `.sig` is missing, which
+ * silently breaks the update channel for every installed copy. So a missing key
+ * is reported here rather than discovered later.
+ */
+const updaterKey = process.env.TAURI_SIGNING_PRIVATE_KEY
+  ?? path.join(os.homedir(), '.tauri', 'labcalc.key');
+if (fs.existsSync(updaterKey)) {
+  /*
+   * The key's *contents*, not its path.
+   *
+   * Tauri accepts either, and which one it wants depends on whether the value
+   * looks like a path — so passing the path works until the file is named
+   * something the heuristic misreads. The contents are unambiguous, and this
+   * file is read into an environment variable that never reaches a shell or a
+   * log.
+   */
+  childEnv.TAURI_SIGNING_PRIVATE_KEY = fs.readFileSync(updaterKey, 'utf8').trim();
+  // The key was generated without a password; an empty string is what the CLI
+  // expects rather than an unset variable, which it treats as "prompt me".
+  childEnv.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ??= '';
+  step(`更新签名密钥: ${updaterKey}`);
+} else {
+  console.warn(`  ! 没找到更新签名密钥（${updaterKey}）—— 安装包会缺 .sig，更新通道失效`);
+}
+
 // ------------------------------------------------------------- 2. build
 
 /*

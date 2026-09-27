@@ -20,8 +20,17 @@
  * with every update.
  *
  * Usage:
- *   node scripts/package-android.mjs             # build, sync, assemble
+ *   node scripts/package-android.mjs             # build, sync, assemble debug
+ *   node scripts/package-android.mjs --release   # release-signed APK
  *   node scripts/package-android.mjs --no-build  # reuse the existing dist/
+ *
+ * ## Why debug is still the default
+ *
+ * A debug APK installs and runs; it just is not signed with the key that
+ * identifies this application ID, so it cannot be updated in place and stores
+ * refuse it. That makes it the right artefact for testing on your own phone and
+ * the wrong one for anyone else — hence `--release`, which the release
+ * checklist uses and which refuses to proceed without the key.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,6 +41,7 @@ import { androidVersionCode } from '../src/ui/version.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const NO_BUILD = args.includes('--no-build');
+const RELEASE = args.includes('--release');
 
 const step = (msg) => console.log(`  ${msg}`);
 const die = (msg) => {
@@ -175,7 +185,23 @@ execFileSync('npx', ['cap', 'sync', 'android'], { cwd: ROOT, stdio: 'inherit', s
  */
 const gradlew = process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
 const pkgVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
-step('Gradle assembleDebug …');
+
+/*
+ * A release build without the key produces an unsigned APK that Android
+ * refuses to install, and it does so at the end of a five-minute Gradle run.
+ * Checking here turns that into a sentence before the build starts.
+ */
+const keystoreProps = path.join(androidDir, 'keystore.properties');
+if (RELEASE && !fs.existsSync(keystoreProps)) {
+  die(
+    '缺少 android/keystore.properties —— 无法做 release 签名。\n'
+    + '  该文件与 .jks 已 gitignore，需从备份恢复。见 docs/RELEASE.md。',
+  );
+}
+if (RELEASE) step('Release 签名：已找到 keystore.properties');
+
+const task = RELEASE ? 'assembleRelease' : 'assembleDebug';
+step(`Gradle ${task} …`);
 try {
   /*
    * Both version properties are passed in, and they do different jobs.
@@ -193,7 +219,7 @@ try {
    * here rather than at the user's phone.
    */
   execFileSync(gradlew, [
-    'assembleDebug', '--no-daemon',
+    task, '--no-daemon',
     `-PappVersion=${pkgVersion}`,
     `-PappVersionCode=${androidVersionCode(pkgVersion)}`,
   ], {
@@ -249,6 +275,83 @@ function findApk(dir) {
 
 const apk = findApk(path.join(androidDir, 'app', 'build', 'outputs'));
 if (!apk) die('Gradle 跑完了但没有找到 .apk —— 产物路径可能变了。');
+
+/*
+ * A release run must produce a *signed* release APK, not merely one whose path
+ * says `release`.
+ *
+ * The failure this catches is the expensive one: Gradle is happy to assemble an
+ * unsigned release build, and the result installs nowhere. Finding that out
+ * after uploading the asset to a GitHub Release is a release that has to be
+ * redone. `apksigner verify` is the tool Android itself uses, and it is in the
+ * SDK's build-tools.
+ */
+function findApksigner() {
+  const buildTools = path.join(ANDROID_HOME, 'build-tools');
+  if (!fs.existsSync(buildTools)) return null;
+  const versions = fs.readdirSync(buildTools).sort().reverse();
+  for (const v of versions) {
+    const exe = path.join(buildTools, v, process.platform === 'win32' ? 'apksigner.bat' : 'apksigner');
+    if (fs.existsSync(exe)) return exe;
+  }
+  return null;
+}
+
+if (RELEASE) {
+  const apksigner = findApksigner();
+  if (!apksigner) {
+    console.warn('  ! 没找到 apksigner，跳过签名校验（build-tools 未安装？）');
+  } else {
+    let out;
+    try {
+      /*
+       * `shell: true` is required, not stylistic.
+       *
+       * `apksigner` on Windows is a `.bat`, and Node cannot spawn a batch file
+       * directly — `execFileSync` without a shell fails with ENOENT, which is
+       * indistinguishable from the tool being absent. The first version of this
+       * check omitted it and reported a correctly-signed APK as unsigned.
+       *
+       * The path is quoted because the shell is what parses it, and this
+       * repository lives under a directory with a space in the name: unquoted,
+       * apksigner received `E:\trae` as the APK and the rest as stray arguments.
+       */
+      out = execFileSync(apksigner, ['verify', '--print-certs', '--verbose', `"${apk}"`], {
+        encoding: 'utf8',
+        shell: true,
+        env: { ...process.env, JAVA_HOME, ANDROID_HOME, ANDROID_SDK_ROOT: ANDROID_HOME },
+      });
+    } catch (e) {
+      // A non-zero exit from `apksigner verify` IS the failure: it means the
+      // package is unsigned or its signature does not validate.
+      if (e.status === undefined) {
+        // Not an exit code — the process never ran. Reporting that as a bad
+        // signature sends the reader looking in the wrong place.
+        die(`apksigner 无法执行：${e.message}`);
+      }
+      die('APK 签名校验失败 —— release 包未正确签名，装不上也发不出去。');
+    }
+    /*
+     * The fingerprint is printed, and compared against the one recorded in
+     * `keystore.properties` when that file carries it.
+     *
+     * Presence of a signature is not enough: an APK signed by *a* key is not
+     * the same as one signed by *ours*, and only the second can update an
+     * installed copy. The expected value is a comment in the properties file
+     * rather than a setting, so a mismatch is reported rather than fatal —
+     * a keystore regenerated on purpose should not require editing this script.
+     */
+    const actual = /Signer #1 certificate SHA-256 digest:\s*([0-9a-f:]+)/i.exec(out)?.[1]?.toUpperCase();
+    if (!actual) die('apksigner 通过了但没有报出指纹 —— 输出格式可能变了。');
+    const recorded = /SHA-256:\s*([0-9A-F:]{95})/i.exec(
+      fs.readFileSync(keystoreProps, 'utf8'),
+    )?.[1]?.toUpperCase();
+    step(`签名校验通过（SHA-256 ${actual}）`);
+    if (recorded && recorded !== actual) {
+      console.warn(`  ! 与 keystore.properties 记录的指纹不同\n    记录 ${recorded}`);
+    }
+  }
+}
 
 const sizeMb = (fs.statSync(apk).size / 1024 / 1024).toFixed(1);
 step(`APK: ${path.relative(ROOT, apk)}（${sizeMb} MB）`);

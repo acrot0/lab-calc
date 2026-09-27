@@ -7,6 +7,8 @@
 
 [**在线使用**](https://acrot0.github.io/lab-calc/) · 无需安装 · 可离线使用（PWA）· 数据只存在你自己的设备上
 
+[English](README.en.md)
+
 ![称量配制标签页：化学式 NaCl 解析出摩尔质量 58.440 g/mol，目标浓度 0.5 mol/L、定容 500 mL 算出需称取 14.61 g](docs/images/app-weigh.webp)
 
 *不需要注册，不需要上传，打开就能算——算完的记录留在右侧，不会随页面刷新消失。*
@@ -15,10 +17,10 @@
 |---|---|
 | **平台** | 网页（PWA）· Windows 桌面（Tauri）· Android |
 | **语言** | 中文 / English 双语 |
-| **主题** | 11 套（含 Catppuccin、Rosé Pine、Gruvbox、Solarized）+ 跟随系统 + 自定义强调色/圆角/密度/动效 |
+| **主题** | 10 套（含 Catppuccin、Rosé Pine、Gruvbox、Solarized）+ 跟随系统 + 自定义强调色/圆角/密度/动效 |
 | **导出** | Excel（.xlsx）· CSV · Markdown · PDF 报告 · JSON 备份（可再导入）|
 | **许可** | MIT |
-| **状态** | v0.9.2 · 测试 2412 通过 / 120 文件 · 三平台 CI 全绿 |
+| **状态** | v1.0.0 · 测试 2412 通过 / 120 文件 · 三平台 CI 全绿 |
 
 ```bash
 npm install
@@ -187,8 +189,8 @@ CaCO₃ 是另一种耦合：阴离子自己就是碱。pH 7 时碳酸几乎全�
 | 形式 | 体积 | 怎么拿 | 适合 |
 |---|---|---|---|
 | **网页 / PWA** | 0（浏览器缓存） | 打开 <https://acrot0.github.io/lab-calc/>，浏览器菜单选「安装应用」/「添加到主屏幕」 | 最省事。手机、平板、电脑都能装，装完断网也能用 |
-| **Android APK** | 4.9 MB | 从 [Releases](https://github.com/acrot0/lab-calc/releases/latest) 下载 `lab-calc-<版本>.apk`，传到手机点击安装 | 要发给别人、或浏览器没有「添加到主屏幕」的场合 |
-| **Windows 安装包（Tauri）** | 3.3 MB | 下载 `Lab.Calc_<版本>_x64-setup.exe` | **推荐**。体积小、内存低，用系统 WebView2（Win11 自带） |
+| **Android APK** | 3.6 MB | 从 [Releases](https://github.com/acrot0/lab-calc/releases/latest) 下载 `lab-calc-<版本>.apk`，传到手机点击安装 | 要发给别人、或浏览器没有「添加到主屏幕」的场合 |
+| **Windows 安装包（Tauri）** | 3.4 MB | 下载 `Lab.Calc_<版本>_x64-setup.exe` | **推荐**。体积小、内存低，用系统 WebView2（Win11 自带） |
 | **Windows 免安装（Electron）** | 125 MB | 下载 `labcalc-v<版本>-win-x64.zip`，解压双击 `LabCalc.exe` | 完全自包含：自带浏览器引擎，不依赖系统组件 |
 
 四个产物都会随 tag 一起附在 release 上，`scripts/check-release-assets.mjs` 在**发布前**比对这张表和实际附件，缺一个就 fail——这张表在 v0.9.1 和 v0.9.2 都只兑现了四分之一，靠的是没人点那个链接才没被发现。
@@ -197,7 +199,14 @@ Electron 版和 Tauri 版是同一个应用的两条打包路径，不是两个�
 
 体积一栏写的是实测值，不是估计：APK 与 Electron 包的大小来自 `scripts/package-*.mjs` 每次构建的实测输出，安装包来自 `gh release view` 的字节数。写「约 5 MB」看起来更安全，但那个「约」会慢慢替一个不再成立的数字打掩护。
 
-**Android 版目前用调试密钥签名**（`CN=Android Debug`）。它能装、能用、能覆盖安装，但不是发布密钥，也不该被当成发布密钥。换正式密钥需要一份不与任何人共享的 keystore 和 CI 密钥，在那之前这里不假装它是正式签名包。
+**Android 版用正式密钥签名**，证书 `CN=acrot0`，RSA 4096，有效期至 2056 年。签名指纹：
+
+```
+SHA-256  62:10:CE:17:86:74:A0:85:1D:77:5D:EB:42:88:1A:37:BE:20:78:B9:37:60:C2:5E:BF:9B:5E:F5:92:7C:CD:08
+SHA-1    B8:2E:6B:A6:7F:FB:8D:34:31:37:FE:50:C3:AD:26:F3:69:C0:DB:D1
+```
+
+这是发布包的身份，不是格式声明：拿着密钥的人可以发布一份所有已安装副本都会当作正版接受的更新，而 Android 没有吊销机制。keystore 与口令不入库（见 [docs/RELEASE.md](docs/RELEASE.md)），在别处备份。核对一个 APK 是否出自本项目，用 `apksigner verify --print-certs` 比对上面的指纹——指纹一致即同一签名，不一致则任何来源都不该装。
 
 手机端的计算器是底部抽屉，触控目标 ≥44px，软键盘弹起时抽屉会抬起来让开；横屏时改成左右两栏，键盘在右、输入和读数在左。
 
@@ -259,7 +268,7 @@ src/
 
 | 用途 | 来源 | 许可 |
 |---|---|---|
-| 界面图标 | [Lucide](https://lucide.dev) | ISC |
+| 界面图标 | [Phosphor Icons](https://phosphoricons.com) | MIT |
 | 字体 | [Inter](https://rsms.me/inter/) | OFL-1.1 |
 | 应用图标 | 本项目 `scripts/make-icons.mjs` 程序化生成 | MIT |
 

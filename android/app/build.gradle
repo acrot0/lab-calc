@@ -1,5 +1,26 @@
 apply plugin: 'com.android.application'
 
+/*
+ * Release signing.
+ *
+ * Read from `android/keystore.properties`, which is gitignored along with the
+ * keystore it names. Nothing secret is in this file, so it can be tracked and
+ * reviewed — the credentials are the one thing that cannot be, and Gradle's
+ * template puts them here.
+ *
+ * When the properties file is absent the release build type simply has no
+ * signing config. That is deliberate rather than an error: a contributor
+ * without the key can still build and test, and `assembleRelease` then produces
+ * an unsigned APK that Android refuses to install. The alternative — failing
+ * the configuration phase — would make the whole project unbuildable for
+ * anyone who is not the release manager, which is worse than a late failure.
+ */
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
 android {
     namespace "com.labcalc.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -36,8 +57,26 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (keystorePropsFile.exists()) {
+            release {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            /*
+             * Signed with the release key when it is present, and otherwise left
+             * unsigned so the build still runs. See the note above.
+             */
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

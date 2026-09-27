@@ -53,9 +53,18 @@ captures/
 .idea/navEditor.xml
 
 # Keystore files
-# Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+#
+# Uncommented, unlike Capacitor's template. A signing key is the one file that
+# must never enter the repository: anyone holding it can publish an update to
+# this application ID that every installed copy will accept as genuine, and
+# Android has no mechanism to revoke it — the key IS the identity, and losing
+# control of it means abandoning the package name entirely.
+#
+# The password lives in `keystore.properties`, also ignored, and both are backed
+# up off-machine. See `docs/RELEASE.md`.
+*.jks
+*.keystore
+keystore.properties
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
