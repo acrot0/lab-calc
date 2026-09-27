@@ -49,12 +49,28 @@ beforeEach(() => {
   console.error = (...args) => { logged.push(args.map(String).join(' ')); original(...args); };
   return () => { console.error = original; };
 });
-afterEach(() => { document.body.innerHTML = ''; });
+/*
+ * Roots are tracked and unmounted.
+ *
+ * Clearing `document.body` does not stop React: a root left mounted keeps its
+ * scheduler work queued, and anything it suspends on resolves after the test
+ * environment is gone — which vitest reports as an unhandled `window is not
+ * defined` and a failed run, with every test green. Same fix as
+ * `history-trash.test.mjs`, where this was found in CI.
+ */
+const roots = [];
+afterEach(async () => {
+  await act(async () => {
+    for (const root of roots.splice(0)) root.unmount();
+  });
+  document.body.innerHTML = '';
+});
 
 async function mount(node) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
+  roots.push(root);
   await act(async () => { root.render(node); });
   return { container, root };
 }

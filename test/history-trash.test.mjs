@@ -17,13 +17,38 @@ import { memoryStore, removeEntry, visibleEntries, deletedEntries } from '../src
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+/*
+ * Roots are tracked and unmounted.
+ *
+ * Clearing `document.body` does not stop React: an unmounted-by-DOM root keeps
+ * its scheduler work queued, and when the panel's lazy `Report` chunk resolves
+ * it commits into a window that the test environment has already destroyed.
+ * That surfaced in CI as an unhandled `ReferenceError: window is not defined`
+ * after all 1931 tests had passed — on Windows the chunk arrives before
+ * teardown, which is why it never failed locally.
+ */
+const roots = [];
+function makeRoot(container) {
+  const root = createRoot(container);
+  roots.push(root);
+  return root;
+}
+
+
 let logged;
 beforeEach(() => {
   logged = [];
   const original = console.error;
   console.error = (...args) => { logged.push(args.map(String).join(' ')); original(...args); };
 });
-afterEach(() => { document.body.innerHTML = ''; });
+afterEach(async () => {
+  // Unmount inside `act` so the scheduler is idle before the environment goes
+  // away, then clear the DOM.
+  await act(async () => {
+    for (const root of roots.splice(0)) root.unmount();
+  });
+  document.body.innerHTML = '';
+});
 
 const entry = (id) => ({
   id,
@@ -35,7 +60,7 @@ const entry = (id) => ({
 async function mount(list, handlers = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
-  const root = createRoot(container);
+  const root = makeRoot(container);
   await act(async () => {
     root.render(
       React.createElement(LocaleProvider, { store: memoryStore() },
@@ -94,7 +119,7 @@ describe('HistoryPanel deleted records', () => {
     const all = removeEntry([entry('a'), entry('b'), entry('c')], 'b');
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const root = createRoot(container);
+    const root = makeRoot(container);
     await act(async () => {
       root.render(
         React.createElement(LocaleProvider, { store: memoryStore() },
@@ -164,7 +189,7 @@ describe('clear all marks rather than erases', () => {
 
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const root = createRoot(container);
+    const root = makeRoot(container);
     await act(async () => {
       root.render(React.createElement(LocaleProvider, { store: null },
         React.createElement(ThemeProvider, { store: null },

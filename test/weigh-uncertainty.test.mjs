@@ -23,18 +23,43 @@ import { glasswareUncertainty } from '../src/calc/instruments.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+/*
+ * Roots are tracked and unmounted.
+ *
+ * Clearing `document.body` does not stop React: an unmounted-by-DOM root keeps
+ * its scheduler work queued, and when the panel's lazy `Report` chunk resolves
+ * it commits into a window that the test environment has already destroyed.
+ * That surfaced in CI as an unhandled `ReferenceError: window is not defined`
+ * after all 1931 tests had passed — on Windows the chunk arrives before
+ * teardown, which is why it never failed locally.
+ */
+const roots = [];
+function makeRoot(container) {
+  const root = createRoot(container);
+  roots.push(root);
+  return root;
+}
+
+
 let logged;
 beforeEach(() => {
   logged = [];
   const original = console.error;
   console.error = (...args) => { logged.push(args.map(String).join(' ')); original(...args); };
 });
-afterEach(() => { document.body.innerHTML = ''; });
+afterEach(async () => {
+  // Unmount inside `act` so the scheduler is idle before the environment goes
+  // away, then clear the DOM.
+  await act(async () => {
+    for (const root of roots.splice(0)) root.unmount();
+  });
+  document.body.innerHTML = '';
+});
 
 async function mount() {
   const container = document.createElement('div');
   document.body.appendChild(container);
-  const root = createRoot(container);
+  const root = makeRoot(container);
   // The locale is pinned rather than inherited: the assertions match on
   // rendered text, and a test that silently depends on the suite's default
   // language fails the day that default changes.
@@ -309,7 +334,7 @@ describe('DiluteTab uncertainty budget', () => {
     const { default: DiluteTab } = await import('../src/ui/tabs/DiluteTab.jsx');
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const root = createRoot(container);
+    const root = makeRoot(container);
     await act(async () => {
       root.render(React.createElement(LocaleProvider, { store: memoryStore({ 'lab-calc.locale.v1': 'zh' }) },
         React.createElement(DiluteTab, { onRecord: () => {}, restored: null })));
@@ -395,7 +420,7 @@ describe('the budget panel lists each source once', () => {
     const { default: DiluteTab } = await import('../src/ui/tabs/DiluteTab.jsx');
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const root = createRoot(container);
+    const root = makeRoot(container);
     await act(async () => {
       root.render(React.createElement(LocaleProvider, { store: memoryStore({ 'lab-calc.locale.v1': 'zh' }) },
         React.createElement(DiluteTab, { onRecord: () => {}, restored: null })));

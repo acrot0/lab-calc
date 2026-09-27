@@ -19,7 +19,7 @@ import { staleNumbers } from '../scripts/lib/doc-numbers.mjs';
  * share one implementation rather than two that can disagree.
  */
 
-const ACTUAL = { tests: 1931 };
+const ACTUAL = { tests: 1935 };
 
 describe('staleNumbers', () => {
   it('should find a plain count', () => {
