@@ -4,6 +4,76 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] — 2026-09-27
+
+Uncertainty reaches every tab that measures something with an instrument, and
+three defects that made a number misstate its own precision are fixed.
+
+### Added
+
+- **Uncertainty budgets on five more tabs** — spectrophotometry, titration
+  curve, molecular biology, percent solutions, concentrated reagents. Seven in
+  total. New instrument sources in `src/calc/instruments.mjs`:
+  - **Spectrophotometer**, ±0.003 A. Unlike every other term in that module it
+    is *absolute in the measured quantity*, so its relative size grows as the
+    reading falls — 0.3% at 0.8 AU, 5% at 0.05 AU. That is the arithmetic
+    behind the 0.2–0.8 AU working range the tab had been stating without
+    showing why. The blank is counted as a second reading, because absorbance
+    is a difference.
+  - **Cuvette path length**, ±0.05 mm, the industry standard for a 10 mm cell.
+    A short-path cell is relatively worse, not better: the same tolerance on
+    1 mm is 2.9%, not 0.29%.
+  - **Microvolume pedestal** (NanoDrop class), 3% — Thermo's own published
+    figure. This one is *relative*, which is the opposite behaviour to the
+    photometer's absolute term: a dilute sample is not worse-determined on a
+    pedestal. Carrying the Beer's law intuition across gives the wrong answer.
+  - **Fixed-path cuvette**, 0.5% reproducibility — the honest reason a GMP lab
+    still uses one.
+- **A burette budget on the titration tab.** The tolerance table had been in
+  `instruments.mjs` since it was written with no tab using it. A burette is read
+  twice per titre, so its tolerance is counted twice: ±0.041 mL for a 50 mL
+  burette, not ±0.029.
+- **Instrument selection where it changes the answer.** The reagent tab can
+  deliver with a pipette or a burette, and warns when the chosen instrument
+  cannot deliver the volume in one go rather than applying a tolerance that
+  does not describe the procedure.
+
+### Fixed
+
+- **Two relative uncertainties for one measurement.** The spectrophotometry tab
+  showed 0.327% on the result and 0.436% in its own budget panel. Which terms
+  apply depends on the *direction* of the calculation: given c and l and
+  returning A, the path is a known input and its tolerance cannot move the
+  answer, so the cell contributes nothing. Given A and l and returning
+  c = A/(ε·l), the path divides into the result and does.
+- **A ten-fold understatement of an absolute uncertainty.** `productUncertainty`
+  returns an uncertainty on the quantity it is handed — for V × c, a value of
+  2.5 — and the titration tab printed that beside a 25 mL result, giving
+  "± 0.005 mL" for a real ± 0.048 mL. The relative figure beside it was correct
+  throughout, which is what made it look plausible.
+- **A caught exception that rendered as a legitimate answer.** The percent tab's
+  budget passed its instrument fields through as strings; the calc layer threw
+  `mustBeFinite`, the throw was swallowed by the budget's own `try`, and the
+  panel reported "the uncertainty cannot be computed" — the message for an
+  unlisted flask size.
+- **The shared uncertainty panel read `budget.flask.value` unconditionally** and
+  took the spectrophotometry tab down on first render, which has no flask.
+- **`elements.discoverySource` was a changelog entry, not a provenance line.**
+  It read "…人工校订——PubChem 把铝和钙标成「古代」，是错的" under an element's
+  data. The correction story belongs in the module docstring and NOTICE.md,
+  where the reader who wants it looks. A test now rejects narration of past
+  mistakes in any `*Source` key in either locale.
+
+### Changed
+
+- **The generated icons draw the strata.** The inline `BrandMark` was
+  redesigned to encode *record* rather than chemistry some time ago, but the
+  raster icons were never regenerated from the same idea — they still drew the
+  old flask with a bubble, so the app icon and the in-app mark were two
+  different logos. The band ramp is asserted by sampling the rendered RGBA: the
+  first version's bands differed by 10–30 units of luminance, which the eye
+  reads as one smooth gradient, and the mark is about discrete layers.
+
 ## [0.9.1] — 2026-09-27
 
 The version that stops data from disappearing, and stops results from claiming

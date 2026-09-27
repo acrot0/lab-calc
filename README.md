@@ -1,14 +1,24 @@
 # Lab Calc
 
-实验室溶液计算器 —— **每次计算自动留存，随时可查可重算。**
+**实验室溶液计算器。20 个计算标签页，每一次计算自动留存，随时可查、可重算。**
 
-**在线使用：<https://acrot0.github.io/lab-calc/>** —— 无需安装，可离线使用（PWA），数据只存在你自己的浏览器里。
+面向化学、生物、药学实验室的日常配制与计算工作。与同类工具的区别只有一点：
+**算完不丢**——每次计算的输入与结果自动进入本地记录，可搜索、可重算、可导出。
 
-中文 / English 双语，**11 套主题**（含 Catppuccin、Rosé Pine、Gruvbox、Solarized 四套社区配色）+ 跟随系统，设置面板里切换。
+[**在线使用**](https://acrot0.github.io/lab-calc/) · 无需安装 · 可离线使用（PWA）· 数据只存在你自己的设备上
+
+| | |
+|---|---|
+| **平台** | 网页（PWA）· Windows 桌面（Tauri）· Android |
+| **语言** | 中文 / English 双语 |
+| **主题** | 11 套（含 Catppuccin、Rosé Pine、Gruvbox、Solarized）+ 跟随系统 + 自定义强调色/圆角/密度/动效 |
+| **导出** | Excel（.xlsx）· CSV · Markdown · PDF 报告 · JSON 备份（可再导入）|
+| **许可** | MIT |
+| **状态** | v0.9.2 · 测试 2055 通过 / 100 文件 · 三平台 CI 全绿 |
 
 ```bash
 npm install
-npm run dev      # 开发
+npm run dev      # 开发服务器
 npm run build    # 构建到 dist/，纯静态，可直接托管
 npm test         # 2055 个测试
 npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项计算对已知答案的冒烟检查
