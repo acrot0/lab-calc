@@ -314,7 +314,10 @@ describe('export labels and units', () => {
     // most of the reason to export a spreadsheet rather than a CSV. The unit
     // belongs to the label, and the number stays a number.
     const md = toMarkdown([entry()]);
-    const results = md.split('\n').at(-1).split('|').at(-2).trim();
+    // The data row, found by shape rather than by position: the document now
+    // ends with a notes footer, so "the last line" is no longer the record.
+    const dataRow = md.split('\n').find((l) => l.startsWith('|') && l.includes('质量 (g)='));
+    const results = dataRow.split('|').at(-2).trim();
     expect(results).toContain('质量 (g)=14.61');
     // Scoped to the results cell: the summary is prose and may say "14.61 g"
     // in a sentence, which is correct there and is not what this asserts.

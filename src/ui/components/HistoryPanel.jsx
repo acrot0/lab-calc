@@ -41,11 +41,16 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
     const rows = shown.map((e) => ({ ...e, summary: recordSummary(e, t) }));
     if (format === 'csv') downloadCsv(rows, locale);
     else if (format === 'json') downloadBundle(entries);
-    else if (format === 'xlsx') {
+    else if (format === 'xlsx' || format === 'xlsxData') {
       // Async because the .xlsx writer is fetched on demand — see the note on
       // `downloadXlsx`. A failure here is a fetch that did not arrive, which is
       // worth telling the user rather than swallowing.
-      downloadXlsx(rows, { locale })
+      //
+      // Two menu items, one call: the views are the same sheet written two
+      // ways, and the only thing the menu decides is which. Record is listed
+      // first because it is the one that fits on screen — see `xlsxPlan`.
+      const view = format === 'xlsxData' ? 'data' : 'record';
+      downloadXlsx(rows, { locale, view })
         .catch(() => setNotice({ kind: 'err', text: t('history.exportFailed') }));
     } else downloadMarkdown(rows, locale);
   }
@@ -126,7 +131,10 @@ export default function HistoryPanel({ entries, onRemove, onReplay, onClear, onI
                     <Icons.markdown size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportMarkdown')}
                   </button>
                   <button role="menuitem" onClick={() => doExport('xlsx')}>
-                    <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportXlsx')}
+                    <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportXlsxRecord')}
+                  </button>
+                  <button role="menuitem" onClick={() => doExport('xlsxData')}>
+                    <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportXlsxData')}
                   </button>
                   <button role="menuitem" onClick={() => doExport('json')}>
                     <Icons.json size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportJson')}

@@ -6,7 +6,6 @@
 export const en = {
   app: {
     title: 'Lab Calc',
-    tagline: 'Solution chemistry, with every calculation kept',
     langLabel: 'Language',
     navLabel: 'Calculators',
     more: 'More',
@@ -711,7 +710,8 @@ export const en = {
     exportCsv: 'CSV (opens in Excel)',
     exportMarkdown: 'Markdown (paste into a notebook)',
     exportJson: 'JSON backup (re-importable)',
-    exportXlsx: 'Excel workbook (.xlsx)',
+    exportXlsxRecord: 'Record view (one row each, readable)',
+    exportXlsxData: 'Data view (one column per field, sortable)',
     exportPdf: 'PDF report (print)',
     import: 'Import',
     importHint: 'Choose a JSON backup exported earlier',

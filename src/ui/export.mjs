@@ -12,6 +12,7 @@
  */
 
 import { fieldLabel } from './field-labels.mjs';
+import { DISCLAIMER_POINTS } from './disclaimer.mjs';
 
 export const CSV_COLUMNS = ['时间', '类型', '说明', '输入', '结果'];
 
@@ -137,6 +138,18 @@ export function toCsv(entries, locale = 'zh') {
 /** Escape a pipe so it cannot break out of its table cell. */
 const escapeMd = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
+/**
+ * The history as a Markdown table, with a notes footer.
+ *
+ * The table comes first because it is what the export is for. The footer is
+ * what makes it safe to paste: this is the format that ends up in a lab
+ * notebook or a report draft, and a bare table of numbers travels with no
+ * statement of what the model does and does not correct for. The xlsx answers
+ * that with a notes sheet; Markdown has prose, which carries it better.
+ *
+ * `toCsv` deliberately does not get the same treatment — the reasoning is on
+ * that function, and the short version is that a CSV's value is being parsed.
+ */
 export function toMarkdown(entries, locale = 'zh') {
   const columns = columnsFor(locale);
   const header = `| ${columns.join(' | ')} |`;
@@ -150,7 +163,37 @@ export function toMarkdown(entries, locale = 'zh') {
       flatten(e?.outputs, locale),
     ].map(escapeMd).join(' | ')
   } |`);
-  return [header, sep, ...rows].join('\n');
+  return [header, sep, ...rows, '', ...markdownNotes(entries, locale)].join('\n');
+}
+
+/**
+ * The Markdown footer: what wrote the file, and what it does not know.
+ *
+ * Reuses the same `DISCLAIMER_POINTS` the xlsx notes sheet and the in-app
+ * notice read from, so the three cannot disagree — the wording was corrected
+ * once already, when the pH tab gained activity correction and the version
+ * written for the buffer tab alone became false.
+ */
+function markdownNotes(entries, locale = 'zh') {
+  const zh = locale !== 'en';
+  const limits = DISCLAIMER_POINTS.find((p) => p.titleEn === 'The model is simplified');
+  const verify = DISCLAIMER_POINTS.find((p) => p.titleEn === 'Verify results yourself');
+  const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '';
+  // The same two headings the xlsx notes sheet uses, which are the headings the
+  // README's own section carries. One wording, three places it is read.
+  const L = zh
+    ? { limits: '已校正的与未建模的', verify: '核对结果', software: '软件', records: '记录条数' }
+    : { limits: 'Corrected and not modelled', verify: 'Verify results', software: 'Software', records: 'Records' };
+  const section = (heading, p) => [`### ${heading}`, '', `**${zh ? p.titleZh : p.titleEn}**`, '', zh ? p.zh : p.en, ''];
+
+  return [
+    '---',
+    '',
+    ...section(L.limits, limits),
+    ...section(L.verify, verify),
+    `- ${L.software}: Lab Calc${version ? ` ${version}` : ''}`,
+    `- ${L.records}: ${entries?.length ?? 0}`,
+  ];
 }
 
 /**
@@ -226,8 +269,10 @@ function toXlsxRows(entries, locale = 'zh') {
  * sides — `molarity` is an input on one tab and a result on another — and two
  * columns with the same heading and different contents is a trap.
  */
-function toXlsxDetailedRows(entries, locale = 'zh') {
-  const { inputKeys, outputKeys } = detailColumns(entries);
+function toXlsxDetailedRows(entries, locale = 'zh', only) {
+  const derived = detailColumns(entries);
+  const inputKeys = only?.inputKeys ?? derived.inputKeys;
+  const outputKeys = only?.outputKeys ?? derived.outputKeys;
   const io = locale === 'en' ? { in: 'in', out: 'out' } : { in: '输入', out: '结果' };
   const header = [
     ...detailMeta(locale),
@@ -325,43 +370,154 @@ export function downloadBundle(entries) {
 }
 
 /**
- * The metadata sheet.
+ * The notes sheet, as rows.
  *
- * A spreadsheet of numbers with no statement of what they are is only useful to
- * the person who exported it, on the day they exported it. This records the
- * things a reader six months later cannot recover from the data: which software
- * and version wrote the file, when, which fields are present and what each one
- * is measured in, and the standing caveat that this is a teaching tool.
+ * Two halves, and the split is the point. The first is identifying: what
+ * software, which version, when, how many records, in what time zone, and
+ * which side each field came from — a file found on its own has no other way
+ * to answer those, and a spreadsheet of numbers with no statement of what they
+ * are is only useful to the person who exported it, on the day they exported
+ * it. The field list is generated from the same `fieldLabel` the columns use,
+ * so the sheet cannot describe a column differently from how it is headed.
  *
- * The field list is generated from the same `fieldLabel` the columns use, so
- * the sheet cannot describe a column differently from how the column is headed.
+ * The second half is substantive: **which quantities this model corrects for
+ * and which it does not.** That half is why this function exists at all — the
+ * earlier version had the identifying facts and a one-line "for teaching
+ * only", and a spreadsheet is the artefact that leaves, pasted into a report
+ * or opened six months later by
+ * someone who never saw the app. The README's 「已校正的与未建模的」 section is
+ * written on the principle that calling a corrected quantity "ignored" is
+ * itself a false statement; the file that travels without the app should not
+ * be the one place that distinction goes missing.
+ *
+ * ## Why it reads `DISCLAIMER_POINTS`
+ *
+ * The notice shown to every user on first run is the copy that gets corrected
+ * — it was already corrected once, when the pH tab gained activity correction
+ * and the old wording (written for the buffer tab alone) became false. A
+ * second copy here would be a second thing to forget.
  */
-function toMetaRows(entries, locale, now) {
-  const { inputKeys, outputKeys } = detailColumns(entries);
+export function toXlsxNotes(locale, count, detail = {}) {
   const zh = locale !== 'en';
+  const limits = DISCLAIMER_POINTS.find((p) => p.titleEn === 'The model is simplified');
+  const verify = DISCLAIMER_POINTS.find((p) => p.titleEn === 'Verify results yourself');
   const L = zh
-    ? { title: '说明', item: '项目', value: '内容', fields: '字段与单位', io: '来源', in: '输入', out: '结果' }
-    : { title: 'Notes', item: 'Item', value: 'Value', fields: 'Fields and units', io: 'Side', in: 'input', out: 'output' };
+    ? {
+      title: '说明', item: '项目', value: '内容',
+      fields: '字段与单位', io: '来源', in: '输入', out: '结果',
+      limits: '已校正的与未建模的', verify: '核对结果', note: '说明',
+    }
+    : {
+      title: 'Notes', item: 'Item', value: 'Value',
+      fields: 'Fields and units', io: 'Side', in: 'input', out: 'output',
+      limits: 'Corrected and not modelled', verify: 'Verify results', note: 'Note',
+    };
 
-  const rows = [
+  const point = (p) => [[p.titleZh && zh ? p.titleZh : p.titleEn, ''], [L.note, zh ? p.zh : p.en]];
+  const fieldRows = (detail.inputKeys || detail.outputKeys)
+    ? [
+      [],
+      [L.fields, ''],
+      [zh ? '字段' : 'Field', L.io],
+      ...(detail.inputKeys ?? []).map((k) => [fieldLabel(k, locale), L.in]),
+      ...(detail.outputKeys ?? []).map((k) => [fieldLabel(k, locale), L.out]),
+    ]
+    : [];
+
+  return [
     [L.title, ''],
     [L.item, L.value],
     [zh ? '软件' : 'Software', 'Lab Calc'],
     [zh ? '版本' : 'Version', typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : ''],
-    [zh ? '导出时间' : 'Exported', localStamp(now.toISOString(), locale)],
-    [zh ? '记录条数' : 'Records', entries?.length ?? 0],
-    [zh ? '时区' : 'Time zone', Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''],
+    ...(detail.exported ? [[zh ? '导出时间' : 'Exported', detail.exported]] : []),
+    [zh ? '记录条数' : 'Records', count ?? 0],
+    ...(detail.timeZone ? [[zh ? '时区' : 'Time zone', detail.timeZone]] : []),
+    ...fieldRows,
     [],
-    [L.fields, ''],
-    [zh ? '字段' : 'Field', L.io],
-    ...inputKeys.map((k) => [fieldLabel(k, locale), L.in]),
-    ...outputKeys.map((k) => [fieldLabel(k, locale), L.out]),
+    [L.limits, ''],
+    ...point(limits),
     [],
-    [zh
-      ? '本文件由 Lab Calc 导出，仅供教学与预习核对，不可用于临床、诊断或生产。'
-      : 'Exported from Lab Calc. For teaching and pre-lab checking only — not for clinical, diagnostic or production use.', ''],
+    [L.verify, ''],
+    ...point(verify),
   ];
-  return rows;
+}
+
+/**
+ * The two shapes a spreadsheet export can take.
+ *
+ * `record` is one row per calculation, the five columns the CSV has, with each
+ * side's fields folded into its cell. `data` is one column per field, for a
+ * machine to sort and average.
+ *
+ * They are not two quality levels of the same thing; they answer different
+ * questions, which is why neither can be removed. But only one of them can be
+ * the default, and the measurement decides which. Measured through this
+ * function on a three-record history (`.tmp/diag/plan-measure.mjs`):
+ *
+ *     record   5 columns, 156 characters total  — fits a 1920px screen (~240)
+ *     data    23 columns, 529 characters total  — 289 past the edge
+ *
+ * And `data` grows a column for every field the app gains, while `record` stays
+ * at five forever. A default that does not fit the window it opens in is the
+ * complaint, verbatim.
+ */
+export const XLSX_VIEWS = ['record', 'data'];
+
+/** The sheet each view writes, per locale. */
+const SHEET_NAMES = {
+  record: { zh: '记录', en: 'Records' },
+  data: { zh: '计算结果', en: 'Results' },
+};
+
+/**
+ * Everything `downloadXlsx` needs, decided and measured but not yet written.
+ *
+ * Split out from the download for one reason: `downloadXlsx` touches `document`
+ * and lazily imports the ZIP writer, so nothing about it can be tested under
+ * Node. The decision — which rows, which widths, which sheet name, which file
+ * name — is the part that can be wrong in a way a reader would notice, and it
+ * is pure. Keeping it here means the layout is pinned by tests instead of by
+ * whoever next opens an exported file.
+ *
+ * `columns` narrows the `data` view: `{ inputs: [...], outputs: [...] }` of raw
+ * keys. A requested key that is not in the data is dropped rather than written
+ * as an empty column — an all-blank column in a spreadsheet reads as "this was
+ * measured and came out missing", which is a different claim.
+ */
+export function xlsxPlan(entries, {
+  view = 'record', columns, now = new Date(), locale = 'zh',
+} = {}) {
+  const zh = locale !== 'en';
+  const which = XLSX_VIEWS.includes(view) ? view : 'record';
+  const { inputKeys: allIn, outputKeys: allOut } = detailColumns(entries);
+  const keep = (requested, known) => (requested
+    ? requested.filter((k) => known.includes(k))
+    : known);
+  const inputKeys = which === 'data' ? keep(columns?.inputs, allIn) : allIn;
+  const outputKeys = which === 'data' ? keep(columns?.outputs, allOut) : allOut;
+
+  const rows = which === 'data'
+    ? toXlsxDetailedRows(entries, locale, { inputKeys, outputKeys })
+    : toXlsxRows(entries, locale);
+  const notes = toXlsxNotes(locale, entries?.length ?? 0, {
+    exported: localStamp(now.toISOString(), locale),
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? '',
+    inputKeys,
+    outputKeys,
+  });
+
+  const day = now.toISOString().slice(0, 10);
+  const tag = { record: zh ? '记录' : 'records', data: zh ? '详细' : 'detailed' };
+  return {
+    view: which,
+    rows,
+    widths: widthsFor(rows),
+    notes,
+    noteWidths: widthsFor(notes, { min: 10, max: 60 }),
+    sheetName: SHEET_NAMES[which][zh ? 'zh' : 'en'],
+    noteSheetName: zh ? '说明' : 'Notes',
+    filename: `lab-calc-${tag[which]}-${day}.xlsx`,
+  };
 }
 
 /**
@@ -381,27 +537,22 @@ function toMetaRows(entries, locale, now) {
  * Two sheets: the data, and the notes that make the data readable later. The
  * data sheet is first, because that is what the file is for.
  */
-export async function downloadXlsx(entries, { detailed = true, now = new Date(), locale = 'zh' } = {}) {
+export async function downloadXlsx(entries, { view = 'record', columns, now = new Date(), locale = 'zh' } = {}) {
   const { toXlsx } = await import('./xlsx.mjs');
-  const zh = locale !== 'en';
-  const rows = detailed ? toXlsxDetailedRows(entries, locale) : toXlsxRows(entries, locale);
-  const meta = toMetaRows(entries, locale, now);
-  const bytes = toXlsx(rows, {
-    sheetName: detailed ? (zh ? '计算结果' : 'Results') : 'History',
-    widths: widthsFor(rows),
+  const plan = xlsxPlan(entries, { view, columns, now, locale });
+  const bytes = toXlsx(plan.rows, {
+    sheetName: plan.sheetName,
+    widths: plan.widths,
     // The notes sheet is one narrow column of prose and one of values; the
     // widths come from its own content rather than the data sheet's.
     extraSheets: [{
-      name: zh ? '说明' : 'Notes',
-      rows: meta,
-      widths: widthsFor(meta, { min: 10, max: 60 }),
+      name: plan.noteSheetName,
+      rows: plan.notes,
+      widths: plan.noteWidths,
     }],
     now,
   });
-  const name = detailed
-    ? `lab-calc-${zh ? '详细' : 'detailed'}-${now.toISOString().slice(0, 10)}.xlsx`
-    : exportFilename('xlsx', now);
-  return downloadFile(bytes, name, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  return downloadFile(bytes, plan.filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 /* ==========================================================================

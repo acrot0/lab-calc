@@ -2,7 +2,6 @@
 export const zh = {
   app: {
     title: 'Lab Calc',
-    tagline: '实验室溶液计算 · 每次计算自动留存，随时可查',
     langLabel: '语言',
     navLabel: '计算器导航',
     more: '更多',
@@ -713,7 +712,8 @@ export const zh = {
     exportCsv: 'CSV（Excel 可开）',
     exportMarkdown: 'Markdown（贴记录本）',
     exportJson: 'JSON 备份（可再导入）',
-    exportXlsx: 'Excel 表格（.xlsx）',
+    exportXlsxRecord: '记录视图（一行一条，可直接读）',
+    exportXlsxData: '数据视图（一字段一列，可筛选统计）',
     exportPdf: 'PDF 报告（打印）',
     import: '导入',
     importHint: '选择之前导出的 JSON 备份文件',
