@@ -62,6 +62,19 @@ async function withProvider(node) {
   return createElement(LocaleProvider, { store: null }, node);
 }
 
+/*
+ * Every test in this block carries an explicit 30s timeout.
+ *
+ * Each one renders twenty tabs through twenty dynamic imports, so the default
+ * 5s is a wall-clock budget rather than a correctness one. Measured at ~2.1s
+ * alone and over 5s when the machine is busy — it failed once during a Gradle
+ * build and again during a full-suite run, both times for contention and
+ * neither time for a defect.
+ *
+ * `dom-render.test.mjs` already sets 30-60s for tests of this shape, so this is
+ * the house convention rather than a number picked to make a red test green.
+ * The assertions are unchanged: every tab must render, in every mode.
+ */
 describe('tab rendering', () => {
   it('should render every tab without throwing', async () => {
     const failures = [];
@@ -81,7 +94,7 @@ describe('tab rendering', () => {
     }
 
     expect(failures).toEqual([]);
-  });
+  }, 30000);
 
   it('should render every tab in the light theme too', async () => {
     // The theme is threaded through to the canvas palettes, so a tab that only
@@ -99,7 +112,7 @@ describe('tab rendering', () => {
     }
 
     expect(failures).toEqual([]);
-  });
+  }, 30000);
 
   it('should render every tab with restored inputs', async () => {
     // Replaying a history entry passes `restored`, which is a different code
@@ -123,7 +136,7 @@ describe('tab rendering', () => {
     }
 
     expect(failures).toEqual([]);
-  });
+  }, 30000);
 });
 
 /**
