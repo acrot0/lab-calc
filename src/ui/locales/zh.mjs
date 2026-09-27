@@ -986,6 +986,11 @@ export const zh = {
     restoreAll: '全部恢复',
     restored: '已恢复 {n} 条记录。',
     exportFailed: "导出失败，请重试。",
+    previewTitle: '导出预览',
+    previewCount: '共 {n} 条记录',
+    previewMore: '另有 {n} 条未在此显示',
+    previewConfirm: '确认导出',
+    previewCancel: '取消',
   },
   reaction: {
     mode: '计算类型',

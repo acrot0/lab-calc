@@ -6,7 +6,7 @@ import { filterByGroup, groupCounts, ungroupedCount, ALL_GROUPS } from '../group
 import GroupPicker from './GroupPicker.jsx';
 import {
   downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
-  detailColumns,
+  detailColumns, exportPreview,
 } from '../export.mjs';
 import EntryMeta from './EntryMeta.jsx';
 import ColumnPicker from './ColumnPicker.jsx';
@@ -49,6 +49,16 @@ export default function HistoryPanel({
   const [columns, setColumns] = useState(null);
   const [colsOpen, setColsOpen] = useState(false);
   /*
+   * The export awaiting confirmation, or null.
+   *
+   * Export used to fire straight from the menu: the file appeared in the
+   * downloads bar and the only way to see what was in it was to open it. With
+   * a search active and a column subset chosen, the two things most likely to
+   * be wrong — which rows, which columns — are both invisible at the moment of
+   * the click. This holds the format so the preview can show them first.
+   */
+  const [preview, setPreview] = useState(null);
+  /*
    * The immediate undo, as distinct from the trash section below.
    *
    * The complaint was that a mis-tap cleared everything. Nothing was actually
@@ -86,13 +96,44 @@ export default function HistoryPanel({
   // column the file will not contain.
   const available = useMemo(() => detailColumns(shown), [shown]);
 
-  // Export what is currently visible, not the whole history — after a search,
-  // "export" plainly means "export these results".
+  /*
+   * The rows the next export would contain.
+   *
+   * Summaries are derived at export time so the file matches the UI language
+   * the user is looking at, rather than whatever language wrote the record.
+   * `shown` rather than the whole history: after a search, "export" plainly
+   * means "export these results".
+   */
+  const exportRows = useMemo(
+    () => shown.map((e) => ({ ...e, summary: recordSummary(e, t) })),
+    [shown, t],
+  );
+
+  /*
+   * Show what the export would contain, instead of downloading it.
+   *
+   * The JSON bundle is excluded on purpose. It is the whole archive, deleted
+   * records included, and its shape is not tabular — a three-row preview of a
+   * file whose point is being complete would misrepresent it rather than
+   * inform anyone. It keeps downloading directly from the menu.
+   */
+  function openPreview(format) {
+    setMenuOpen(false);
+    setPreview({
+      format,
+      plan: exportPreview(exportRows, {
+        format,
+        locale,
+        view: format === 'xlsxData' ? 'data' : 'record',
+        columns: columns ?? undefined,
+      }),
+    });
+  }
+
+  // Export what is currently visible, not the whole history.
   function doExport(format) {
     setMenuOpen(false);
-    // Summaries are derived at export time so the file matches the UI language
-    // the user is looking at, rather than whatever language wrote the record.
-    const rows = shown.map((e) => ({ ...e, summary: recordSummary(e, t) }));
+    const rows = exportRows;
     if (format === 'csv') downloadCsv(rows, locale);
     // The backup is the archive, deleted records included. Excluding them
     // would make "export a backup, then delete the app data" lose the very
@@ -182,16 +223,16 @@ export default function HistoryPanel({
               </button>
               {menuOpen && (
                 <div className="export-menu" role="menu">
-                  <button role="menuitem" onClick={() => doExport('csv')}>
+                  <button role="menuitem" onClick={() => openPreview('csv')}>
                     <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportCsv')}
                   </button>
-                  <button role="menuitem" onClick={() => doExport('markdown')}>
+                  <button role="menuitem" onClick={() => openPreview('markdown')}>
                     <Icons.markdown size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportMarkdown')}
                   </button>
-                  <button role="menuitem" onClick={() => doExport('xlsx')}>
+                  <button role="menuitem" onClick={() => openPreview('xlsx')}>
                     <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportXlsxRecord')}
                   </button>
-                  <button role="menuitem" onClick={() => doExport('xlsxData')}>
+                  <button role="menuitem" onClick={() => openPreview('xlsxData')}>
                     <Icons.csv size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportXlsxData')}
                   </button>
                   {/* Opens a picker rather than exporting: choosing columns is
@@ -265,6 +306,49 @@ export default function HistoryPanel({
           <button type="button" className="link-btn" onClick={() => setColsOpen(false)}>
             {t('history.metaDone')}
           </button>
+        </div>
+      )}
+
+      {/* What the next download would contain, shown before it happens. */}
+      {preview && (
+        <div className="export-preview" role="region" aria-label={t('history.previewTitle')}>
+          <div className="export-preview-head">
+            <strong>{t('history.previewTitle')}</strong>
+            <span className="export-preview-count">
+              {t('history.previewCount', { n: preview.plan.total })}
+            </span>
+          </div>
+          <div className="export-preview-cols">
+            {preview.plan.columns.map((c, i) => (
+              <span className="export-preview-col" key={`${c}-${i}`}>{c}</span>
+            ))}
+          </div>
+          {preview.plan.rows.length > 0 && (
+            <div className="export-preview-table">
+              <table>
+                <tbody>
+                  {preview.plan.rows.map((row, r) => (
+                    <tr key={r}>
+                      {row.map((cellText, cIdx) => (
+                        <td key={cIdx} title={cellText}>{cellText}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {preview.plan.total > preview.plan.rows.length && (
+            <p className="hint">{t('history.previewMore', { n: preview.plan.total - preview.plan.rows.length })}</p>
+          )}
+          <div className="export-preview-actions">
+            <button type="button" className="primary" onClick={() => { doExport(preview.format); setPreview(null); }}>
+              {t('history.previewConfirm')}
+            </button>
+            <button type="button" className="link-btn" onClick={() => setPreview(null)}>
+              {t('history.previewCancel')}
+            </button>
+          </div>
         </div>
       )}
 

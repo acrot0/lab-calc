@@ -2111,6 +2111,90 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .export-menu button:hover { background: var(--accent-soft); color: var(--accent); }
 
+/*
+ * The export preview.
+ *
+ * It sits inside the history panel rather than as a modal, because the panel is
+ * where the records are and the preview is a statement about them — a dialog
+ * would cover the thing being described. `rise` is the app's existing
+ * "content appeared" animation, so it arrives like everything else.
+ */
+.export-preview {
+  margin: var(--s3) 0;
+  padding: var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  animation: rise var(--dur-fx-m) var(--ease-out);
+}
+
+.export-preview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+.export-preview-count { color: var(--text-dim); font-size: var(--t-sm); }
+
+/*
+ * The column list wraps rather than scrolls.
+ *
+ * A data-view export can have twenty-odd columns; a horizontal scrollbar inside
+ * a side panel is unusable with a trackpad and invisible with a keyboard.
+ * Wrapping shows the count at a glance, which is the question the preview is
+ * answering — "how wide is this going to be".
+ */
+.export-preview-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.export-preview-col {
+  padding: 1px var(--s2);
+  background: var(--surface-3);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.export-preview-table {
+  overflow-x: auto;
+  margin-bottom: var(--s2);
+  /* The table is a sample, not the file: capping its height keeps a
+     twenty-column preview from pushing the confirm button off screen. */
+  max-height: 120px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.export-preview-table table {
+  border-collapse: collapse;
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+
+.export-preview-table td {
+  max-width: 140px;
+  padding: 2px var(--s2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-preview-table tr:last-child td { border-bottom: none; }
+
+.export-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+
 .search { position: relative; margin-bottom: var(--s3); }
 
 /*

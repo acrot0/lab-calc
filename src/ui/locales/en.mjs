@@ -988,6 +988,11 @@ export const en = {
     restoreAll: 'Restore all',
     restored: 'Restored {n} entries.',
     exportFailed: "Export failed. Try again.",
+    previewTitle: 'Export preview',
+    previewCount: '{n} records',
+    previewMore: '{n} more not shown',
+    previewConfirm: 'Download',
+    previewCancel: 'Cancel',
   },
   reaction: {
     mode: 'Calculation',

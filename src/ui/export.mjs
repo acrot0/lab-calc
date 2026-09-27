@@ -12,7 +12,9 @@
  */
 
 import { fieldLabel } from './field-labels.mjs';
-import { getTemplate, fieldOf as templateField, labelOf } from './field-template.mjs';import { DISCLAIMER_POINTS } from './disclaimer.mjs';
+import { getTemplate, fieldOf as templateField, labelOf } from './field-template.mjs';
+import { proceduresFor } from './procedure.mjs';
+import { DISCLAIMER_POINTS } from './disclaimer.mjs';
 import { zh } from './locales/zh.mjs';
 import { en } from './locales/en.mjs';
 
@@ -189,7 +191,7 @@ const escapeMd = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' '
  * `toCsv` deliberately does not get the same treatment — the reasoning is on
  * that function, and the short version is that a CSV's value is being parsed.
  */
-export function toMarkdown(entries, locale = 'zh') {
+export function toMarkdown(entries, locale = 'zh', now = new Date()) {
   const fields = usedMetaFields(entries);
   const columns = [...columnsFor(locale), ...metaLabels(fields, locale)];
   const header = `| ${columns.join(' | ')} |`;
@@ -204,7 +206,88 @@ export function toMarkdown(entries, locale = 'zh') {
       ...metaValues(fields, e),
     ].map(escapeMd).join(' | ')
   } |`);
-  return [header, sep, ...rows, '', ...markdownNotes(entries, locale, fields)].join('\n');
+  return [
+    ...markdownHeader(entries, locale, now),
+    header, sep, ...rows,
+    '',
+    ...markdownRecipes(entries, locale),
+    ...markdownNotes(entries, locale, fields),
+  ].join('\n');
+}
+
+/**
+ * The provenance block, above the table.
+ *
+ * A table pasted into a report appendix has to be able to say where it came
+ * from. Six months later, in someone else's document, "which version of what
+ * produced these numbers, and when" is the first question and the one a bare
+ * table cannot answer.
+ *
+ * The same facts the xlsx notes sheet carries, in the same order, so the two
+ * exports describe themselves identically. `BUNDLE_VERSION` is included because
+ * it is the format version rather than the app version — the two move
+ * independently, and a reader comparing a Markdown table against a JSON bundle
+ * needs to know which is which.
+ *
+ * The date is passed in rather than read here, so the output is a function of
+ * its arguments and a test can pin it.
+ */
+function markdownHeader(entries, locale, now) {
+  const zh = locale !== 'en';
+  const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '';
+  const when = now instanceof Date ? now : new Date();
+  const stamp = Number.isNaN(when.getTime()) ? '' : localStamp(when.toISOString(), locale);
+  const rows = [
+    [zh ? '软件' : 'Software', `Lab Calc${version ? ` ${version}` : ''}`],
+    [zh ? '导出时间' : 'Exported', stamp],
+    [zh ? '记录条数' : 'Records', String(entries?.length ?? 0)],
+    [zh ? '数据格式版本' : 'Data format version', String(BUNDLE_VERSION)],
+  ];
+  const label = zh ? '项目' : 'Item';
+  const value = zh ? '内容' : 'Value';
+  return [
+    `| ${label} | ${value} |`,
+    '|---|---|',
+    ...rows.filter(([, v]) => v !== '').map(([k, v]) => `| ${escapeMd(k)} | ${escapeMd(v)} |`),
+    '',
+  ];
+}
+
+/**
+ * The recipe cards, between the table and the disclaimer footer.
+ *
+ * The table is the data; these are the instructions. A person who has to make
+ * the solution cannot act on `volume=500; molarity=0.5` — they need the
+ * operations in order with the number that goes with each one, which is what
+ * `procedure.mjs` derives.
+ *
+ * Only the kinds that are genuinely procedural get a card. A Nernst potential
+ * is arithmetic and has no steps to follow, so nothing is invented for it —
+ * a made-up procedure is one somebody would follow.
+ *
+ * The cards come after the table rather than before it, because the table is
+ * what the file is for and the recipe is what makes it actionable. They come
+ * before the notes because the notes are about the whole document, not about
+ * one record.
+ */
+function markdownRecipes(entries, locale = 'zh') {
+  const cards = proceduresFor(entries, locale);
+  if (cards.length === 0) return [];
+  const zh = locale !== 'en';
+  const heading = zh ? '配制步骤' : 'Preparation steps';
+  const from = zh ? '对应记录' : 'Record';
+  const out = [`## ${heading}`, ''];
+
+  for (const card of cards) {
+    out.push(`### ${card.title}`, '');
+    // Which table row this card belongs to. Without it a file with three
+    // weighing records has three near-identical cards and no way to tell which
+    // is which — the summaries differ by one number.
+    if (card.summary) out.push(`> ${from}: ${escapeMd(card.summary)}`, '');
+    card.steps.forEach((step, i) => out.push(`${i + 1}. ${step}`));
+    out.push('');
+  }
+  return out;
 }
 
 /**
@@ -296,6 +379,86 @@ export function detailColumns(entries) {
     }
   }
   return { inputKeys, outputKeys };
+}
+
+/**
+ * What the user is about to download, before they download it.
+ *
+ * Export used to be a menu item that fired immediately: the file appeared in
+ * the downloads bar and the only way to find out what was in it was to open it.
+ * With a search active and a column subset chosen, that is a guess — the two
+ * things most likely to be wrong (the row set and the column set) are both
+ * invisible at the moment of the click.
+ *
+ * This is the same plan the writer uses, reduced to what a person can read:
+ * the columns, how many rows, and the first few of them. It calls the same
+ * functions the real export does rather than approximating them, so a preview
+ * cannot disagree with the file.
+ *
+ * Returns `{ format, columns, total, rows }` where `rows` is at most `limit`
+ * arrays of already-formatted cell strings. Never throws for an unknown
+ * format — it falls back to the CSV shape, which is the five-column view every
+ * other format is a variation on.
+ */
+export function exportPreview(entries, {
+  format = 'csv', locale = 'zh', view = 'record', columns, limit = 3,
+} = {}) {
+  const list = entries ?? [];
+  const fields = usedMetaFields(list);
+  const meta = metaLabels(fields, locale);
+
+  if (format === 'xlsx' || format === 'xlsxData') {
+    const which = format === 'xlsxData' ? 'data' : 'record';
+    const { inputKeys: allIn, outputKeys: allOut } = detailColumns(list);
+    const keep = (requested, known) => (requested ? requested.filter((k) => known.includes(k)) : known);
+    const inputKeys = which === 'data' ? keep(columns?.inputs, allIn) : allIn;
+    const outputKeys = which === 'data' ? keep(columns?.outputs, allOut) : allOut;
+    const rows = which === 'data'
+      ? toXlsxDetailedRows(list, locale, { inputKeys, outputKeys })
+      : toXlsxRows(list, locale);
+    return {
+      format,
+      // The data sheet's own header row, minus the three meta columns the
+      // detailed view prepends — those are constant and would push the field
+      // names off the side of a small preview.
+      columns: (rows[0] ?? []).map(String),
+      total: list.length,
+      rows: rows.slice(1, 1 + limit).map((r) => r.map((c) => String(cell(c)))),
+    };
+  }
+
+  if (format === 'markdown') {
+    // The table's columns are the five fixed ones plus whichever metadata
+    // fields this set actually uses — the same `usedMetaFields` the writer
+    // calls, so a previewed column cannot be missing from the file.
+    return {
+      format,
+      columns: [...columnsFor(locale), ...meta],
+      total: list.length,
+      rows: list.slice(0, limit).map((e) => [
+        localStamp(e?.at, locale),
+        kindName(e?.kind, locale),
+        e?.summary ?? '',
+        flatten(e?.inputs, locale),
+        flatten(e?.outputs, locale),
+        ...metaValues(fields, e),
+      ]),
+    };
+  }
+
+  return {
+    format: 'csv',
+    columns: [...columnsFor(locale), ...meta],
+    total: list.length,
+    rows: list.slice(0, limit).map((e) => [
+      localStamp(e?.at, locale),
+      kindName(e?.kind, locale),
+      e?.summary ?? '',
+      flatten(e?.inputs, locale),
+      flatten(e?.outputs, locale),
+      ...metaValues(fields, e),
+    ]),
+  };
 }
 
 /** A cell value: scalars only, so an object never lands in a spreadsheet cell. */

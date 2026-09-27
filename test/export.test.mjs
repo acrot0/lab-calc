@@ -100,7 +100,14 @@ describe('toMarkdown', () => {
 
   it('should include one row per entry', () => {
     const md = toMarkdown([entry(), entry({ id: 'a2' })]);
-    expect(md.split('\n').filter((l) => l.startsWith('|')).length).toBe(4); // header + sep + 2
+    // Scoped to the data table, not every pipe in the file: the document also
+    // carries a provenance block above it and the count would drift with it.
+    const lines = md.split('\n');
+    const start = lines.findIndex((l) => l.startsWith('| 时间 |'));
+    const table = lines.slice(start).filter((l) => l.startsWith('|'));
+    const end = table.findIndex((l) => l === '');
+    const rows = (end < 0 ? table : table.slice(0, end)).filter((l) => !l.startsWith('|---'));
+    expect(rows.length).toBe(3); // header + 2 entries
   });
 
   it('should escape a pipe so the table does not break', () => {
