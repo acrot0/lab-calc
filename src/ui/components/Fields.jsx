@@ -9,6 +9,49 @@ import { claimField } from '../field-bridge.mjs';
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
 
 /**
+ * Tell the calculator which field it may fill, and what it is called.
+ *
+ * On focus rather than on mount: a tab can render twenty fields, and the one
+ * the user means is the one they were last typing in. The claim is released on
+ * unmount so a removed field is never written to.
+ *
+ * ## Why this is a hook rather than code inside `NumField`
+ *
+ * It lived inside `NumField`, and that was the bug. `TextField` — the formula
+ * box, the sequence box, the standards-points box — rendered an input with no
+ * registration at all, so focusing one left the calculator with no target: its
+ * 「填入字段」 button was disabled, with the tooltip "focus a field first", while
+ * the user looked at a focused field. A user reported it as "the calculator's
+ * value will not go into the box".
+ *
+ * Extracting it means a field type opts in by calling one hook, and the next
+ * kind of field added has an obvious place to do so. The regression test mounts
+ * both existing kinds and would fail if a third were added without one.
+ *
+ * The label is the same string the field renders above itself, passed in rather
+ * than looked up by id, so the button and the field cannot describe the target
+ * differently.
+ */
+function useFillTarget(label) {
+  const inputRef = useRef(null);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return undefined;
+    let release = null;
+    const onFocus = () => {
+      release?.();
+      release = claimField(el, label);
+    };
+    el.addEventListener('focus', onFocus);
+    return () => {
+      el.removeEventListener('focus', onFocus);
+      release?.();
+    };
+  }, [label]);
+  return inputRef;
+}
+
+/**
  * `id` is overridable because the default is derived from the label, and a
  * repeated label (a dynamic list of ions, say) then emits the same id twice.
  * Two inputs sharing an id means the label points at whichever the browser
@@ -30,33 +73,7 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
   const id = idProp ?? `f-${typeof label === 'string' ? label : ''}`;
   const { t } = useI18n();
   const [draft, setDraft] = useState(null);
-  const inputRef = useRef(null);
-
-  /*
-   * Tell the calculator which field it may fill, and what it is called.
-   *
-   * On focus rather than on mount: a tab can render twenty fields, and the one
-   * the user means is the one they were last typing in. The claim is released
-   * on unmount so a removed field is never written to.
-   *
-   * The label goes with the claim so the calculator's fill button can name its
-   * destination. It is the same string rendered above this input, not a lookup
-   * by id, so the button and the field cannot end up describing it differently.
-   */
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return undefined;
-    let release = null;
-    const onFocus = () => {
-      release?.();
-      release = claimField(el, label);
-    };
-    el.addEventListener('focus', onFocus);
-    return () => {
-      el.removeEventListener('focus', onFocus);
-      release?.();
-    };
-  }, [label]);
+  const inputRef = useFillTarget(label);
   /*
    * `draft` holds what the user is typing; `value` is the evaluated number the
    * tab holds. Without the draft, typing `0.1*2` would re-render the field with
@@ -176,10 +193,20 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
 
 export function TextField({ label, value, onChange, hint, error, placeholder, id: idProp }) {
   const id = idProp ?? `f-${label}`;
+  /*
+   * A text field is a fill target too.
+   *
+   * It was not, and that was the bug: the calculator's 「填入字段」 button stayed
+   * disabled whenever the user had last focused a formula box, a sequence box
+   * or the standards-points box, because none of them registered. See
+   * `useFillTarget` for why the registration is a hook.
+   */
+  const inputRef = useFillTarget(label);
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <input
+        ref={inputRef}
         id={id}
         type="text"
         value={value}
