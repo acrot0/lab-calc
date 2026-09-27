@@ -7,16 +7,27 @@ android {
         applicationId "com.labcalc.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
         /*
-         * Read from the repository's package.json rather than written here.
+         * Both read from the repository's package.json rather than written here.
          *
          * Capacitor's template ships "1.0", which is a number that appears
          * nowhere else in the project — the APK would report a version the web
          * app, the desktop build and the release tag all disagree with. Read
          * from the same file they use, so there is one version and no checklist
          * item to forget.
+         *
+         * `versionCode` is not decoration: Android compares these integers to
+         * decide whether an APK is an upgrade, and refuses one that is not
+         * greater than the installed build. It was hard-coded to 1, so every
+         * release after the first would have been rejected — with no error
+         * shown, just an update that did not take. The mapping from the version
+         * string lives in `src/ui/version.mjs`, which is unit-tested; the
+         * script passes the result in.
+         *
+         * No default: if the property is missing the build fails loudly rather
+         * than quietly shipping code 1 again.
          */
+        versionCode project.hasProperty('appVersionCode') ? project.appVersionCode.toInteger() : 0
         versionName project.hasProperty('appVersion') ? project.appVersion : "0.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

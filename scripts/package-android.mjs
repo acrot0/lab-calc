@@ -27,6 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { androidVersionCode } from '../src/ui/version.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -177,12 +178,25 @@ const pkgVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), '
 step('Gradle assembleDebug …');
 try {
   /*
-   * `-PappVersion` carries the repository's version into the APK. Without it
-   * the build reports Capacitor's template value of 1.0 — a number that
-   * appears nowhere else in the project, so the APK, the web app, the desktop
-   * build and the release tag would all disagree.
+   * Both version properties are passed in, and they do different jobs.
+   *
+   * `-PappVersion` is the name a person reads. Without it the build reports
+   * Capacitor's template value of 1.0 — a number that appears nowhere else in
+   * the project, so the APK, the web app, the desktop build and the release tag
+   * would all disagree.
+   *
+   * `-PappVersionCode` is the integer Android actually enforces. It was
+   * hard-coded to 1 in build.gradle, which means every release after the first
+   * would have been refused as an install — silently, from the user's side.
+   * `androidVersionCode` throws rather than emitting a code that collides with
+   * a different version, so a version this scheme cannot encode stops the build
+   * here rather than at the user's phone.
    */
-  execFileSync(gradlew, ['assembleDebug', '--no-daemon', `-PappVersion=${pkgVersion}`], {
+  execFileSync(gradlew, [
+    'assembleDebug', '--no-daemon',
+    `-PappVersion=${pkgVersion}`,
+    `-PappVersionCode=${androidVersionCode(pkgVersion)}`,
+  ], {
     cwd: androidDir,
     stdio: 'inherit',
     shell: true,
