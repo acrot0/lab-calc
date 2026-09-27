@@ -299,6 +299,51 @@ describe('converter dimensions', () => {
     }
   });
 
+  it('should place every offered dimension in exactly one group', async () => {
+    /*
+     * The picker groups its thirty-five dimensions under `<optgroup>` headings,
+     * because a flat list that long is a wall to read rather than a list to
+     * scan. The risk that introduces is a dimension in `DIMENSIONS_SHOWN` but
+     * in no group — it would vanish from the converter silently, which is
+     * worse than the flat list it replaced.
+     *
+     * "Exactly one" rather than "at least one": a dimension listed under two
+     * headings appears twice in the dropdown, and the duplicate gives the same
+     * answer from a different-looking place.
+     */
+    const { DIMENSIONS_SHOWN, DIMENSION_GROUPS } = await import('../src/ui/components/UnitConverter.jsx');
+    const counts = new Map();
+    for (const g of DIMENSION_GROUPS) {
+      for (const d of g.dimensions) counts.set(d, (counts.get(d) ?? 0) + 1);
+    }
+
+    const missing = DIMENSIONS_SHOWN.filter((d) => !counts.has(d));
+    expect(missing, `未分组: ${missing.join(', ')}`).toEqual([]);
+
+    const duplicated = [...counts.entries()].filter(([, n]) => n > 1).map(([d]) => d);
+    expect(duplicated, `重复分组: ${duplicated.join(', ')}`).toEqual([]);
+
+    // Nothing may be grouped that the converter does not offer either, or the
+    // group renders empty and the heading promises options that are not there.
+    const extra = [...counts.keys()].filter((d) => !DIMENSIONS_SHOWN.includes(d));
+    expect(extra, `组里有未提供的维度: ${extra.join(', ')}`).toEqual([]);
+  });
+
+  it('should resolve every group heading from the locale files', async () => {
+    // The heading is user-visible text like any other, so it comes from the
+    // locales rather than from the component — the hardcoded-CJK guard rejects
+    // the alternative. A key with no translation renders as the key itself, so
+    // `convert.group_solution` would appear above the options.
+    const { DIMENSION_GROUPS } = await import('../src/ui/components/UnitConverter.jsx');
+    for (const g of DIMENSION_GROUPS) {
+      for (const [name, dict] of [['zh', zh], ['en', en]]) {
+        const value = dict.convert[g.label];
+        expect(value, `${name} convert.${g.label}`).toBeTruthy();
+        expect(value, `${name} convert.${g.label}`).not.toBe(g.label);
+      }
+    }
+  });
+
   it('should offer every dimension the units module defines', async () => {
     // A dimension added to the module but not to the screen is unreachable —
     // the units exist and no picker will ever show them.

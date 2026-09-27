@@ -37,6 +37,71 @@ export const DIMENSIONS_SHOWN = [
 ].filter((d) => DIMENSIONS[d]);
 
 /**
+ * The same list, grouped into `<optgroup>`s.
+ *
+ * Thirty-five dimensions in a flat dropdown is a list a user has to read rather
+ * than scan — the reported "比较难用". The order above is a considered sequence
+ * but a `<select>` renders it as one undifferentiated wall, and the eye has
+ * nothing to land on.
+ *
+ * `optgroup` is the native answer: it needs no new component, it is announced
+ * as a group by every screen reader, and it keeps the dropdown a dropdown. The
+ * headings are the categories a bench actually thinks in, not the units
+ * module's internal ordering.
+ *
+ * Every id in `DIMENSIONS_SHOWN` must appear in exactly one group — a test
+ * asserts that, because a dimension missing from the groups would silently
+ * vanish from the converter rather than fail.
+ */
+export const DIMENSION_GROUPS = [
+  {
+    id: 'solution',
+    label: 'group_solution',
+    dimensions: ['mass', 'volume', 'amount', 'molarity', 'massConcentration', 'molality'],
+  },
+  {
+    id: 'molar',
+    label: 'group_molar',
+    dimensions: ['molarMass', 'molarVolume', 'molarEnergy', 'molarEntropy'],
+  },
+  {
+    id: 'general',
+    label: 'group_general',
+    dimensions: ['length', 'area', 'time', 'temperature', 'pressure', 'energy', 'force', 'velocity'],
+  },
+  {
+    id: 'electrical',
+    label: 'group_electrical',
+    dimensions: ['voltage', 'resistance', 'current', 'charge', 'conductance', 'power'],
+  },
+  {
+    id: 'spectroscopy',
+    label: 'group_spectroscopy',
+    dimensions: ['frequency', 'wavenumber'],
+  },
+  {
+    id: 'fluid',
+    label: 'group_fluid',
+    dimensions: ['viscosity', 'kinematicViscosity', 'surfaceTension'],
+  },
+  {
+    id: 'thermal',
+    label: 'group_thermal',
+    dimensions: ['heatCapacity', 'specificHeat', 'dose'],
+  },
+  {
+    id: 'other',
+    label: 'group_other',
+    dimensions: ['catalyticActivity', 'ratio', 'angle'],
+  },
+];
+
+/** The group a dimension belongs to, or null. */
+function groupOf(dimension) {
+  return DIMENSION_GROUPS.find((g) => g.dimensions.includes(dimension)) ?? null;
+}
+
+/**
  * Unit conversion, as one component used in two places.
  *
  * ## Why it is shared rather than written twice
@@ -64,6 +129,11 @@ export default function UnitConverter({ compact = false, onFill = null }) {
 
   const units = unitsOf(dim);
   const active = DIMENSIONS[dim];
+  // Dimensions the groups do not mention. Always empty in a correct build —
+  // the coverage test asserts it — but computed rather than assumed, so a
+  // future dimension that skips the groups shows up in the dropdown instead of
+  // dropping out of it.
+  const ungrouped = DIMENSIONS_SHOWN.filter((d) => !groupOf(d));
 
   /** Switching dimension resets both sides: the old units no longer exist. */
   function changeDim(next) {
@@ -141,9 +211,34 @@ export default function UnitConverter({ compact = false, onFill = null }) {
           value={dim}
           onChange={(e) => changeDim(e.target.value)}
         >
-          {DIMENSIONS_SHOWN.map((d) => (
-            <option key={d} value={d}>{t(`convert.dim_${d}`)}</option>
-          ))}
+          {/*
+            Grouped rather than flat. Thirty-five options in one list is a wall
+            to read; `optgroup` gives the eye a heading to land on and is
+            announced as a group by screen readers.
+
+            The trailing fallback is deliberate: a dimension that somehow
+            missed every group would otherwise disappear from the converter
+            entirely. It is rendered in its own group instead, where it is
+            visible and obviously misplaced rather than silently absent.
+          */}
+          {DIMENSION_GROUPS.map((group) => {
+            const members = group.dimensions.filter((d) => DIMENSIONS_SHOWN.includes(d));
+            if (members.length === 0) return null;
+            return (
+              <optgroup key={group.id} label={t(`convert.${group.label}`)}>
+                {members.map((d) => (
+                  <option key={d} value={d}>{t(`convert.dim_${d}`)}</option>
+                ))}
+              </optgroup>
+            );
+          })}
+          {ungrouped.length > 0 && (
+            <optgroup label={t('convert.group_other')}>
+              {ungrouped.map((d) => (
+                <option key={d} value={d}>{t(`convert.dim_${d}`)}</option>
+              ))}
+            </optgroup>
+          )}
         </select>
       </div>
 
