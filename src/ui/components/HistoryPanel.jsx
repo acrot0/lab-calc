@@ -11,6 +11,7 @@ import {
 import EntryMeta from './EntryMeta.jsx';
 import ColumnPicker from './ColumnPicker.jsx';
 import { useI18n } from '../LocaleContext.jsx';
+import { useUndo } from '../use-undo.mjs';
 import { recordSummary } from '../summaries.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 
@@ -47,6 +48,17 @@ export default function HistoryPanel({
   // note on ColumnPicker for why "everything" is the honest default.
   const [columns, setColumns] = useState(null);
   const [colsOpen, setColsOpen] = useState(false);
+  /*
+   * The immediate undo, as distinct from the trash section below.
+   *
+   * The complaint was that a mis-tap cleared everything. Nothing was actually
+   * destroyed — the records were marked, and the trash could bring any of them
+   * back — but the recovery was invisible at the moment of the mistake: the
+   * list went empty and the explanation was below the fold. This bar names what
+   * happened and offers the way back for as long as it is on screen. The trash
+   * stays; that is the durable undo, this is the immediate one.
+   */
+  const undo = useUndo();
   /*
    * Deleted records never reach the list, search or not.
    *
@@ -213,7 +225,32 @@ export default function HistoryPanel({
                 would silently do nothing and look broken. */}
             <button
               className="link-btn"
-              onClick={onClear}
+              onClick={() => {
+                /*
+                 * The ids are captured *before* the clear, and the count is
+                 * read from the same list the user is looking at.
+                 *
+                 * Deriving them at undo time cannot work: `allEntries` is a
+                 * prop, so the closure sees the list as it was when the bar was
+                 * created — before the clear marked anything — and the filter
+                 * would find no tombstones and restore nothing. The bar would
+                 * appear, the button would work, and it would do nothing.
+                 *
+                 * Capturing also states the intent exactly: undo the clear
+                 * means put back these records, the ones that were on screen
+                 * when it happened. A record taken to the trash a minute
+                 * earlier is not part of this action and must stay gone.
+                 */
+                const ids = live.map((e) => e.id);
+                onClear();
+                undo.offer(
+                  t('history.undoCleared', { n: ids.length }),
+                  // Bulk, because clearing was bulk. Restoring only the first
+                  // would read as a partial undo, which is indistinguishable
+                  // from data loss.
+                  () => ids.forEach((id) => onRestore(id)),
+                );
+              }}
               disabled={live.length === 0}
             >
               {t('history.clearAll')}
@@ -235,6 +272,29 @@ export default function HistoryPanel({
         <div className={`notice notice-${notice.kind}`} role="status">
           {notice.text}
           <button className="link-btn" onClick={() => setNotice(null)} aria-label={t('history.dismiss')}>×</button>
+        </div>
+      )}
+
+      {/*
+        The immediate undo.
+        A separate shape from the notice above it, because it is a different
+        thing: a notice reports, this one is the way back. It is also the only
+        thing on screen after a "clear all", which is exactly when the user
+        needs it to be unmistakable.
+      */}
+      {undo.pending && (
+        <div className="undo-bar" role="status" aria-live="polite">
+          <Icons.replay size={ICON_SIZE.inline} aria-hidden="true" />
+          <span className="undo-text">{undo.pending.text}</span>
+          <button type="button" className="undo-run" onClick={undo.run}>
+            {t('history.undo')}
+          </button>
+          <button
+            type="button" className="undo-close" onClick={undo.dismiss}
+            aria-label={t('history.dismiss')}
+          >
+            <Icons.close size={ICON_SIZE.inline} aria-hidden="true" />
+          </button>
         </div>
       )}
 
@@ -313,7 +373,13 @@ export default function HistoryPanel({
                   className="icon-btn"
                   title={t('history.remove')}
                   aria-label={`${t('history.remove')}: ${summary}`}
-                  onClick={() => onRemove(e.id)}
+                  onClick={() => {
+                    onRemove(e.id);
+                    // One record at a time, so the message names it rather than
+                    // counting. "Undo" with no object is the version of this
+                    // that gets clicked wrongly a second time.
+                    undo.offer(t('history.undoRemoved'), () => onRestore(e.id));
+                  }}
                 >
                   <Icons.remove size={ICON_SIZE.inline} aria-hidden="true" />
                 </button>

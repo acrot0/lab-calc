@@ -5721,3 +5721,56 @@ body,
 }
 
 .col-picker-item input { flex-shrink: 0; accent-color: var(--accent); }
+
+/*
+ * The immediate undo bar.
+ *
+ * Distinct from `.notice` above it, which reports — this one acts. It is also
+ * the only thing on screen right after "clear all", so it is drawn as a bar
+ * rather than as inline text: a line of small print in an emptied panel reads
+ * as more small print.
+ *
+ * The accent border is what keeps it from being mistaken for a warning. Nothing
+ * went wrong; there is just one click available that would put it back.
+ */
+.undo-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0 0 var(--s2);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--t-sm);
+}
+
+.undo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.undo-run {
+  margin-left: auto;
+  padding: 2px var(--s2);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 550;
+  white-space: nowrap;
+}
+.undo-run:hover { background: var(--accent); color: var(--surface); }
+.undo-run:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.undo-close {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.undo-close:hover { color: var(--text); }

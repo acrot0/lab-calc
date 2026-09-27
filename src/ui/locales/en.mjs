@@ -974,6 +974,9 @@ export const en = {
     replay: 'Reload the inputs from this calculation',
     remove: 'Delete this entry',
     dismiss: 'Dismiss notice',
+    undo: 'Undo',
+    undoCleared: 'Cleared {{n}} records',
+    undoRemoved: 'Record deleted',
     // Deleting marks rather than erases, so there has to be a way back that
     // the user can actually see and click.
     trashShow: '{n} deleted',
