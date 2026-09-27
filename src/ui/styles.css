@@ -1107,6 +1107,37 @@ select.control {
 }
 
 /*
+ * Switching tabs fades the new card in.
+ *
+ * Measured before this rule: pressing a rail destination swapped the content
+ * with **no animation at all** — `animationName: none`, `opacity: 1`,
+ * `transform: none` on the incoming card, and nothing inside it animating
+ * either. The old content vanished and the new content appeared in the same
+ * frame, which reads as a page reload rather than as a change of view.
+ *
+ * The card is remounted on every switch (`key={nonce}` in `App.jsx`), so an
+ * animation here replays without any state to manage.
+ *
+ * Only `opacity` and `transform` — both composited, so this cannot trigger
+ * layout on a switch that is already doing a chunk fetch. `translateY(4px)` is
+ * small on purpose: enough to read as the content arriving rather than as the
+ * card sliding, which at 350ms would feel sluggish on a tab a user flips
+ * through several times a minute.
+ *
+ * The history panel is also a `.card` and shares this rule, which is right —
+ * it arrives with the rest of the view on first paint. It does not remount on a
+ * tab switch, so it does not re-animate when the user changes tabs.
+ */
+.card {
+  animation: card-in var(--dur-enter) var(--ease-out) both;
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/*
  * The placeholder shown while a tab's chunk loads.
  *
  * It is the same `.card` with grey bars in place of the content, so the card
@@ -1738,6 +1769,16 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   .history-item,
   .expr-value {
     animation: value-fade-soft 220ms ease both !important;
+  }
+
+  /*
+   * A tab switch is a status change too — the user asked for a different view
+   * and needs to see that it arrived. So it keeps a fade, and loses the 4px
+   * translate that `card-in` carries. `value-fade-soft` is opacity-only, which
+   * is the whole reason it exists as a separate keyframe from `value-fade`.
+   */
+  .card {
+    animation: value-fade-soft 200ms ease both !important;
   }
 
   /* Transforms are removed rather than shortened: a 0.01ms translate is still
