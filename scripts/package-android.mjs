@@ -170,7 +170,24 @@ if (!fs.existsSync(androidDir)) {
 }
 
 step('同步到 Android 工程 …');
-execFileSync('npx', ['cap', 'sync', 'android'], { cwd: ROOT, stdio: 'inherit', shell: true });
+try {
+  execFileSync('npx', ['cap', 'sync', 'android'], { cwd: ROOT, stdio: 'inherit', shell: true });
+} catch (e) {
+  /*
+   * `capacitor.config.ts` is TypeScript, and Capacitor needs the TypeScript
+   * package to read it — a dependency that was satisfied locally by hoisting
+   * and missing in CI. The error Capacitor gives ("Could not find installation
+   * of TypeScript") does not say that it is about a config file the build has
+   * always had, so it reads as a broken toolchain rather than a missing entry
+   * in `package.json`. Named here because it cost a release run to diagnose.
+   */
+  die(
+    'cap sync 失败。若上面写着 "Could not find installation of TypeScript"，\n'
+    + '  说明 typescript 不在 package.json 的 devDependencies 里——\n'
+    + '  capacitor.config.ts 需要它，本地可能靠提升侥幸可用。\n'
+    + `  （exit ${e.status ?? '?'}）`,
+  );
+}
 
 // ----------------------------------------------------------- 4. assemble
 
