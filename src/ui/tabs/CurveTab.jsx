@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { titrationCurve, findEquivalencePoint, equivalenceVolumes } from '../../calc/curve.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, fmtSci, n } from '../format.mjs';
+import { UncertaintyPanel, Contribution } from '../components/UncertaintyPanel.jsx';
+import { fmt, fmtSci, fmtMeasured, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
 import { chartColors } from '../chart-colors.mjs';
+import { productUncertainty } from '../../calc/uncertainty.mjs';
+import { glasswareUncertainty } from '../../calc/instruments.mjs';
 
 /** Parse "2.15, 7.20, 12.35" into numbers. Returns null on anything unusable. */
 function parsePkaList(text) {
@@ -154,6 +157,92 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
   const [err, setErr] = useState(null);
 
   /*
+   * The burette and the standard solution, collapsed by default.
+   *
+   * The equivalence volume is the one number on this tab a user checks against
+   * an instrument reading, and until now it carried no uncertainty at all —
+   * the burette table existed in `instruments.mjs` with no tab using it.
+   */
+  const [uncOpen, setUncOpen] = useState(false);
+  const [buretteMl, setBuretteMl] = useState('50');
+  const [titrantRelPct, setTitrantRelPct] = useState('0.1');
+
+  /*
+   * The budget on the equivalence volume.
+   *
+   *   V_eq = n_analyte / c_titrant
+   *
+   * The volume *delivered* is what a burette measures, and it is read twice per
+   * titre — the initial and the final reading — so its tolerance applies to
+   * each and is counted twice. That is the same trap as a tared balance's
+   * linearity, and it is why a 50 mL burette at ±0.05 mL contributes ±0.041 mL
+   * rather than ±0.029 mL.
+   *
+   * The analyte term carries nothing: `conc` and `volume` are the *premise* of
+   * the question ("what would this titration give"), not measurements made
+   * during it. The standard solution's concentration does carry an uncertainty
+   * — it was standardised by someone — so it is an input here, defaulting to
+   * 0.1% which is a typical value for a titrant standardised against a primary
+   * standard.
+   */
+  const budget = useMemo(() => {
+    if (!out) return null;
+    const rel = Math.max(0, n(titrantRelPct) || 0) / 100;
+    try {
+      const burette = glasswareUncertainty({ kind: 'burette', nominalMl: n(buretteMl) });
+      /*
+       * Two readings per titre. The tolerance applies to each reading, and the
+       * delivered volume is their difference, so the two independent terms add
+       * in quadrature: u(delivered) = u(reading) × √2.
+       */
+      const delivered = { value: out.first.volumeMl, unc: burette.unc * Math.SQRT2 };
+      // The concentration divides into the answer, so its relative uncertainty
+      // enters as-is. Kept as its own object so the panel's row can name the
+      // number rather than recompute it from the same inputs.
+      const titrantConc = {
+        value: n(titrant),
+        unc: Math.abs(n(titrant)) * rel,
+      };
+      const combined = productUncertainty([
+        { value: delivered.value, unc: delivered.unc, power: 1 },
+        { value: titrantConc.value, unc: titrantConc.unc, power: 1 },
+      ]);
+      const relative = combined.value === 0 ? 0 : combined.unc / combined.value;
+      /*
+       * The uncertainty on the *equivalence volume*, not on the product.
+       *
+       * `productUncertainty` returns an uncertainty on the quantity it was
+       * given — here V × c, whose value is 2.5 and whose uncertainty is
+       * 0.0048. The result on screen is 25 mL. Passing the product's absolute
+       * figure to `fmtMeasured` printed "± 0.005 mL" against a 25 mL answer
+       * that is really ± 0.048 mL: a ten-fold understatement, and it looked
+       * plausible because the *relative* figure beside it (0.191%) was
+       * correct all along.
+       *
+       * A relative uncertainty is the same for a quantity and any multiple of
+       * it, so scaling by the result converts it — and keeping `volume` as its
+       * own object means the caller has an absolute figure that matches the
+       * number it is printed next to.
+       */
+      const volume = {
+        value: out.first.volumeMl,
+        unc: relative * out.first.volumeMl,
+      };
+      return {
+        burette,
+        delivered,
+        titrant: titrantConc,
+        combined,
+        volume,
+        relative,
+      };
+    } catch {
+      // An unlisted burette capacity is not a reason to lose the curve.
+      return null;
+    }
+  }, [out, buretteMl, titrantRelPct, titrant]);
+
+  /*
    * Where the equivalence volume comes from.
    *
    * The curve itself shows the answer; this shows the one line that produces
@@ -274,6 +363,10 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
             value={fmt(out.first.volumeMl, 2)}
             unit={t('curve.equivalenceUnit')}
             note={t('curve.equivalenceNote', { ph: fmt(out.first.ph, 2) })}
+            unc={uncOpen && budget ? {
+              ...fmtMeasured(budget.volume.value, budget.volume.unc, { unit: ' mL' }),
+              detail: `${t('unc.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,
+            } : null}
             worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('curve.equivalenceVolume'), `${fmt(out.first.volumeMl, 3)} mL`],
@@ -300,6 +393,34 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
       )}
 
       <Warn>{t('curve.warning')}</Warn>
+
+      <UncertaintyPanel
+        open={uncOpen}
+        onToggle={() => setUncOpen((v) => !v)}
+        budget={budget}
+        state={{}}
+        intro={t('unc.uncBuretteIntro')}
+        caveats={(
+          <>
+            <p className="unc-caveat">{t('unc.uncBuretteNotModelled')}</p>
+          </>
+        )}
+        fields={(
+          <>
+            <NumField label={t('unc.uncBuretteSize')} value={buretteMl} onChange={setBuretteMl} min="0" />
+            <NumField label={t('unc.uncTitrantRel')} value={titrantRelPct} onChange={setTitrantRelPct} min="0" />
+          </>
+        )}
+      >
+        <Contribution
+          label={t('unc.uncBurette')} value={budget?.delivered.value}
+          unc={budget?.delivered.unc} unit="mL"
+        />
+        <Contribution
+          label={t('unc.uncTitrant')} value={budget?.titrant.value}
+          unc={budget?.titrant.unc} unit="mol/L"
+        />
+      </UncertaintyPanel>
     </Card>
   );
 }

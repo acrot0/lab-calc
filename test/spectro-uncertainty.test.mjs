@@ -187,3 +187,60 @@ describe('SpectroTab uncertainty budget', () => {
     await tab.unmount();
   });
 });
+
+/*
+ * The same defect class, on the titration tab.
+ *
+ * `productUncertainty` returns an uncertainty on the quantity it was handed —
+ * here V × c, whose value is 2.5. The result on screen is 25 mL. Printing the
+ * product's absolute figure next to the volume understated it ten-fold
+ * ("± 0.005 mL" for a real ± 0.048 mL), and it looked right because the
+ * *relative* figure beside it was correct.
+ *
+ * These assertions live here rather than in a tab-specific file because what
+ * they pin is the conversion, not the tab: a relative uncertainty is the same
+ * for a quantity and any multiple of it, so an absolute figure must be scaled
+ * by the value it is printed against.
+ */
+describe('CurveTab burette budget', () => {
+  it('should report an absolute uncertainty consistent with its own relative figure', async () => {
+    // CurveTab draws its curve into a canvas, and jsdom has no 2D context —
+    // `getContext` returns null and the draw code throws. What is being tested
+    // is the arithmetic beside the chart, not the chart, so the context is
+    // stubbed to a no-op rather than the test skipped.
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = () => new Proxy({}, {
+      get: () => () => {},
+      set: () => true,
+    });
+    const { default: CurveTab } = await import('../src/ui/tabs/CurveTab.jsx');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        React.createElement(LocaleProvider, { store: zhStore },
+          React.createElement(CurveTab, { onRecord: () => {}, restored: null, theme: 'dark' })),
+      );
+    });
+    const press = async (match) => {
+      const b = [...container.querySelectorAll('button')].find((x) => match(x.textContent));
+      if (!b) throw new Error(`no button matching ${match}`);
+      await act(async () => { b.click(); });
+    };
+    await press((s) => s.trim() === '计算并绘制');
+    await press((s) => s.includes('算不确定度'));
+
+    const volume = Number(container.querySelector('.result-main').textContent.match(/[\d.]+/)[0]);
+    const uncText = container.querySelector('.result-unc-value').textContent;
+    const relText = container.querySelector('.result-unc-detail').textContent;
+    const unc = Number(uncText.match(/[\d.]+/)[0]);
+    const relPct = Number(relText.match(/[\d.]+/)[0]);
+
+    // The two figures on screen must describe the same measurement.
+    expect(unc).toBeCloseTo(volume * relPct / 100, 1);
+    await act(async () => { root.unmount(); });
+    container.remove();
+    HTMLCanvasElement.prototype.getContext = original;
+  });
+});
