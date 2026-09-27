@@ -23,6 +23,20 @@ export const zh = {
     customRadius: '圆角',
     customDensity: '密度',
     customMotion: '动效',
+    /*
+     * 三档步进的名字。放在这里而不是 custom-theme.mjs 里：那个模块是纯模型，
+     * 拿不到当前语言，之前它自带一份 {zh,en} 标签，结果面板渲染 label.zh，
+     * 英文界面里出现九个中文按钮。
+     */
+    radius_sharp: '直角',
+    radius_default: '标准',
+    radius_round: '圆角',
+    density_compact: '紧凑',
+    density_default: '标准',
+    density_spacious: '宽松',
+    motion_reduced: '弱',
+    motion_default: '标准',
+    motion_expressive: '强',
     customReset: '全部恢复默认',
     customResetDone: '已恢复配色自带的样子。',
     customNone: '未自定义',

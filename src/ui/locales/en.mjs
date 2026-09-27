@@ -27,6 +27,21 @@ export const en = {
     customRadius: 'Corners',
     customDensity: 'Density',
     customMotion: 'Motion',
+    /*
+     * The three step names. Here rather than in custom-theme.mjs: that module is
+     * a pure model with no access to the active locale, and it used to carry its
+     * own {zh,en} labels which the panel rendered as label.zh — nine Chinese
+     * buttons inside the English interface.
+     */
+    radius_sharp: 'Sharp',
+    radius_default: 'Standard',
+    radius_round: 'Round',
+    density_compact: 'Compact',
+    density_default: 'Standard',
+    density_spacious: 'Spacious',
+    motion_reduced: 'Reduced',
+    motion_default: 'Standard',
+    motion_expressive: 'Expressive',
     customReset: 'Reset everything',
     customResetDone: 'Back to the palette as designed.',
     customNone: 'Not customised',

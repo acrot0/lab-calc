@@ -71,9 +71,9 @@ export const OVERRIDE_KEYS = ['--accent', '--radius', '--density', '--motion'];
  * separate control.
  */
 export const RADIUS_STEPS = [
-  { id: 'sharp', label: { zh: '直角', en: 'Sharp' }, rSm: '2px', rMd: '4px', rLg: '6px' },
-  { id: 'default', label: { zh: '标准', en: 'Default' }, rSm: '6px', rMd: '10px', rLg: '14px' },
-  { id: 'round', label: { zh: '圆角', en: 'Round' }, rSm: '10px', rMd: '16px', rLg: '24px' },
+  { id: 'sharp', rSm: '2px', rMd: '4px', rLg: '6px' },
+  { id: 'default', rSm: '6px', rMd: '10px', rLg: '14px' },
+  { id: 'round', rSm: '10px', rMd: '16px', rLg: '24px' },
 ];
 
 /** Spacing and type scale, adjusted together — the stylesheet's own note says
@@ -81,19 +81,16 @@ export const RADIUS_STEPS = [
 export const DENSITY_STEPS = [
   {
     id: 'compact',
-    label: { zh: '紧凑', en: 'Compact' },
     s: { 1: '3px', 2: '5px', 3: '8px', 4: '12px', 5: '16px', 6: '22px' },
     t: { xs: '10.5px', sm: '12px', md: '14px', lg: '16px' },
   },
   {
     id: 'default',
-    label: { zh: '标准', en: 'Default' },
     s: { 1: '4px', 2: '7px', 3: '11px', 4: '16px', 5: '22px', 6: '30px' },
     t: { xs: '11.5px', sm: '13px', md: '15px', lg: '18px' },
   },
   {
     id: 'spacious',
-    label: { zh: '宽松', en: 'Spacious' },
     s: { 1: '5px', 2: '9px', 3: '14px', 4: '21px', 5: '28px', 6: '38px' },
     t: { xs: '12.5px', sm: '14px', md: '16.5px', lg: '20px' },
   },
@@ -111,17 +108,14 @@ export const DENSITY_STEPS = [
 export const MOTION_STEPS = [
   {
     id: 'reduced',
-    label: { zh: '弱', en: 'Reduced' },
     moveS: '1ms', moveM: '1ms', moveL: '1ms', fxS: '1ms', fxM: '1ms', fxL: '1ms',
   },
   {
     id: 'default',
-    label: { zh: '标准', en: 'Default' },
     moveS: '350ms', moveM: '500ms', moveL: '650ms', fxS: '120ms', fxM: '200ms', fxL: '300ms',
   },
   {
     id: 'expressive',
-    label: { zh: '强', en: 'Expressive' },
     moveS: '450ms', moveM: '620ms', moveL: '800ms', fxS: '160ms', fxM: '260ms', fxL: '380ms',
   },
 ];
@@ -361,29 +355,28 @@ export function overridesFromJson(text) {
  * A short description of what is customised, for the settings row.
  *
  * A row that says "custom" tells the user nothing about whether to open it; one
- * that says "accent, corners" tells them what they changed and, by omission,
- * what they did not.
+ * that says "2 changed" tells them whether to bother.
+ *
+ * ## Why this no longer builds label strings
+ *
+ * It did, and every one of them was dead. The only consumer is the settings
+ * toggle, which renders `已改 {n} 项` from the count — the `labels` array was
+ * computed on every render and read by nothing. It was also the reason the step
+ * lists carried a `{zh, en}` label: this function needed a name for a step, and
+ * a pure model has no access to the active locale, so it grew a second
+ * translation table that drifted from the locale files. The panel rendered
+ * `s.label.zh` and showed nine Chinese labels in the English interface.
+ *
+ * Removing the unused output removed the reason for the second table. The step
+ * names now live only in the locale files, resolved by `t()` like every other
+ * string. `test/custom-theme.test.mjs` asserts the count, which is the whole
+ * contract.
  */
-export function describeOverrides(overrides, locale = 'zh') {
+export function describeOverrides(overrides) {
   const o = migrateOverrides(overrides);
-  const labels = [];
-  const names = {
-    '--accent': { zh: '强调色', en: 'Accent' },
-    '--radius': { zh: '圆角', en: 'Corners' },
-    '--density': { zh: '密度', en: 'Density' },
-    '--motion': { zh: '动效', en: 'Motion' },
-  };
+  let count = 0;
   for (const key of OVERRIDE_KEYS) {
-    if (!(key in o)) continue;
-    const stepSet = STEP_SETS[key];
-    if (stepSet) {
-      const step = stepSet.find((s) => s.id === o[key]);
-      const name = names[key][locale] ?? names[key].zh;
-      const stepLabel = step?.label?.[locale] ?? step?.label?.zh ?? o[key];
-      labels.push(`${name}: ${stepLabel}`);
-    } else {
-      labels.push(names[key][locale] ?? names[key].zh);
-    }
+    if (key in o) count += 1;
   }
-  return { count: labels.length, labels };
+  return { count };
 }

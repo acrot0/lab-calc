@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { zh } from '../src/ui/locales/zh.mjs';
+import { en } from '../src/ui/locales/en.mjs';
 import {
   CUSTOM_KEY, OVERRIDE_KEYS, RADIUS_STEPS, DENSITY_STEPS, MOTION_STEPS,
   emptyOverrides, loadOverrides, saveOverrides, migrateOverrides,
   withOverride, clearOverride, overrideCount, isCustomised,
   overridesToJson, overridesFromJson, describeOverrides, resolveOverrides,
+  RADIUS_STEPS, DENSITY_STEPS, MOTION_STEPS,
 } from '../src/ui/custom-theme.mjs';
 import { PALETTE_KEYS, cssVariables } from '../src/ui/palettes.mjs';
 import { memoryStore } from '../src/ui/history.mjs';
@@ -259,11 +262,15 @@ describe('JSON export and import', () => {
 });
 
 describe('describeOverrides', () => {
-  it('should name what is customised, for the settings row', () => {
+  it('should count what is customised, for the settings row', () => {
     const o = withOverride(withOverride({}, '--accent', '#123456'), '--radius', 'sharp');
     const d = describeOverrides(o);
     expect(d.count).toBe(2);
-    expect(d.labels).toHaveLength(2);
+    // The count is the entire contract now. It used to also build label
+    // strings, which nothing read — and building them required a second
+    // translation table in this module, which is what put nine Chinese step
+    // labels in the English interface.
+    expect(d.labels).toBeUndefined();
   });
 
   it('should return an empty description for no overrides', () => {
@@ -382,5 +389,47 @@ describe('applyTheme with overrides', () => {
     const { cssVariables } = await import('../src/ui/palettes.mjs');
     const palette = cssVariables('dark');
     expect(root.props.get('--accent')).toBe(palette['--accent']);
+  });
+});
+
+describe('the step model carries no translations', () => {
+  /*
+   * The defect this pins, measured in the browser: with the interface set to
+   * English, the customisation panel rendered 直角 标准 圆角 / 紧凑 标准 宽松 /
+   * 弱 标准 强 — nine Chinese labels inside an English panel.
+   *
+   * The cause was a second translation table. This module is a pure model with
+   * no access to the active locale, so when it needed a name for a step it grew
+   * its own `{zh, en}` label; the panel rendered `label.zh` and the English one
+   * was never read. Two tables naming the same nine strings, and only one of
+   * them resolved.
+   *
+   * The guard is on the shape rather than on the output, because the output was
+   * always correct in Chinese — a test that rendered the panel in English would
+   * need a DOM and would still pass if a future step were added with a label
+   * that happened to be spelled the same in both languages.
+   */
+  it('should keep every step label out of the model', () => {
+    for (const set of [RADIUS_STEPS, DENSITY_STEPS, MOTION_STEPS]) {
+      for (const step of set) {
+        expect(step.label, `${step.id} should not carry a label`).toBeUndefined();
+        expect(step.id, `${step.id} needs an id, which is the locale key suffix`).toBeTruthy();
+      }
+    }
+  });
+
+  it('should resolve every step id in both locale dictionaries', () => {
+    // The ids are what the panel looks up as `app.<prefix>_<id>`, so a step
+    // added without locale entries renders its own key — the failure mode this
+    // whole change is about.
+    const prefixes = { radius: RADIUS_STEPS, density: DENSITY_STEPS, motion: MOTION_STEPS };
+    for (const [prefix, set] of Object.entries(prefixes)) {
+      for (const step of set) {
+        for (const [lang, dict] of [['zh', zh], ['en', en]]) {
+          const key = `${prefix}_${step.id}`;
+          expect(dict.app?.[key], `app.${key} missing in ${lang}`).toBeTruthy();
+        }
+      }
+    }
   });
 });

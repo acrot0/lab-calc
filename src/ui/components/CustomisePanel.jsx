@@ -32,8 +32,28 @@ import { PALETTES } from '../palettes.mjs';
  * own, which is what "跟随配色" means.
  */
 
-/** One row of step buttons. */
-function StepRow({ label, steps, value, fallback, onChange, onClear }) {
+/**
+ * One row of step buttons.
+ *
+ * ## Why the label is looked up rather than read off the step
+ *
+ * The step lists in `custom-theme.mjs` carry a `{zh, en}` label, and this
+ * component used to render `s.label.zh` directly. Measured in the browser with
+ * the interface set to English: the accent, corners, density and motion rows
+ * all read 直角 标准 圆角 / 紧凑 标准 宽松 / 弱 标准 强 — nine Chinese labels
+ * inside an otherwise English panel.
+ *
+ * The cause is a second translation table. `custom-theme.mjs` is a pure model
+ * with no access to the active locale, so its labels are data, not
+ * translations; only a component can resolve them. Reading `label[locale]`
+ * would fix this case and leave the next one, because the dictionary in
+ * `custom-theme.mjs` and the one in the locale files would still be two copies
+ * of the same nine strings. The keys are in the locale files now, and the
+ * `label` field is gone from the model — one table, resolved by the mechanism
+ * every other string in the app uses.
+ */
+function StepRow({ label, labelKey, steps, value, fallback, onChange, onClear }) {
+  const { t } = useI18n();
   return (
     <div className="settings-row">
       <span className="settings-label">{label}</span>
@@ -50,7 +70,7 @@ function StepRow({ label, steps, value, fallback, onChange, onClear }) {
               aria-pressed={on}
               onClick={() => (s.id === fallback ? onClear() : onChange(s.id))}
             >
-              {s.label.zh}
+              {t(`${labelKey}_${s.id}`)}
             </button>
           );
         })}
@@ -139,17 +159,17 @@ export default function CustomisePanel() {
           </div>
 
           <StepRow
-            label={t('app.customRadius')} steps={RADIUS_STEPS}
+            label={t('app.customRadius')} labelKey="app.radius" steps={RADIUS_STEPS}
             value={overrides['--radius']} fallback="default"
             onChange={(v) => setOverride('--radius', v)} onClear={() => setOverride('--radius', null)}
           />
           <StepRow
-            label={t('app.customDensity')} steps={DENSITY_STEPS}
+            label={t('app.customDensity')} labelKey="app.density" steps={DENSITY_STEPS}
             value={overrides['--density']} fallback="default"
             onChange={(v) => setOverride('--density', v)} onClear={() => setOverride('--density', null)}
           />
           <StepRow
-            label={t('app.customMotion')} steps={MOTION_STEPS}
+            label={t('app.customMotion')} labelKey="app.motion" steps={MOTION_STEPS}
             value={overrides['--motion']} fallback="default"
             onChange={(v) => setOverride('--motion', v)} onClear={() => setOverride('--motion', null)}
           />
