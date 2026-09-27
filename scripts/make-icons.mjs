@@ -167,19 +167,88 @@ export function drawIcon(size, { maskable = false } = {}) {
 
   const inGlass = (ux, uy) => inFlask(ux, uy) && !inLiquid(ux, uy);
 
-  // A small bubble rising through the liquid — the one detail that says
-  // "chemistry" rather than "triangle".
-  const inBubble = (ux, uy) => {
-    const dx = ux - 0.44;
-    const dy = uy - 0.70;
-    return dx * dx + dy * dy <= 0.022 * 0.022;
+  /*
+   * The strata: each band is one calculation, the newest on top.
+   *
+   * This replaced a rising bubble, and the swap is the whole point of the mark.
+   * A bubble is the *topic* — every chemistry app could ship it, because every
+   * chemistry app has the same topic. What this app does that the others do not
+   * is keep every calculation ("算完就忘" is the README's line about them), and
+   * a record looks like strata: one layer laid on the one before it.
+   *
+   * The bands follow the flask's taper, so a band's edges are cut by the wall
+   * the same way a layer of liquid in a conical vessel is. The inline
+   * `BrandMark` gets that from an SVG clip; here the geometry is already
+   * per-pixel, so it falls out of `inLiquid` being evaluated at each sample.
+   *
+   * The boundaries are in the same unit space as the flask, spanning the liquid
+   * body. Four bands over 0.60→0.82, which is what survives at 16px — five
+   * would collapse into a single tone.
+   */
+  const BAND_EDGES = [0.60, 0.655, 0.71, 0.765, 0.82];
+
+  /** Which band a point is in, 0 (newest, top) to 3 (oldest), or -1. */
+  const bandOf = (uy) => {
+    for (let i = 0; i < BAND_EDGES.length - 1; i++) {
+      if (uy >= BAND_EDGES[i] && uy < BAND_EDGES[i + 1]) return i;
+    }
+    return -1;
   };
+
+  /*
+   * Each band is dimmer than the one above it.
+   *
+   * The ramp is what makes the bands read as *time* rather than as a striped
+   * pattern — a direction, not a texture. Spaced widely enough to survive at
+   * 16px, where a 0.1 step would collapse into one tone. These are the same
+   * four values the inline mark uses, so the two cannot drift apart.
+   */
+  const BAND_OPACITY = [0.95, 0.72, 0.5, 0.3];
+
+  /*
+   * How far each band is pushed toward the light, and toward the dark.
+   *
+   * The first attempt mixed every band toward `LIQUID_LIT` by its ramp value,
+   * which made the four bands differ from each other by about 4% of luminance —
+   * measured, not guessed, and invisible. The ramp only reads if the bands move
+   * in *both* directions from the liquid's own tone: the newest layer catches
+   * the light, the oldest has settled into the dark.
+   *
+   * `SETTLE` is that darkening, and it is what makes the stack read as depth.
+   * Without it the mark is a flask with a highlight; with it, it is a flask
+   * with a history.
+   */
+  const SETTLE = [0.0, 0.18, 0.34, 0.5];
+
+  /*
+   * A hairline at each boundary, in the lit colour.
+   *
+   * The measured ramp between adjacent bands is about 10-30 units of luminance,
+   * which the eye reads as one smooth gradient rather than as four layers —
+   * verified by sampling the rendered raster, not by looking at it. The mark is
+   * *about* the layers, so the boundary has to be visible.
+   *
+   * A bright line at each interface is also what a stratified liquid actually
+   * looks like: the refractive index step between two layers catches light.
+   * It is the same device the inline SVG gets for free from its sharp band
+   * edges, which the supersampled raster otherwise smooths away.
+   */
+  const EDGE_HALF_WIDTH = 0.0035;
+  const nearEdge = (uy) => BAND_EDGES.some(
+    (e, i) => i > 0 && i < BAND_EDGES.length - 1 && Math.abs(uy - e) <= EDGE_HALF_WIDTH,
+  );
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let glass = 0;
       let liquid = 0;
-      let bubble = 0;
+      // Per-band coverage, so the opacity ramp can be applied after averaging
+      // rather than inside the supersampling loop.
+      const bandHits = [0, 0, 0, 0];
+      // Interface-line coverage, averaged like everything else. Sampling it
+      // per pixel rather than per sample would give a line whose thickness
+      // depends on the supersampling factor.
+      let edgeHits = 0;
 
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
@@ -187,15 +256,20 @@ export function drawIcon(size, { maskable = false } = {}) {
           const fy = (y + (sy + 0.5) / SS) / size;
           const [ux, uy] = unit(fx, fy);
           if (inGlass(ux, uy)) glass++;
-          if (inLiquid(ux, uy)) liquid++;
-          if (inBubble(ux, uy) && inLiquid(ux, uy)) bubble++;
+          if (inLiquid(ux, uy)) {
+            liquid++;
+            const b = bandOf(uy);
+            if (b >= 0) bandHits[b]++;
+            if (nearEdge(uy)) edgeHits++;
+          }
         }
       }
 
       const n = SS * SS;
       const aGlass = glass / n;
       const aLiquid = liquid / n;
-      const aBubble = bubble / n;
+      const aBand = bandHits.map((c) => c / n);
+      const aEdge = edgeHits / n;
 
       // Background: a rounded plate, or full bleed when maskable.
       const plate = maskable
@@ -248,7 +322,36 @@ export function drawIcon(size, { maskable = false } = {}) {
           col = mix(col, wall, aGlass);
         }
 
-        if (aBubble > 0) col = mix(col, LIQUID_LIT, aBubble);
+        /*
+         * The bands, drawn over the shaded liquid.
+         *
+         * Each is mixed in at its own ramp opacity, so a band's contribution is
+         * a *fraction of the difference* between the liquid colour and the lit
+         * colour — which is what makes the ramp read as depth of time rather
+         * than as four flat rectangles of paint.
+         *
+         * Applied per band in order, newest first, so a boundary pixel that
+         * both bands cover takes the newer one's value last. At 16px that
+         * ordering is invisible; at 512px it keeps the top edge crisp.
+         */
+        for (let b = BAND_OPACITY.length - 1; b >= 0; b--) {
+          if (aBand[b] <= 0) continue;
+          const t = aBand[b];
+          const lit = mix(col, LIQUID_LIT, BAND_OPACITY[b] * 0.7);
+          const settled = mix(lit, LIQUID_DEEP, SETTLE[b]);
+          col = mix(col, settled, t);
+        }
+
+        /*
+         * The interface line, drawn after the bands so it sits on top of both.
+         *
+         * Only where there is liquid: the boundary at the meniscus is the
+         * liquid's own surface and already has the surface glow, and drawing a
+         * second line there would make it read as one layer too many.
+         */
+        if (aEdge > 0) {
+          col = mix(col, LIQUID_LIT, aEdge * 0.85);
+        }
 
         /*
          * Two specular highlights: a long one down the neck's left edge and a

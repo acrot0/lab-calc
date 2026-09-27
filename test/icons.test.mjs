@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { drawIcon } from '../scripts/make-icons.mjs';
 
 /**
  * The icon set is checked as source rather than rendered.
@@ -162,5 +163,92 @@ describe('icon set', () => {
     // silently doing nothing for it.
     const broken = keys.filter((k) => typeof normalize(k) !== 'string');
     expect(broken, 'measured but not normalisable').toEqual([]);
+  });
+});
+
+/*
+ * The brand mark's strata, measured on the rendered raster.
+ *
+ * The mark's whole claim is that it encodes *record* rather than chemistry: the
+ * layers are calculations, laid down one on the other, dimming with age. That
+ * claim is only true if the layers are actually visible, and the first version
+ * was not — the ramp between adjacent bands came out at 10-30 units of
+ * luminance, which the eye reads as one smooth gradient. It took sampling the
+ * pixels to see that; looking at the 512px render said "fine".
+ *
+ * So the property is asserted where it can be measured. `drawIcon` is a pure
+ * function returning RGBA, which is what makes this possible without a browser.
+ */
+describe('brand mark strata', () => {
+  /** Relative luminance of a pixel, ITU-R BT.709 weights. */
+  const lum = (buf, size, x, y) => {
+    const i = (y * size + x) * 4;
+    return 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
+  };
+
+  /*
+   * The liquid body's vertical extent, found rather than hardcoded.
+   *
+   * The geometry is in unit space and scaled about the centre, so a fraction
+   * that lands in the liquid at one size lands in the neck at another — the
+   * first version of these tests sampled `0.30..0.375` and got the neck at
+   * 256px, which is a flat 110 for every sample and compares equal to itself.
+   *
+   * So the span is measured: walk the centre column and take the run of pixels
+   * brighter than the glass above it.
+   */
+  function liquidSpan(buf, size) {
+    const col = Math.round(size / 2);
+    const values = [];
+    for (let y = 0; y < size; y++) values.push(lum(buf, size, col, y));
+    // The glass neck is a flat mid tone; the liquid is markedly brighter at its
+    // top. Halfway between the plate's near-black and the liquid's brightest is
+    // a threshold no glass pixel reaches.
+    const brightest = Math.max(...values);
+    const threshold = brightest * 0.62;
+    let start = values.findIndex((v) => v >= threshold);
+    let end = values.length - 1;
+    while (end > start && values[end] < threshold) end--;
+    return { start, end, values };
+  }
+
+  it('should dim the layers with age, not brighten them', () => {
+    // The newest calculation is on top and the oldest at the base, so walking
+    // down the flask must trend darker. A mark that brightened downward would
+    // say the opposite about which record is recent.
+    const size = 256;
+    const buf = drawIcon(size);
+    const { start, end, values } = liquidSpan(buf, size);
+    expect(end - start).toBeGreaterThan(size * 0.1);
+
+    // Compared at the two ends rather than pairwise: the interface lines are
+    // bright by design, so adjacent samples do not have to descend.
+    const head = values.slice(start, start + 4).reduce((a, b) => a + b, 0) / 4;
+    const tail = values.slice(end - 3, end + 1).reduce((a, b) => a + b, 0) / 4;
+    expect(tail).toBeLessThan(head);
+  });
+
+  it('should separate the layers by more than a smooth gradient would', () => {
+    // The measured defect. A ramp the eye cannot resolve is a decoration; the
+    // total drop across the liquid body has to be large enough to read as
+    // distinct layers. Measured on the rendered raster, which is how the
+    // shortfall was found in the first place.
+    const size = 256;
+    const buf = drawIcon(size);
+    const { start, end, values } = liquidSpan(buf, size);
+    expect(values[start] - values[end]).toBeGreaterThan(40);
+  });
+
+  it('should still read as a vessel rather than a bar chart', () => {
+    // The constraint the layers must not break: there is glass above the
+    // liquid. If the strata filled the whole flask the mark would be a striped
+    // triangle and would no longer say "flask" at all.
+    const size = 256;
+    const buf = drawIcon(size);
+    const col = Math.round(size / 2);
+    const { start } = liquidSpan(buf, size);
+    // Well above where the liquid begins — inside the neck.
+    const neck = lum(buf, size, col, Math.max(1, start - Math.round(size * 0.12)));
+    expect(neck).toBeLessThan(lum(buf, size, col, start + 2));
   });
 });
