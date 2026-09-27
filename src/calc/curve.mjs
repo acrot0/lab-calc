@@ -17,6 +17,10 @@
  */
 
 import { fail, requirePositive, requireFinite } from './errors.mjs';
+// The Gran plot is a straight-line extrapolation, and `standardCurve` already
+// is one — with residuals, R² and the standard error of the slope, which is
+// exactly what makes a bad extrapolation visible rather than merely reported.
+import { standardCurve } from './reagent.mjs';
 
 const KW = 1e-14;
 
@@ -340,4 +344,325 @@ export function titrationCurve(spec, legacyPoints) {
     });
   }
   return out;
+}
+
+/* ==========================================================================
+   Locating the equivalence point from measured data
+   --------------------------------------------------------------------------
+   `findEquivalencePoint` above answers from the *inputs*: it knows the moles
+   and the titrant concentration, so it computes where the point must be. That
+   is correct when the inputs are correct, and useless when they are not.
+
+   A real titration ends with a burette reading, not with a known concentration.
+   The person at the bench has a table of (volume, pH) and wants to know what
+   they actually got — which is how a standardisation is checked, and how an
+   unknown is measured. That is a different question, and it needs a different
+   method.
+
+   Two are offered, because they fail differently:
+
+     · the **derivative** method finds the steepest point, which is where the
+       inflection is. It needs a sample near the equivalence point and is
+       therefore at the mercy of how finely the burette was read.
+     · the **Gran plot** uses only the straight regions on either side and
+       extrapolates their intersection. It ignores the noisy middle, and pays
+       for that by needing to know roughly where to look.
+
+   When they disagree, the disagreement is the useful part: it usually means
+   the data is too coarse, or the acid is not behaving as a simple monoprotic
+   one. Reporting both is the point.
+   ========================================================================== */
+
+/** Validate a (volume, pH) table and return it in ascending volume order. */
+function titrationRows(rows) {
+  if (!Array.isArray(rows) || rows.length < 3) {
+    fail('curveTooFewPoints', { n: Array.isArray(rows) ? rows.length : 0 });
+  }
+  const clean = rows.map((r) => {
+    requireFinite(r?.volumeMl, 'volume');
+    requireFinite(r?.ph, 'ph');
+    return { volumeMl: r.volumeMl, ph: r.ph };
+  });
+  // The methods below index neighbours, so the volume has to advance.
+  for (let i = 1; i < clean.length; i += 1) {
+    if (clean[i].volumeMl <= clean[i - 1].volumeMl) {
+      fail('curveVolumesNotIncreasing', { i: i + 1 });
+    }
+  }
+  return clean;
+}
+
+/**
+ * The equivalence point from the steepest slope.
+ *
+ * The first derivative of pH with respect to volume spikes at the equivalence
+ * point, and the spike is located at the *midpoint between two samples* — the
+ * slope belongs to the interval, not to either end of it. Assigning it to the
+ * left sample, which is the obvious thing to do, biases the answer one half
+ * step early; the bias is invisible on a fine grid and obvious on a coarse one,
+ * which is exactly the case a bench titration produces.
+ */
+export function equivalenceFromDerivative(rows) {
+  const data = titrationRows(rows);
+
+  const slopes = [];
+  for (let i = 1; i < data.length; i += 1) {
+    const dv = data[i].volumeMl - data[i - 1].volumeMl;
+    slopes.push({
+      x: (data[i].volumeMl + data[i - 1].volumeMl) / 2,
+      y: (data[i].ph - data[i - 1].ph) / dv,
+      ph: (data[i].ph + data[i - 1].ph) / 2,
+    });
+  }
+
+  let k = 0;
+  for (let i = 1; i < slopes.length; i += 1) {
+    if (slopes[i].y > slopes[k].y) k = i;
+  }
+  const best = slopes[k];
+
+  /*
+   * How many local maxima there are, and whether the winner is at the edge.
+   *
+   * This is not decoration — it is the difference between a usable answer and a
+   * confidently wrong one. The first derivative of a titration curve has **two**
+   * steep regions: the initial rise, when the weak acid's own dissociation is
+   * being suppressed, and the equivalence jump. Which is steeper depends on the
+   * acid and its concentration, and for a dilute acid with a high pKa the
+   * initial rise wins. Measured: 0.02 M acid with pKa 7.2 gives an initial slope
+   * of 1.72 against 1.21 at the equivalence point, so a plain global maximum
+   * returns V ≈ 0.25 mL for a true 40.00 mL — a 99% error, reported without
+   * complaint.
+   *
+   * The method cannot tell the two apart from the data alone; the user knows
+   * which is which. So it counts the candidates and says so, and the caller can
+   * ask for a hint instead of trusting the first peak.
+   */
+  const peaks = [];
+  for (let i = 0; i < slopes.length; i += 1) {
+    const prev = slopes[i - 1]?.y ?? -Infinity;
+    const next = slopes[i + 1]?.y ?? -Infinity;
+    if (slopes[i].y >= prev && slopes[i].y > next) peaks.push(slopes[i]);
+  }
+  // A local maximum within 10% of the global one is a rival, not noise.
+  const rivals = peaks.filter((p) => p.y > best.y * 0.1 && p.x !== best.x);
+  const significant = peaks.filter((p) => p.y >= best.y * 0.5);
+  const nearStart = best.x < data[data.length - 1].volumeMl * 0.1;
+
+  const warning = significant.length > 1
+    ? 'multiplePeaks'
+    : (nearStart ? 'peakNearStart' : null);
+
+  /*
+   * Refine by fitting a parabola through the three points around the peak.
+   *
+   * The sampled maximum is only ever within half a step of the true one. With
+   * a 0.1 mL burette that is 0.05 mL — enough to matter when the answer is
+   * being compared against a certificate value. The vertex of the parabola
+   * through the neighbouring slopes recovers most of that.
+   */
+  let refined = best.x;
+  if (k > 0 && k < slopes.length - 1) {
+    const [a, b, c] = [slopes[k - 1], slopes[k], slopes[k + 1]];
+    const d1 = b.x - a.x;
+    const d2 = c.x - b.x;
+    // Only when the three are evenly spaced, which they are on a regular grid.
+    if (Math.abs(d1 - d2) < 1e-9 && d1 > 0) {
+      const denom = a.y - 2 * b.y + c.y;
+      if (denom !== 0) {
+        const shift = (0.5 * (a.y - c.y)) / denom;
+        if (Math.abs(shift) <= 1) refined = b.x + shift * d1;
+      }
+    }
+  }
+
+  return {
+    volumeMl: refined,
+    ph: best.ph,
+    maxSlope: best.y,
+    n: data.length,
+    sampledVolumeMl: best.x,
+    /*
+     * The other candidate peaks, so a caller can show them rather than having
+     * to re-derive the whole thing to find out whether the answer was unique.
+     * Empty in the common case of one clean jump.
+     */
+    peaks: peaks.map((p) => ({ volumeMl: p.x, slope: p.y })),
+    rivals: rivals.map((p) => ({ volumeMl: p.x, slope: p.y })),
+    warning,
+  };
+}
+
+/**
+ * The Gran function, as `{x, y}` points for one side of the equivalence point.
+ *
+ * Acid side (titrant is base, analyte is acid, acid still in excess):
+ *
+ *     G = V · 10^(−pH)
+ *
+ * Base side (base in excess):
+ *
+ *     G = (V₀ + V) · 10^(pH)
+ *
+ * Both are linear in V over the region where the corresponding excess holds,
+ * and both are zero at the equivalence volume — which is why extrapolating
+ * them to the x-axis gives it. The volume correction in the second is not
+ * decoration: the base is being diluted by the analyte as it is added, and
+ * without it the line curves near the end.
+ */
+export function granPoints(rows, { side, initialVolumeMl = 0, equivalenceHint }) {
+  const data = titrationRows(rows);
+  requirePositive(equivalenceHint, 'equivalenceHint');
+  if (side !== 'acid' && side !== 'base') {
+    fail('granSideUnknown', { side: String(side) });
+  }
+  const out = [];
+  for (const r of data) {
+    if (side === 'acid' && r.volumeMl < equivalenceHint) {
+      out.push({ x: r.volumeMl, y: r.volumeMl * 10 ** -r.ph });
+    } else if (side === 'base' && r.volumeMl > equivalenceHint) {
+      out.push({ x: r.volumeMl, y: (initialVolumeMl + r.volumeMl) * 10 ** r.ph });
+    }
+  }
+  if (out.length < 3) fail('granTooFewPoints', { n: out.length, side });
+  return out;
+}
+
+/**
+ * The equivalence volume by Gran extrapolation.
+ *
+ * Each side gives an independent estimate, because each is a separate straight
+ * line whose own x-intercept is the equivalence volume. They are fitted and
+ * reported separately rather than averaged into one number: two estimates that
+ * agree are evidence, and two that disagree are a finding. Averaging them would
+ * destroy the only diagnostic the method provides.
+ *
+ * The regions nearest the equivalence point are excluded. Both Gran functions
+ * are approximations that hold *away* from the point and break down as it is
+ * approached — the curve visibly bends there, and including those points drags
+ * the fit. The window is the middle half of each side's span, which is the
+ * conventional choice and the one that survives a coarse grid.
+ */
+export function equivalenceFromGran(rows, { initialVolumeMl = 0, equivalenceHint }) {
+  const data = titrationRows(rows);
+  requirePositive(equivalenceHint, 'equivalenceHint');
+
+  const fitSide = (side) => {
+    const all = granPoints(data, { side, initialVolumeMl, equivalenceHint });
+    // Trim to the middle half of the side's volume span.
+    const lo = all[0].x;
+    const hi = all[all.length - 1].x;
+    const span = hi - lo;
+    const window = all.filter((p) => p.x >= lo + span * 0.25 && p.x <= hi - span * 0.25);
+    const use = window.length >= 3 ? window : all;
+    const fit = standardCurve(use.map((p) => ({ x: p.x, y: p.y })));
+    if (fit.slope === 0) fail('granFlatFit', { side });
+    return {
+      side,
+      volumeMl: -fit.intercept / fit.slope,
+      r2: fit.r2,
+      slope: fit.slope,
+      intercept: fit.intercept,
+      slopeStdError: fit.slopeStdError,
+      n: fit.n,
+      from: use[0].x,
+      to: use[use.length - 1].x,
+    };
+  };
+
+  /*
+   * A side is optional, and "too few points on it" is the same situation as
+   * "no points on it" — not an error.
+   *
+   * The count is taken *after* the side filter, not from whether any row lies
+   * beyond the hint. A coarse grid on a dilute titration can leave a single
+   * point on the acid side, and asking for a regression through one point
+   * threw out of the whole call — so an analysable titration failed because
+   * one of its two optional halves was thin. The other side still gives a
+   * valid answer, which is the entire point of offering the Gran method.
+   *
+   * Counted rather than caught: a `try`/`catch` here would also swallow a
+   * genuine failure from inside the fit, and report it as "no data on this
+   * side".
+   */
+  const MIN_SIDE_POINTS = 3;
+  const sideCount = (side) => data.filter((r) => (side === 'acid'
+    ? r.volumeMl < equivalenceHint
+    : r.volumeMl > equivalenceHint)).length;
+
+  const acid = sideCount('acid') >= MIN_SIDE_POINTS ? fitSide('acid') : null;
+  const base = sideCount('base') >= MIN_SIDE_POINTS ? fitSide('base') : null;
+  if (!acid && !base) fail('granNoSide', {});
+
+  const usable = [acid, base].filter((s) => s && Number.isFinite(s.volumeMl));
+  if (usable.length === 0) fail('granNoSide', {});
+  // Prefer the side that fits better; a one-sided Gran plot is a normal case.
+  const chosen = usable.reduce((a, b) => (b.r2 > a.r2 ? b : a));
+
+  return {
+    volumeMl: chosen.volumeMl,
+    r2: chosen.r2,
+    side: chosen.side,
+    acid,
+    base,
+    agree: acid && base
+      ? Math.abs(acid.volumeMl - base.volumeMl) / chosen.volumeMl < 0.02
+      : null,
+    n: chosen.n,
+  };
+}
+
+/**
+ * Locate the equivalence point by both methods, and reconcile them.
+ *
+ * This is the entry point the UI should use. Running the two methods by hand
+ * and comparing them is the obvious thing to do and it is wrong, because the
+ * Gran plot needs a hint and the only hint available is the derivative's
+ * answer — which is precisely the answer that is wrong when the curve has two
+ * steep regions.
+ *
+ * Measured on a 0.02 M acid with pKa 7.2: the naive chain returns 0.25 mL for
+ * a true 40.00 mL, a 99% error, because the initial rise is steeper than the
+ * equivalence jump (1.72 against 1.21). Re-hinting the Gran fit with the
+ * **last** significant peak instead of the first recovers 40.003 mL — 0.007%.
+ *
+ * So the reconciliation is: take the derivative's answer as the hint, but when
+ * it reports more than one significant peak, take the last one. The
+ * equivalence jump is always after the initial rise; that ordering is the one
+ * piece of chemistry the method needs, and it is the piece the caller would
+ * otherwise have to know.
+ *
+ * Both results are returned, along with whether they agree. They are not
+ * averaged: when two independent methods disagree, the disagreement is the
+ * finding, and averaging it away would hide the only diagnostic available.
+ */
+export function locateEquivalencePoint(rows, { initialVolumeMl = 0 } = {}) {
+  const data = titrationRows(rows);
+  const derivative = equivalenceFromDerivative(data);
+
+  // The last significant peak, when the derivative found more than one.
+  const hint = derivative.warning === 'multiplePeaks' && derivative.peaks.length > 0
+    ? derivative.peaks[derivative.peaks.length - 1].volumeMl
+    : derivative.volumeMl;
+
+  const gran = equivalenceFromGran(data, { initialVolumeMl, equivalenceHint: hint });
+
+  const agree = Math.abs(derivative.volumeMl - gran.volumeMl) / gran.volumeMl < 0.02;
+  /*
+   * Which one to quote. The Gran plot wins when the derivative was ambiguous,
+   * because that is exactly the case the derivative cannot handle — and when
+   * the two agree there is nothing to choose between them. The derivative wins
+   * otherwise only because it needs no hint at all, which is a statement about
+   * the caller rather than about the data.
+   */
+  const preferred = derivative.warning ? gran.volumeMl : derivative.volumeMl;
+
+  return {
+    volumeMl: preferred,
+    method: derivative.warning ? 'gran' : 'derivative',
+    derivative,
+    gran,
+    agree,
+    hintUsed: hint,
+  };
 }

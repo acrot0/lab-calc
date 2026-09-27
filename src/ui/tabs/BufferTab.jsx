@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { bufferRecipe } from '../../calc/buffer.mjs';
+import { bufferRecipe, bufferCapacity } from '../../calc/buffer.mjs';
 import { BUFFER_PRESETS, PKA_REFERENCE_C, bufferPreset, correctedBuffer } from '../../calc/activity.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
 import BufferDiagram from '../components/diagrams/BufferDiagram.jsx';
@@ -70,6 +70,55 @@ export default function BufferTab({ onRecord, restored, theme = 'dark' }) {
   }, [out, ph, total, t]);
 
   useEffect(() => { setOut(null); setReal(null); setErr(null); }, [preset, pka, ph, total, tempC, salt]);
+
+  /*
+   * Buffer capacity at the pH the solution will actually sit at.
+   *
+   * `real.ph` when the activity correction is available, the target otherwise.
+   * Using the target when a corrected reading exists would quote the capacity
+   * of a solution nobody is going to have — the corrected pH can be a tenth of
+   * a unit away, and β falls steeply on either side of the peak.
+   */
+  const capacity = useMemo(() => {
+    const pKa25 = n(pka);
+    const totalConc = n(total);
+    const workingPh = real?.ph ?? n(ph);
+    if (![pKa25, totalConc, workingPh].every(Number.isFinite) || totalConc <= 0) return null;
+    try {
+      return bufferCapacity({ pKa: real?.pKa ?? pKa25, totalConc, ph: workingPh });
+    } catch {
+      return null;
+    }
+  }, [pka, total, ph, real]);
+
+  const capacityWorked = useMemo(() => {
+    if (!capacity) return null;
+    const workingPh = real?.ph ?? n(ph);
+    const pkaUsed = real?.pKa ?? n(pka);
+    return [
+      { term: t('common.formula'), value: t('common.worked_BufferCapacity') },
+      { term: t('buffer.capacityRatio'), value: t('common.worked_BufferCapacityRatio', {
+        ph: fmt(workingPh, 3), pka: fmt(pkaUsed, 3), ratio: fmt(capacity.ratio, 4),
+      }) },
+      { term: `${t('buffer.acid')} / ${t('buffer.base')}`, value: t('common.worked_BufferCapacitySplit', {
+        total: fmtSci(n(total), 4), ratio: fmt(capacity.ratio, 4),
+        base: fmtSci(capacity.baseConc, 4), acid: fmtSci(capacity.acidConc, 4),
+      }) },
+      { term: t('buffer.capacityPair'), value: t('common.worked_BufferCapacityPair', {
+        total: fmtSci(n(total), 4), pair: fmtSci(capacity.buffer, 4),
+      }) },
+      { term: t('buffer.capacityWater'), value: t('common.worked_BufferCapacityWater', {
+        water: fmtSci(capacity.water, 4),
+      }) },
+      { term: t('buffer.capacityOf'), value: t('common.worked_BufferCapacityTotal', {
+        pair: fmtSci(capacity.buffer, 4), water: fmtSci(capacity.water, 4),
+        total: fmtSci(capacity.total, 4),
+      }) },
+      { term: t('buffer.capacityMax'), value: t('common.worked_BufferCapacityMax', {
+        max: fmtSci(capacity.maxCapacity, 4), pct: `${fmt(capacity.fraction * 100, 1)}%`,
+      }) },
+    ];
+  }, [capacity, real, pka, ph, total, t]);
 
   function run() {
     try {
@@ -211,6 +260,38 @@ export default function BufferTab({ onRecord, restored, theme = 'dark' }) {
             { term: t('buffer.ionicStrength'), value: t('common.worked_IonicStep', { I: fmtSci(real.ionicStrength, 4) }) },
             { term: t('buffer.activityShift'), value: t('common.worked_ActivityStep', { gamma: fmt(real.gammaBase, 3), shift: fmt(real.activityShift, 3) }) },
           ]}
+          workedLabel={t('common.worked')}
+        />
+      )}
+
+      {/*
+        Buffer capacity — how much the buffer actually resists.
+
+        The tab has always answered "what do I weigh out", and the `inRange`
+        flag has always been a yes/no against pKa ± 1. This is the number behind
+        that flag: β at the working pH, and what fraction of the best this pair
+        can do. It is what turns "within range ✓" into "it will hold, but only
+        at 40% of its strength".
+
+        It is computed from the same `pKa` and `totalConc` the recipe used, and
+        from the *working* pH rather than the target — those differ once the
+        activity correction is on, and the capacity that matters is the one at
+        the pH the solution will actually sit at.
+      */}
+      {capacity && (
+        <Result
+          value={fmtSci(capacity.total, 4)}
+          unit={t('buffer.capacityUnit')}
+          note={t('buffer.capacityNote')}
+          rows={[
+            [t('buffer.capacityMax'), fmtSci(capacity.maxCapacity, 4)],
+            [t('buffer.capacityFraction'), `${fmt(capacity.fraction * 100, 1)}%`],
+            [t('buffer.capacityPair'), fmtSci(capacity.buffer, 4)],
+            [t('buffer.capacityWater'), fmtSci(capacity.water, 4)],
+            [t('buffer.capacityAcid'), `${fmtSci(capacity.acidConc, 4)} mol/L`],
+            [t('buffer.capacityBase'), `${fmtSci(capacity.baseConc, 4)} mol/L`],
+          ]}
+          worked={capacityWorked}
           workedLabel={t('common.worked')}
         />
       )}
