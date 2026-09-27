@@ -21,13 +21,13 @@ export const en = {
     setTheme: 'Theme',
     setFields: 'Record fields',
     recField: {
-      count: '{{n}} active',
-      retiredCount: '{{n}} retired',
+      count: '{n} active',
+      retiredCount: '{n} retired',
       hint: 'What a record can be annotated with. Retiring stops the app asking — the values already stored are kept. Deleting is only available for fields you added.',
       add: 'Add field',
       addLabel: 'New field name',
       addPlaceholder: 'e.g. sample ID, instrument, storage location',
-      atCap: '{{n}} fields is the limit. Remove one to add another.',
+      atCap: '{n} fields is the limit. Remove one to add another.',
       builtin: 'Built in',
       retired: 'Retired',
       labelZh: 'Chinese label',
@@ -977,7 +977,7 @@ export const en = {
     remove: 'Delete this entry',
     dismiss: 'Dismiss notice',
     undo: 'Undo',
-    undoCleared: 'Cleared {{n}} records',
+    undoCleared: 'Cleared {n} records',
     undoRemoved: 'Record deleted',
     // Deleting marks rather than erases, so there has to be a way back that
     // the user can actually see and click.

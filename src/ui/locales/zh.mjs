@@ -17,13 +17,13 @@ export const zh = {
     setTheme: '配色',
     setFields: '记录字段',
     recField: {
-      count: '{{n}} 个启用',
-      retiredCount: '{{n}} 个停用',
+      count: '{n} 个启用',
+      retiredCount: '{n} 个停用',
       hint: '记录里可以填写的字段。停用只是不再询问，已有的值不会丢；删除只对自定义字段可用。',
       add: '添加字段',
       addLabel: '新字段名',
       addPlaceholder: '如 样品编号、仪器、保存位置',
-      atCap: '最多 {{n}} 个字段。删掉一个再加。',
+      atCap: '最多 {n} 个字段。删掉一个再加。',
       builtin: '内置',
       retired: '已停用',
       labelZh: '中文名',
@@ -975,7 +975,7 @@ export const zh = {
     // 删除之后立刻给一次回退。回收站是长久的撤销，这条是当下的：用户看不到
     // 回收站，只看到列表空了。
     undo: '撤销',
-    undoCleared: '已清空 {{n}} 条记录',
+    undoCleared: '已清空 {n} 条记录',
     undoRemoved: '已删除这条记录',
     // 删除是标记而非抹除，所以这里必须有回来的路——否则「可撤销」只是
     // 数据层面成立，用户看不到也点不到。

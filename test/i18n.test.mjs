@@ -391,6 +391,8 @@ describe('converter dimensions', () => {
  * cannot be checked without running the component.
  */
 describe('translation keys', () => {
+  /** The Chinese translator, for checking substitution rather than lookup. */
+  const t = makeTranslator(zh, zh);
   const DIRS = ['src/ui/tabs', 'src/ui/components', 'src/ui'];
   const KEY = /\bt\(\s*'([a-zA-Z][\w.]*)'/g;
 
@@ -426,6 +428,70 @@ describe('translation keys', () => {
   it('should scan enough keys for that to mean something', () => {
     // Guards against the scan passing because its regex stopped matching.
     expect(scanKeys().size).toBeGreaterThan(100);
+  });
+
+  /*
+   * The placeholder convention, which had drifted in two directions at once.
+   *
+   * `makeTranslator` substitutes `{n}` — single braces. Four strings were
+   * written with `{{n}}`, which the translator leaves alone, so the UI printed
+   * the braces literally: the clear-all undo bar said "已清空 {86} 条记录" and
+   * the fields panel said "{{n}} 个启用". Both shipped, because nothing was
+   * checking that a string containing a placeholder is one the translator can
+   * actually fill.
+   *
+   * A doubled brace is the other plausible convention (Vue, Handlebars, Python's
+   * `str.format` escaping), which is why it is worth a rule rather than a note.
+   */
+  it('should use single braces for every placeholder', () => {
+    const offenders = [];
+    const walk = (obj, path) => {
+      for (const [k, v] of Object.entries(obj)) {
+        const here = path ? `${path}.${k}` : k;
+        if (v && typeof v === 'object') { walk(v, here); continue; }
+        if (typeof v === 'string' && /\{\{|\}\}/.test(v)) offenders.push(`${here}: ${v}`);
+      }
+    };
+    walk(zh, 'zh');
+    walk(en, 'en');
+    expect(offenders, `double-braced placeholders the translator cannot fill:\n${offenders.join('\n')}`)
+      .toEqual([]);
+  });
+
+  it('should substitute every placeholder when a parameter is passed', () => {
+    /*
+     * Checked at the translator rather than by parsing call sites.
+     *
+     * Parsing was tried and abandoned: the params object is frequently written
+     * across several lines, and a regex for it either stops at the first inner
+     * brace or swallows the rest of the file. It reported six call sites as
+     * broken, all of which were correct — a test that cries wolf is worse than
+     * no test, because it trains people to skip it.
+     *
+     * This checks the property that actually matters and cannot be faked: after
+     * substitution, no `{name}` survives. A string whose placeholder was never
+     * passed keeps its braces, which is exactly the shipped defect.
+     */
+    const walk = (obj, path) => {
+      for (const [k, v] of Object.entries(obj)) {
+        const here = path ? `${path}.${k}` : k;
+        if (v && typeof v === 'object') { walk(v, here); continue; }
+        if (typeof v !== 'string') continue;
+        const names = [...v.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+        if (names.length === 0) continue;
+        // Every declared placeholder gets a value, so none may survive.
+        const params = Object.fromEntries(names.map((n) => [n, 'X']));
+        const filled = t(here, params);
+        expect(/\{\w+\}/.test(filled), `${here} still shows braces after filling: ${filled}`)
+          .toBe(false);
+      }
+    };
+    walk(zh, '');
+  });
+
+  it('should leave a string without placeholders untouched by params', () => {
+    // The other direction: passing params to a plain string must not corrupt it.
+    expect(t('common.worked', { n: 3 })).toBe(t('common.worked'));
   });
 
   it('should catch a key the way the drawer typo was written', () => {
