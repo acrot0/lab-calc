@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { beerLambert, standardCurve, predictFromCurve, LINEAR_ABSORBANCE_MAX } from '../../calc/reagent.mjs';
 import { NumField, Result, Warn, Err, Worked } from '../components/Fields.jsx';
-import { fmt, fmtSci, n, shownFor } from '../format.mjs';
+import { UncertaintyPanel, Contribution } from '../components/UncertaintyPanel.jsx';
+import { fmt, fmtSci, fmtMeasured, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
 import { chartColors } from '../chart-colors.mjs';
+import { productUncertainty } from '../../calc/uncertainty.mjs';
+import {
+  spectrophotometerUncertainty, cuvetteUncertainty, SPECTROPHOTOMETER_ACCURACY_A,
+} from '../../calc/instruments.mjs';
 
 /** Draw the calibration line with its points, so the fit is visible not asserted. */
 function CurvePlot({ points, fit, reading, width = 520, height = 220, theme = 'dark' }) {
@@ -163,6 +168,110 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
 
+  /*
+   * The photometer's own numbers, collapsed by default.
+   *
+   * Defaults rather than blanks, for the same reason the weighing tab has them:
+   * a budget with a missing input reports less uncertainty than there is, and
+   * the user has no way to tell it was incomplete. ±0.003 A is the typical
+   * single-monochromator specification and ±0.05 mm the standard cell
+   * tolerance, so the defaults describe the instrument a teaching lab has.
+   */
+  const [uncOpen, setUncOpen] = useState(false);
+  const [pathTolMm, setPathTolMm] = useState('0.05');
+  const [accuracyA, setAccuracyA] = useState(String(SPECTROPHOTOMETER_ACCURACY_A));
+
+  /*
+   * The budget for Beer's law, in whichever direction the tab was asked.
+   *
+   *   A = ε · c · l   ⟹   c = A / (ε · l)
+   *
+   * All three are a product, so relative uncertainties add in quadrature. The
+   * two instrument terms behave differently and that is the point of showing
+   * them apart: the cell's is a fixed 0.29% of the path, while the photometer's
+   * is a fixed 0.003 A — negligible against a reading of 0.8 and dominant
+   * against one of 0.05.
+   *
+   * `ε` carries no uncertainty of its own here. A tabulated molar absorptivity
+   * is quoted to more digits than it deserves, but the error in it is a
+   * *property of the substance and the wavelength*, not of this measurement —
+   * inventing a number for it would put a term in the budget that the user
+   * cannot check. The caveat below says so instead.
+   */
+  const budget = useMemo(() => {
+    const shownOut = shownFor(out, 'mode', mode);
+    if (!shownOut || mode === 'curve') return null;
+    /*
+     * The path length is taken from the field the calculation already used, not
+     * asked for a second time in cm-to-mm disguise. Two inputs for one physical
+     * quantity is a budget that can disagree with the result it is qualifying —
+     * and the user would have no way to see which one the answer came from.
+     */
+    const pathCm = n(path);
+    if (!Number.isFinite(pathCm) || pathCm <= 0) return null;
+    const pathMmValue = pathCm * 10;
+    try {
+      const readingAbs = mode === 'absorbance' ? shownOut.absorbance : n(absorbance);
+      const meter = spectrophotometerUncertainty({ absorbance: readingAbs, accuracyA: n(accuracyA) });
+      /*
+       * The cell only enters the budget when the cell's own path is a *divisor*
+       * in the answer. In absorbance mode the tab is given c and l and returns
+       * A — the path is already folded into the answer, and no uncertainty on
+       * it can move a number that was computed from it as a known input. Showing
+       * a path row there would claim a contribution that does not exist.
+       *
+       * In concentration mode the answer is A/(ε·l), so the path's uncertainty
+       * divides into the result and belongs.
+       */
+      const usesCell = mode === 'concentration';
+      const cell = usesCell
+        ? cuvetteUncertainty({ pathMm: pathMmValue, toleranceMm: n(pathTolMm) })
+        : null;
+      // The cell's uncertainty is absolute in mm and the product term needs it
+      // in the same units as the path, so it is scaled to cm here rather than
+      // the path being converted in the product — the returned `cell` stays in
+      // mm, which is what its own row displays.
+      const combined = productUncertainty(usesCell ? [
+        { value: readingAbs, unc: meter.unc, power: 1 },
+        { value: pathCm, unc: cell.unc / 10, power: 1 },
+      ] : [
+        { value: readingAbs, unc: meter.unc, power: 1 },
+      ]);
+      /*
+       * The relative uncertainty belongs to the *result*, and the result is a
+       * different quantity in each direction:
+       *
+       *   - absorbance mode returns A, and the cell plays no part in A — the
+       *     photometer's own term is the whole of it.
+       *   - concentration mode returns c = A/(ε·l), where the cell's path is a
+       *     divisor and does contribute.
+       *
+       * Using the product's figure for both put 0.436% in the panel while the
+       * result above it said 0.327% — two relative uncertainties for one
+       * calculation, which is the defect this panel exists to prevent, in the
+       * direction that overstates.
+       */
+      const resultRelative = mode === 'absorbance'
+        ? (readingAbs === 0 ? 0 : meter.unc / readingAbs)
+        : (combined.value === 0 ? 0 : combined.unc / combined.value);
+      return {
+        cell,
+        meter,
+        combined,
+        usesCell,
+        relative: resultRelative,
+        // The concentration is the result in one direction and the input in the
+        // other, so the budget reports the *reading* in both cases and the
+        // caller decides what to attach it to.
+        reading: readingAbs,
+      };
+    } catch {
+      // An unparseable tolerance is not a reason to lose the main result; the
+      // panel says the budget is unavailable instead of showing a zero.
+      return null;
+    }
+  }, [out, mode, path, pathTolMm, accuracyA, absorbance]);
+
   useEffect(() => { setOut(null); setErr(null); }, [mode, epsilon, conc, path, absorbance, ptsText, reading]);
 
   function parsePoints(text) {
@@ -314,6 +423,10 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
           <Result value={fmt(shown.absorbance, 4)} unit="AU"
             note={t('spectro.absNote')}
             rows={[[t('spectro.absorbance'), fmt(shown.absorbance, 5)]]}
+            unc={uncOpen && budget ? {
+              ...fmtMeasured(shown.absorbance, budget.meter.unc, { unit: ' AU' }),
+              detail: `${t('unc.uncRelative')} ${fmtSci(budget.meter.unc / (shown.absorbance || 1) * 100, 3)}%`,
+            } : null}
             worked={worked} workedLabel={t('common.worked')} />
           {warnMsg(shown.linearityWarning) && <Warn>{warnMsg(shown.linearityWarning)}</Warn>}
         </>
@@ -330,6 +443,10 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
               [t('spectro.conc'), `${fmtSci(shown.conc, 4)} mol/L`],
               [t('spectro.concUm'), `${fmtSci(shown.conc * 1e6, 4)} µmol/L`],
             ]}
+            unc={uncOpen && budget ? {
+              ...fmtMeasured(shown.conc, budget.relative * shown.conc, { unit: ' mol/L' }),
+              detail: `${t('unc.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,
+            } : null}
             worked={worked} workedLabel={t('common.worked')} />
           {warnMsg(shown.linearityWarning) && <Warn>{warnMsg(shown.linearityWarning)}</Warn>}
         </>
@@ -372,6 +489,54 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
       )}
 
       {mode !== 'curve' && <Warn>{t('spectro.warning', { max: LINEAR_ABSORBANCE_MAX })}</Warn>}
+
+      {/*
+        Not shown in curve mode: a standard curve is a regression on measured
+        points, and the budget for it is the slope's standard error — which the
+        result block already reports. Attaching a photometer budget there would
+        be two answers to one question.
+      */}
+      {mode !== 'curve' && (
+        <UncertaintyPanel
+          open={uncOpen}
+          onToggle={() => setUncOpen((v) => !v)}
+          budget={budget}
+          state={{}}
+          intro={t(mode === 'absorbance' ? 'unc.uncSpectroIntroAbs' : 'unc.uncSpectroIntro')}
+          caveats={(
+            <>
+              <p className="unc-caveat">
+                {t(mode === 'absorbance' ? 'unc.uncSpectroNotModelledAbs' : 'unc.uncSpectroNotModelled')}
+              </p>
+              <p className="unc-caveat">{t('unc.uncSpectroRange')}</p>
+            </>
+          )}
+          fields={(
+            <>
+              {/* The path itself is already an input above; only its tolerance
+                  is asked for here. Hidden in absorbance mode, where the path
+                  does not contribute — a field that changes nothing is worse
+                  than an absent one, because the user adjusts it and sees no
+                  movement in the number below. */}
+              {mode === 'concentration' && (
+                <NumField label={t('unc.uncCuvettePathTol')} value={pathTolMm} onChange={setPathTolMm} min="0" />
+              )}
+              <NumField label={t('unc.uncPhotoAccuracy')} value={accuracyA} onChange={setAccuracyA} min="0" />
+            </>
+          )}
+        >
+          <Contribution
+            label={t('unc.uncPhoto')} value={budget?.meter.value}
+            unc={budget?.meter.unc} unit="AU"
+          />
+          {budget?.cell && (
+            <Contribution
+              label={t('unc.uncCuvette')} value={budget.cell.value}
+              unc={budget.cell.unc} unit="mm"
+            />
+          )}
+        </UncertaintyPanel>
+      )}
     </Card>
   );
 }

@@ -245,6 +245,88 @@ export function weighingUncertainty({
 }
 
 /**
+ * The path-length tolerance of a spectrophotometer cuvette, in mm.
+ *
+ * ±0.05 mm is the industry standard for a 10 mm cell, so the true path is
+ * between 9.95 and 10.05 mm. It is a *tolerance*, so a/√3 — and at 0.29% it is
+ * the largest term in a Beer's law budget that nobody ever writes down.
+ *
+ * The relative size is what matters: the same ±0.05 mm on a 1 mm cell is 2.9%,
+ * which is why a short-path cell is not a way to make a measurement better, only
+ * a way to keep a concentrated sample on scale.
+ */
+export const CUVETTE_PATH_TOLERANCE_MM = 0.05;
+
+/**
+ * The photometric accuracy of a single-monochromator spectrophotometer, in
+ * absorbance units.
+ *
+ * ±0.003 A is the typical specification for the instrument a teaching lab
+ * actually has (a double-beam double-monochromator reaches ±0.0015 A, and the
+ * best NIST reference material is ±0.0023 A, so ±0.003 A is honest for the
+ * common case rather than pessimistic).
+ *
+ * It is an absolute term in A, not a relative one, which is what makes it
+ * behave unlike every other entry here: at A = 0.8 it is 0.4% and at A = 0.05
+ * it is 6%. The recommended working range of 0.2–0.8 A exists precisely to keep
+ * this term small, and the budget is where that rule stops being folklore.
+ */
+export const SPECTROPHOTOMETER_ACCURACY_A = 0.003;
+
+/**
+ * The uncertainty on an absorbance reading from a spectrophotometer.
+ *
+ * Two components:
+ *
+ *   - **photometric accuracy** — the instrument's ±a for a displayed
+ *     absorbance, rectangular.
+ *   - **blank** — counted as a second reading when the instrument was zeroed
+ *     against a reference, because A is a difference of two readings and the
+ *     same accuracy applies to each. This is the balance's tare trap in a
+ *     different instrument, and it is left out of every hand-written budget.
+ *
+ * The cuvette path is a separate instrument and is not folded in here: a caller
+ * propagating Beer's law needs both terms, and one function returning both would
+ * hide which one to change.
+ */
+export function spectrophotometerUncertainty({
+  absorbance, accuracyA = SPECTROPHOTOMETER_ACCURACY_A, blanked = true,
+}) {
+  requireNonNegative(absorbance, 'absorbance');
+  requirePositive(accuracyA, 'accuracyA');
+  const components = [
+    { name: 'photometric', unc: rectangularStandardUncertainty(accuracyA) },
+  ];
+  if (blanked) {
+    components.push({
+      name: 'blank',
+      unc: rectangularStandardUncertainty(accuracyA),
+      counted: 2,
+    });
+  }
+  const { unc } = sumUncertainty(components.map((c) => ({ value: 0, unc: c.unc })));
+  return { value: absorbance, unc, components, unit: 'A' };
+}
+
+/**
+ * The uncertainty on the optical path length of a cuvette.
+ *
+ * Separate from `glasswareUncertainty` because a cuvette is not volumetric
+ * glassware: it has no meniscus, no drainage time and no temperature term worth
+ * carrying, and it is calibrated to *transmit* rather than to contain. Folding
+ * it into the flask table would have meant inventing a grade for it.
+ */
+export function cuvetteUncertainty({ pathMm, toleranceMm = CUVETTE_PATH_TOLERANCE_MM }) {
+  requirePositive(pathMm, 'pathMm');
+  requireNonNegative(toleranceMm, 'toleranceMm');
+  const components = [
+    { name: 'pathLength', unc: rectangularStandardUncertainty(toleranceMm) },
+  ];
+  const { unc } = sumUncertainty(components.map((c) => ({ value: 0, unc: c.unc })));
+  return { value: pathMm, unc, components, unit: 'mm' };
+}
+
+/**
  * The uncertainty on a quantity, dispatched by instrument.
  *
  * One entry point so a caller does not have to know which table applies. A
@@ -253,6 +335,8 @@ export function weighingUncertainty({
 export function instrumentUncertainty(spec) {
   const { kind } = spec ?? {};
   if (kind === 'balance') return weighingUncertainty(spec);
+  if (kind === 'cuvette') return cuvetteUncertainty(spec);
+  if (kind === 'spectrophotometer') return spectrophotometerUncertainty(spec);
   if (INSTRUMENT_KINDS.includes(kind)) return glasswareUncertainty(spec);
   fail('unknownInstrument', { kind });
 }

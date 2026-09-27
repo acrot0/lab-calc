@@ -3,6 +3,8 @@ import {
   FLASK_TOLERANCE_ML, PIPETTE_TOLERANCE_ML, BURETTE_TOLERANCE_ML,
   rectangularStandardUncertainty, toleranceFor, glasswareUncertainty,
   weighingUncertainty, instrumentUncertainty, INSTRUMENT_KINDS,
+  spectrophotometerUncertainty, cuvetteUncertainty,
+  SPECTROPHOTOMETER_ACCURACY_A, CUVETTE_PATH_TOLERANCE_MM,
 } from '../src/calc/instruments.mjs';
 
 /*
@@ -160,5 +162,82 @@ describe('instrumentUncertainty', () => {
 
   it('should reject an unknown kind', () => {
     expect(() => instrumentUncertainty({ kind: 'spatula', nominalMl: 1 })).toThrow();
+  });
+});
+
+/*
+ * The two instruments that are not volumetric glassware or a balance.
+ *
+ * Both were added because the spectrophotometry tab had no budget at all, and
+ * both behave unlike the entries above in a way worth pinning down: the
+ * photometer's term is absolute in absorbance, so its *relative* size depends
+ * on the reading, while the cell's is fixed.
+ */
+describe('spectrophotometerUncertainty', () => {
+  it('should give the photometric term a rectangular distribution', () => {
+    const s = spectrophotometerUncertainty({ absorbance: 0.75, blanked: false });
+    expect(s.unc).toBeCloseTo(SPECTROPHOTOMETER_ACCURACY_A / Math.sqrt(3), 9);
+  });
+
+  it('should count the blank as a second reading when the instrument was zeroed', () => {
+    // Absorbance is a difference of two readings, so the instrument's own
+    // accuracy applies to each — the balance's tare trap in another instrument.
+    const s = spectrophotometerUncertainty({ absorbance: 0.75, blanked: true });
+    expect(s.unc).toBeCloseTo(SPECTROPHOTOMETER_ACCURACY_A / Math.sqrt(3) * Math.SQRT2, 9);
+    expect(s.components.find((c) => c.name === 'blank').counted).toBe(2);
+  });
+
+  it('should make the relative uncertainty grow as the reading falls', () => {
+    // The reason the working range is 0.2-0.8 AU: at 0.8 AU the term is about
+    // 0.3%, at 0.05 AU about 5%. A single relative figure would hide that.
+    const high = spectrophotometerUncertainty({ absorbance: 0.8 });
+    const low = spectrophotometerUncertainty({ absorbance: 0.05 });
+    expect(high.unc).toBeCloseTo(low.unc, 12);
+    expect(low.unc / 0.05).toBeGreaterThan(10 * (high.unc / 0.8));
+  });
+
+  it('should reject a negative absorbance', () => {
+    expect(() => spectrophotometerUncertainty({ absorbance: -0.1 })).toThrow();
+  });
+
+  it('should reject a zero accuracy, which would report a perfect instrument', () => {
+    expect(() => spectrophotometerUncertainty({ absorbance: 0.5, accuracyA: 0 })).toThrow();
+  });
+});
+
+describe('cuvetteUncertainty', () => {
+  it('should convert the path tolerance through a rectangular distribution', () => {
+    const c = cuvetteUncertainty({ pathMm: 10 });
+    expect(c.unc).toBeCloseTo(CUVETTE_PATH_TOLERANCE_MM / Math.sqrt(3), 9);
+  });
+
+  it('should keep the path in mm rather than converting to cm', () => {
+    // The tab works in cm because Beer's law with a molar absorptivity uses cm,
+    // and the conversion is the caller's job — a function that guessed would be
+    // wrong for whichever caller guessed differently.
+    expect(cuvetteUncertainty({ pathMm: 10 }).value).toBe(10);
+  });
+
+  it('should make a short-path cell relatively worse, not better', () => {
+    // The same absolute tolerance on a smaller path: 1 mm is 2.9%, not 0.29%.
+    // A short cell keeps a concentrated sample on scale; it does not improve
+    // the measurement.
+    const ten = cuvetteUncertainty({ pathMm: 10 });
+    const one = cuvetteUncertainty({ pathMm: 1 });
+    expect(one.unc / 1).toBeGreaterThan(9 * (ten.unc / 10));
+  });
+
+  it('should reject a zero or negative path', () => {
+    expect(() => cuvetteUncertainty({ pathMm: 0 })).toThrow();
+  });
+});
+
+describe('instrumentUncertainty dispatch for the new kinds', () => {
+  it('should dispatch a cuvette by name', () => {
+    expect(instrumentUncertainty({ kind: 'cuvette', pathMm: 10 }).value).toBe(10);
+  });
+
+  it('should dispatch a spectrophotometer by name', () => {
+    expect(instrumentUncertainty({ kind: 'spectrophotometer', absorbance: 0.5 }).unit).toBe('A');
   });
 });

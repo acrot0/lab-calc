@@ -40,7 +40,7 @@ export function Contribution({ label, value, unc, unit }) {
 }
 
 export function UncertaintyPanel({
-  open, onToggle, budget, state, balance = true, children,
+  open, onToggle, budget, state, balance = true, children, intro, fields, caveats,
 }) {
   const { t } = useI18n();
   const {
@@ -56,26 +56,42 @@ export function UncertaintyPanel({
       </button>
       {open && (
         <div className="unc-body">
-          <p className="unc-intro">{t('unc.uncIntro')}</p>
-          <div className="row">
-            <NumField label={t('unc.uncFlaskSize')} value={flaskMl} onChange={setFlaskMl} min="0" />
-            <label className="field">
-              <span className="field-label">{t('unc.uncGrade')}</span>
-              <select value={flaskGrade} onChange={(e) => setFlaskGrade(e.target.value)}>
-                <option value="A">{t('unc.uncGradeA')}</option>
-                <option value="B">{t('unc.uncGradeB')}</option>
-              </select>
-            </label>
-          </div>
-          {setPipetteMl && (
-            <NumField label={t('unc.uncPipetteSize')} value={pipetteMl} onChange={setPipetteMl} min="0" />
-          )}
-          <NumField label={t('unc.uncTemp')} value={tempC} onChange={setTempC} />
-          {balance && (
-            <div className="row">
-              <NumField label={t('unc.uncReadability')} value={readabilityG} onChange={setReadabilityG} min="0" />
-              <NumField label={t('unc.uncLinearity')} value={linearityG} onChange={setLinearityG} min="0" />
-            </div>
+          {/*
+            The intro names the instrument the numbers came from, so a tab whose
+            budget is not glassware and a balance supplies its own. The default
+            text says "glassware and balance", and leaving it above a cuvette
+            budget would be a caption describing a different experiment.
+          */}
+          <p className="unc-intro">{intro ?? t('unc.uncIntro')}</p>
+          {/*
+            `fields` replaces the volumetric block wholesale for tabs whose
+            instruments are not a flask and a balance — a spectrophotometer has
+            neither, and rendering empty flask inputs above a Beer's law budget
+            would invite the user to think they contributed.
+          */}
+          {fields ?? (
+            <>
+              <div className="row">
+                <NumField label={t('unc.uncFlaskSize')} value={flaskMl} onChange={setFlaskMl} min="0" />
+                <label className="field">
+                  <span className="field-label">{t('unc.uncGrade')}</span>
+                  <select value={flaskGrade} onChange={(e) => setFlaskGrade(e.target.value)}>
+                    <option value="A">{t('unc.uncGradeA')}</option>
+                    <option value="B">{t('unc.uncGradeB')}</option>
+                  </select>
+                </label>
+              </div>
+              {setPipetteMl && (
+                <NumField label={t('unc.uncPipetteSize')} value={pipetteMl} onChange={setPipetteMl} min="0" />
+              )}
+              <NumField label={t('unc.uncTemp')} value={tempC} onChange={setTempC} />
+              {balance && (
+                <div className="row">
+                  <NumField label={t('unc.uncReadability')} value={readabilityG} onChange={setReadabilityG} min="0" />
+                  <NumField label={t('unc.uncLinearity')} value={linearityG} onChange={setLinearityG} min="0" />
+                </div>
+              )}
+            </>
           )}
 
           {budget ? (
@@ -107,10 +123,19 @@ export function UncertaintyPanel({
                   renderings of the same measurement disagreeing by two digits
                   is the thing this panel exists to stop.
                 */}
-                <Contribution
-                  label={t('unc.uncFlask')} value={budget.flask.value}
-                  unc={budget.flask.unc} unit="mL"
-                />
+                {/*
+                  Guarded because the volumetric rows are not universal: a
+                  spectrophotometry budget has no flask and no pipette, and an
+                  unguarded `budget.flask.value` took the whole panel down with
+                  it. A budget that does not carry the term simply does not show
+                  the row.
+                */}
+                {budget.flask && (
+                  <Contribution
+                    label={t('unc.uncFlask')} value={budget.flask.value}
+                    unc={budget.flask.unc} unit="mL"
+                  />
+                )}
                 {budget.pipette && (
                   <Contribution
                     label={t('unc.uncPipette')} value={budget.pipette.value}
@@ -126,8 +151,18 @@ export function UncertaintyPanel({
                   })}
                 </Warn>
               )}
-              <p className="unc-caveat">{t('unc.uncNotModelled')}</p>
-              <p className="unc-caveat">{t('unc.uncExact')}</p>
+              {/*
+                The "what is not in here" lines are instrument-specific: the
+                default names operator technique and reagent purity, which is
+                right for a weighing and wrong for a photometer. A tab supplies
+                its own so the caveat keeps matching the budget above it.
+              */}
+              {caveats ?? (
+                <>
+                  <p className="unc-caveat">{t('unc.uncNotModelled')}</p>
+                  <p className="unc-caveat">{t('unc.uncExact')}</p>
+                </>
+              )}
             </>
           ) : (
             // Not an error the user made — an instrument size the standard does

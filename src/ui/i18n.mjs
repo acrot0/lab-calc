@@ -17,7 +17,7 @@ export const LOCALES = {
 
 export const DEFAULT_LOCALE = 'zh';
 
-const STORAGE_KEY = 'lab-calc.locale.v1';
+export const STORAGE_KEY = 'lab-calc.locale.v1';
 
 /**
  * Which locale to start in.
