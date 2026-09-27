@@ -151,6 +151,109 @@ export default function AnalyticalTab({ onRecord, restored }) {
     return { mode };
   }
 
+  /*
+   * The working, one derivation per mode.
+   *
+   * Six modes share one result panel, so this is the longest of the four tabs
+   * that were missing it — and the one where the gap was widest, because the
+   * modes disagree about what the number even means. A resolution of 1.5 and a
+   * recovery of 98% are both unitless percentages of a sort, and neither is
+   * interpretable without the formula that produced it.
+   *
+   * Each derivation opens with the symbolic form, which is what the user would
+   * write on paper, and then substitutes. That order matters: a substitution
+   * with no formula above it is a calculation nobody can check.
+   */
+  const worked = useMemo(() => {
+    if (!out) return null;
+    if (out.mode === 'edta') {
+      /* Bounded: v/vs are bench-scale mL, never trace. */
+      return [
+        { term: t('common.formula'), value: t('common.worked_EdtaConc', {
+          c: fmtSci(n(edtaConc), 5), v: fmt(n(edtaVol), 5), vs: fmt(n(sampleVol), 5),
+        }) },
+        { term: t('analytical.alphaY'), value: t('common.worked_EdtaAlpha', {
+          ph: fmt(n(edtaPh), 4), alpha: fmtSci(out.cond.alpha, 4),
+        }) },
+        { term: t('analytical.conditionalLogK'), value: t('common.worked_EdtaConditional', {
+          logK: fmt(out.cond.logK, 3), alpha: fmtSci(out.cond.alpha, 4),
+          cond: fmt(out.cond.conditionalLogK, 3),
+        }) },
+        /* Bounded: bench-scale volume, as above. */
+        { term: t('analytical.moles'), value: t('common.worked_EdtaMoles', {
+          conc: fmtSci(n(edtaConc), 5), vol: fmt(n(edtaVol), 5),
+          moles: fmtSci(out.tit.molesMetal, 4),
+        }) },
+      ];
+    }
+    if (out.mode === 'redox') {
+      const sum = Number(n1) + Number(n2);
+      return [
+        { term: t('common.formula'), value: t('common.worked_RedoxPotential', {
+          n1: fmt(Number(n1), 0), e1: fmt(n(e1), 4),
+          n2: fmt(Number(n2), 0), e2: fmt(n(e2), 4),
+          sum: fmt(sum, 0),
+        }) },
+        { term: t('analytical.naiveMean'), value: t('common.worked_RedoxNaive', {
+          naive: fmt(out.eq.naiveMean, 4),
+        }) },
+      ];
+    }
+    if (out.mode === 'gravimetric') {
+      return [
+        { term: t('common.formula'), value: t('common.worked_GravFactor', {
+          mSought: fmt(out.f.molarMassSought, 4),
+          mWeighed: fmt(out.f.molarMassWeighed, 4),
+          factor: fmt(out.f.factor, 6),
+        }) },
+        { term: t('analytical.analyteMass'), value: t('common.worked_GravAnalyte', {
+          mppt: fmt(n(pptMass), 5), factor: fmt(out.f.factor, 6),
+          mass: fmtSci(out.pct.analyteMassG, 6),
+        }) },
+        { term: t('analytical.analyteMass'), value: t('common.worked_GravPercent', {
+          mass: fmtSci(out.pct.analyteMassG, 6), sample: fmtSci(n(sampleMass), 5),
+          pct: fmt(out.pct.percent, 5),
+        }) },
+      ];
+    }
+    if (out.mode === 'recovery') {
+      return [
+        { term: t('common.formula'), value: t('common.worked_Recovery', {
+          spiked: fmt(n(spiked), 5), unspiked: fmt(n(unspiked), 5), added: fmt(n(added), 5),
+        }) },
+        { term: t('analytical.recoveryMean'), value: t('common.worked_RecoveryMean', {
+          mean: fmt(out.bias.mean, 5), sd: fmt(out.bias.sd, 5),
+        }) },
+      ];
+    }
+    if (out.mode === 'lod') {
+      const steps = [
+        { term: t('common.formula'), value: t('common.worked_LodBlank', {
+          mean: fmtSci(out.lod.blankMean, 4), sd: fmtSci(out.lod.blankSd, 4), n: out.lod.n,
+        }) },
+        { term: 'LOD', value: t('common.worked_LodSd', {
+          sd: fmtSci(out.lod.blankSd, 4), slope: fmt(n(slope), 5), lod: fmtSci(out.lod.lod, 4),
+        }) },
+        { term: 'LOQ', value: t('common.worked_LoqSd', {
+          sd: fmtSci(out.lod.blankSd, 4), slope: fmt(n(slope), 5), loq: fmtSci(out.lod.loq, 4),
+        }) },
+      ];
+      return steps;
+    }
+    if (out.mode === 'chromatography') {
+      return [
+        { term: t('common.formula'), value: t('common.worked_Resolution', {
+          t1: fmt(n(t1), 4), t2: fmt(n(t2), 4),
+          w1: fmt(n(w1), 4), w2: fmt(n(w2), 4), r: fmt(out.res.resolution, 4),
+        }) },
+        { term: t('analytical.plates'), value: t('common.worked_Plates', {
+          tr: fmt(n(t1), 4), w: fmt(n(w1), 4), n: fmt(out.plates.plates, 0),
+        }) },
+      ];
+    }
+    return null;
+  }, [out, t, edtaConc, edtaVol, sampleVol, edtaPh, e1, e2, n1, n2, pptMass, sampleMass, spiked, unspiked, added, slope, t1, t2, w1, w2]);
+
   return (
     <Card>
       <div className="field">
@@ -245,6 +348,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
             value={fmt(out.tit.sampleMm, 5)}
             unit="mmol/L"
             note={t('analytical.edtaNote', { logK: fmt(out.cond.conditionalLogK, 3) })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('analytical.logK'), fmt(out.cond.logK, 3)],
               [t('analytical.alphaY'), fmtSci(out.cond.alpha, 4)],
@@ -268,6 +372,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
             note={t('analytical.redoxNote', {
               n1: out.eq.electrons1, n2: out.eq.electrons2,
             })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('analytical.naiveMean'), `${fmt(out.eq.naiveMean, 4)} V`],
               [t('analytical.difference'), `${fmt((out.eq.potential - out.eq.naiveMean) * 1000, 4)} mV`],
@@ -283,6 +388,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
             value={fmt(out.pct.percent, 5)}
             unit="%"
             note={t('analytical.gravimetricNote', { ratio: out.f.ratio })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('analytical.factor'), fmt(out.f.factor, 6)],
               [t('analytical.analyteMass'), `${fmtSci(out.pct.analyteMassG, 6)} g`],
@@ -299,6 +405,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
             value={fmt(out.spike.recovery, 4)}
             unit="%"
             note={out.spike.acceptable ? t('analytical.recoveryOk') : t('analytical.recoveryBad')}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('analytical.found'), fmt(out.spike.found, 5)],
               [t('analytical.added'), fmt(out.spike.added, 5)],
@@ -326,6 +433,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
             value={fmtSci(out.lod.lod, 4)}
             unit={t('analytical.concUnit')}
             note={t('analytical.lodNote', { loq: fmtSci(out.lod.loq, 4) })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('analytical.blankMean'), fmtSci(out.lod.blankMean, 4)],
               [t('analytical.blankSd'), fmtSci(out.lod.blankSd, 4)],
@@ -345,6 +453,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
             note={out.res.baselineResolved
               ? t('analytical.resolved')
               : out.res.marginal ? t('analytical.marginal') : t('analytical.merged')}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('analytical.plates'), fmt(out.plates.plates, 0)],
               [t('analytical.t1'), fmt(n(t1), 4)],

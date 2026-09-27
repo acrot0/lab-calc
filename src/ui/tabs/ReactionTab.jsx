@@ -379,7 +379,8 @@ export default function ReactionTab({ onRecord, restored, theme = 'dark' }) {
           )}
           {shown.percentYield != null && (
             <Result value={fmt(shown.percentYield, 2)} unit="%"
-              note={t('reaction.percentYieldNote', { formula: shown.yieldOf ?? '' })} />
+              note={t('reaction.percentYieldNote', { formula: shown.yieldOf ?? '' })}
+              worked={worked} workedLabel={t('common.worked')} />
           )}
           {/* Below the numbers, because it explains them rather than replacing
               them: the table says how much this batch makes, the chart says

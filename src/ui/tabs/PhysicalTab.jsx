@@ -164,6 +164,105 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
     return { mode };
   }
 
+  /*
+   * The working, per mode.
+   *
+   * Four of these five results come from a fit, and a fitted number is the kind
+   * a reader is least able to check: they cannot reproduce `Ea = 42.1 kJ/mol`
+   * from the table by eye, because the arithmetic is a least-squares regression
+   * over transformed axes. So the steps name the transformation and give the
+   * fitted slope and intercept — the two quantities the reader could in fact
+   * verify by plotting the same data.
+   */
+  const worked = useMemo(() => {
+    if (!out) return null;
+    if (out.mode === 'kinetics') {
+      return [
+        { term: t('common.formula'), value: t('common.worked_KineticsOrder', { order: out.fit.order }) },
+        { term: t('physical.k'), value: t('common.worked_KineticsRate', { k: fmtSci(out.fit.k, 4), order: out.fit.order }) },
+        { term: t('physical.halfLife'), value: t('common.worked_KineticsHalfLife', {
+          half: fmt(out.tHalf, 4), unit: t('physical.timeUnit'),
+        }) },
+        { term: `t = ${fmt(n(kinTime), 4)}`, value: t('common.worked_KineticsExtrapolate', {
+          time: fmtSci(n(kinTime), 4), conc: fmtSci(out.at.conc, 5),
+          unit: t('physical.concUnit'), r2: fmt(out.fit.r2, 5),
+        }) },
+      ];
+    }
+    if (out.mode === 'arrhenius') {
+      return [
+        { term: t('common.formula'), value: t('common.worked_ArrheniusLinear') },
+        { term: t('physical.k'), value: t('common.worked_ArrheniusSlope', {
+          slope: fmtSci(out.fit.slope, 4), ea: fmt(out.fit.EaKJ, 4),
+        }) },
+        { term: t('physical.preExponential'), value: t('common.worked_ArrheniusIntercept', {
+          lnA: fmt(out.fit.lnA, 5), A: fmtSci(out.fit.A, 4),
+        }) },
+        { term: t('physical.tempSpan'), value: t('common.worked_ArrheniusSpan', {
+          span: fmt(out.fit.tempSpanC, 3), n: out.fit.n,
+        }) },
+      ];
+    }
+    if (out.mode === 'conductivity') {
+      const steps = [
+        /* Bounded: kappa in S/cm, far above the fmt cutoff. */
+        { term: t('common.formula'), value: t('common.worked_CondLambda', {
+          kappa: fmt(out.mc.kappaSPerCm, 6), conc: fmtSci(n(condConc), 5),
+          lambda: fmt(out.mc.lambda, 5),
+        }) },
+        { term: t('physical.alpha'), value: t('common.worked_CondAlpha', {
+          lambda: fmt(out.mc.lambda, 5), limiting: fmt(n(limiting), 5),
+          percent: fmt(out.dis.percent, 4),
+        }) },
+      ];
+      if (out.ost) {
+        steps.push({ term: t('physical.ka'), value: t('common.worked_CondKa', {
+          conc: fmt(n(condConc), 5), alpha: fmt(out.dis.alpha, 5),
+          ka: fmtSci(out.ost.Ka, 4),
+        }) });
+      }
+      return steps;
+    }
+    if (out.mode === 'thermo') {
+      const steps = [
+        { term: t('common.formula'), value: t('common.worked_ThermoGibbs', {
+          dh: fmt(n(deltaH), 5), temp: fmt(out.g.tempK, 4),
+          ds: fmt(n(deltaS), 5), dg: fmt(out.g.deltaG, 4),
+        }) },
+        { term: t('physical.entropyTerm'), value: t('common.worked_ThermoEntropyTerm', {
+          temp: fmt(out.g.tempK, 4), ds: fmt(n(deltaS), 5),
+          term: fmt(out.g.entropyTermKJ, 4),
+        }) },
+        { term: t('physical.driving'), value: t('common.worked_ThermoDriving', {
+          dh: fmt(Math.abs(n(deltaH)), 4),
+          term: fmt(Math.abs(out.g.entropyTermKJ), 4),
+          which: t(`physical.driving_${out.g.driving}`),
+        }) },
+        { term: t('physical.k'), value: t('common.worked_ThermoK', {
+          dg: fmt(out.g.deltaG, 4), temp: fmt(out.g.tempK, 4), K: fmtSci(out.eq.K, 4),
+        }) },
+      ];
+      if (out.cross.exists) {
+        steps.push({ term: t('physical.crossover'), value: t('common.worked_ThermoCrossover', {
+          dh: fmt(n(deltaH), 5), ds: fmt(n(deltaS), 5),
+          temp: fmt(out.cross.tempK ?? 0, 4), tempC: fmt(out.cross.tempC, 4),
+        }) });
+      }
+      return steps;
+    }
+    if (out.mode === 'phase' && out.eu.exists) {
+      return [
+        { term: t('common.formula'), value: t('common.worked_EutecticLines', {
+          ta: fmt(out.eu.a.meltingC, 4), tb: fmt(out.eu.b.meltingC, 4),
+        }) },
+        { term: t('physical.eutecticLabel', { temp: fmt(out.eu.eutecticTempC, 4) }), value: t('common.worked_Eutectic', {
+          xa: fmt(out.eu.xA, 4), temp: fmt(out.eu.eutecticTempC, 4),
+        }) },
+      ];
+    }
+    return null;
+  }, [out, t, kinTime, condConc, limiting, deltaH, deltaS]);
+
   function parseComponent(text) {
     const parts = String(text).split(/[\s,;]+/).filter(Boolean).map(Number);
     if (parts.length < 2 || !parts.every(Number.isFinite)) {
@@ -248,6 +347,7 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
             note={t('physical.kineticsNote', {
               order: out.fit.order, r2: fmt(out.fit.r2, 5),
             })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('physical.order'), String(out.fit.order)],
               [t('physical.k'), fmtSci(out.fit.k, 4)],
@@ -272,6 +372,7 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
                 unc: fmt(out.fit.EaUncertaintyKJ, 3),
                 span: fmt(out.fit.tempSpanC, 3),
               })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('physical.preExponential'), fmtSci(out.fit.A, 4)],
               [t('physical.r2'), fmt(out.fit.r2, 5)],
@@ -289,6 +390,7 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
             value={fmt(out.mc.lambda, 5)}
             unit="S·cm²/mol"
             note={t('physical.condNote')}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('physical.kappa'), `${fmt(out.mc.kappaSPerCm, 6)} S/cm`],
               [t('physical.alpha'), `${fmt(out.dis.percent, 4)}%`],
@@ -308,6 +410,7 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
             value={fmt(out.g.deltaG, 4)}
             unit="kJ/mol"
             note={out.g.spontaneous ? t('physical.spontaneous') : t('physical.notSpontaneous')}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('physical.entropyTerm'), `${fmt(out.g.entropyTermKJ, 4)} kJ/mol`],
               [t('physical.driving'), t(`physical.driving_${out.g.driving}`)],
@@ -341,6 +444,7 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
                   x: fmt(out.eu.xA * 100, 3),
                   xb: fmt(out.eu.xB * 100, 3),
                 })}
+                worked={worked} workedLabel={t('common.worked')}
                 rows={[
                   [t('physical.meltingA'), `${fmt(out.eu.a.meltingC, 4)} °C`],
                   [t('physical.meltingB'), `${fmt(out.eu.b.meltingC, 4)} °C`],

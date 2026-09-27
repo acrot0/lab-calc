@@ -85,6 +85,80 @@ export default function StatsTab({ onRecord, restored }) {
     }
   }, [parsed.a.values]);
 
+  /*
+   * The working for the confidence interval.
+   *
+   * An interval is the one statistic whose width is not self-evident: a reader
+   * can see that it is ±0.03 without being able to say whether that came from
+   * the spread of the data or from having only five replicates. Both, and the
+   * steps are where that becomes visible — s is the measurements' own noise,
+   * sem is what happens to it when n is small, and t is the price of not
+   * knowing the true standard deviation.
+   */
+  const worked = useMemo(() => {
+    if (!out) return null;
+    const d = out.describeA;
+    const n = d.n;
+    const values = parsed.a.values;
+    const sum = values.reduce((acc, x) => acc + x, 0);
+    const dof = n - 1;
+    const pct = fmt(out.confidence * 100, 0);
+    const steps = [
+      {
+        term: t('stats.mean'),
+        value: t('common.worked_Mean', {
+          sum: fmt(sum, 6), n, mean: fmt(d.mean, 6),
+        }),
+      },
+      {
+        term: t('stats.sd'),
+        value: t('common.worked_Sd', {
+          ss: fmt(d.ss, 6), dof, sd: d.sd === null ? '—' : fmt(d.sd, 6),
+        }),
+      },
+    ];
+    if (d.sem !== null) {
+      steps.push({
+        term: t('stats.sem'),
+        value: t('common.worked_Sem', {
+          sd: fmt(d.sd, 6), n, sem: fmt(d.sem, 6),
+        }),
+      });
+      steps.push({
+        term: t('stats.dof'),
+        value: t('common.worked_CiDof', { n, dof }),
+      });
+      steps.push({
+        term: t('stats.tValue'),
+        value: t('common.worked_TQuantile', { pct, dof, t: fmt(out.interval.t, 4) }),
+      });
+      steps.push({
+        term: t('stats.halfWidth'),
+        value: t('common.worked_CiHalf', {
+          t: fmt(out.interval.t, 4), sem: fmt(d.sem, 6), half: fmt(out.interval.halfWidth, 5),
+        }),
+      });
+      steps.push({
+        term: `CI ${pct}%`,
+        value: t('common.worked_CiInterval', {
+          mean: fmt(d.mean, 5),
+          half: fmt(out.interval.halfWidth, 5),
+          low: fmt(out.interval.low, 5),
+          high: fmt(out.interval.high, 5),
+        }),
+      });
+    }
+    if (out.rsdA !== null && out.rsdA !== undefined) {
+      steps.push({
+        term: t('stats.rsd'),
+        value: t('common.worked_Rsd', {
+          sd: fmt(d.sd, 6), mean: fmt(d.mean, 6), rsd: fmt(out.rsdA, 4),
+        }),
+      });
+    }
+    return steps;
+  }, [out, parsed.a.values, t]);
+
   function run() {
     try {
       const conf = n(confidence) / 100;
@@ -218,6 +292,7 @@ export default function StatsTab({ onRecord, restored }) {
           value={`${fmt(out.interval.low, 5)} – ${fmt(out.interval.high, 5)}`}
           unit={t('stats.ciUnit', { pct: fmt(out.confidence * 100, 0) })}
           note={t('stats.ciNote', { t: fmt(out.interval.t, 4), n: out.interval.n })}
+          worked={worked} workedLabel={t('common.worked')}
           rows={[
             [t('stats.halfWidth'), `± ${fmt(out.interval.halfWidth, 5)}`],
             [t('stats.tValue'), fmt(out.interval.t, 4)],

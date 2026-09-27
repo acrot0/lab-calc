@@ -86,6 +86,122 @@ export default function UncertaintyTab({ onRecord, restored }) {
     try { return molarMassUncertainty(formula.trim()); } catch { return null; }
   }, [formula]);
 
+  /*
+   * The working, for each of the three modes.
+   *
+   * This tab needs it more than any other. Everywhere else the derivation
+   * explains a number the user could check by hand; here the number *is* a
+   * derivation — a combined uncertainty is the sum of its contributions, and
+   * printing it without them is printing a total with no line items. The
+   * question a user has is not "what is u(C)" but "which of my measurements is
+   * responsible for it", and that is only answerable from the terms.
+   */
+  const worked = useMemo(() => {
+    if (mode === 'molarMass') {
+      if (!mmLive) return null;
+      const squares = mmLive.contributions
+        .map((c) => (c.count * c.atomicUncertainty).toFixed(6)).join(' + ');
+      return [
+        { term: t('common.formula'), value: t('common.worked_MolarMassUnc') },
+        ...mmLive.contributions.map((c) => ({
+          term: c.element,
+          value: t('common.worked_MolarMassTerm', {
+            element: c.element,
+            count: c.count,
+            atomic: fmtSci(c.atomicUncertainty, 3),
+            contribution: fmtSci(c.count * c.atomicUncertainty, 3),
+          }),
+        })),
+        {
+          term: 'u(M)',
+          value: t('common.worked_MolarMassCombine', { squares, unc: fmtSci(mmLive.unc, 3) }),
+        },
+      ];
+    }
+    if (!out) return null;
+
+    if (out.mode === 'propagate') {
+      const steps = [{
+        term: t('common.formula'),
+        value: out.op === 'sum' ? t('common.worked_PropagateSum') : t('common.worked_PropagateProduct'),
+      }];
+      // Each input's own contribution, which is what tells the user where the
+      // uncertainty is coming from rather than merely how much there is.
+      for (const x of parsed.terms) {
+        const rel = x.value !== 0 ? Math.abs(x.unc / x.value) : 0;
+        steps.push({
+          term: x.label || `${x.value}`,
+          value: t('common.worked_PropagateTerm', {
+            label: x.label || '—',
+            power: x.power ?? 1,
+            rel: fmtSci(rel, 3),
+            contrib: fmtSci(Math.abs((x.power ?? 1) * rel), 3),
+          }),
+        });
+      }
+      if (out.op === 'product' && n(scaleFactor) !== 1) {
+        steps.push({
+          term: t('uncertainty.scaleFactor'),
+          value: t('common.worked_PropagateScale', { factor: fmt(n(scaleFactor), 6) }),
+        });
+      }
+      if (out.correlated) {
+        steps.push({
+          term: t('uncertainty.correlated'),
+          value: t('common.worked_PropagateCorrelated', { groups: out.groups.join(', ') }),
+        });
+      }
+      steps.push({
+        term: 'u(y)',
+        value: t('common.worked_PropagateCombine', {
+          unc: fmt(out.combined.unc, 6),
+          value: fmt(out.combined.value, 8),
+          figures: String(significantFigures(out.combined) ?? '—'),
+        }),
+      });
+      return steps;
+    }
+
+    if (out.mode === 'weigh') {
+      // Shares of the variance, so "which instrument should I improve" has a
+      // numeric answer rather than a hand-wave.
+      const totalVar = out.contributions.reduce((s, c) => s + (c.rel ?? 0) ** 2, 0);
+      const nameOf = {
+        mass: t('uncertainty.massTerm'),
+        volume: t('uncertainty.volumeTerm'),
+        molarMass: t('uncertainty.mmTerm'),
+      };
+      const steps = [{ term: t('common.formula'), value: t('common.worked_WeighChain') }];
+      for (const c of out.contributions) {
+        steps.push({
+          term: nameOf[c.key] ?? c.key,
+          value: t('common.worked_WeighTerm', {
+            name: nameOf[c.key] ?? c.key,
+            rel: fmtSci(c.rel, 3),
+            share: totalVar > 0 ? `${fmt(((c.rel ?? 0) ** 2 / totalVar) * 100, 2)}%` : '—',
+          }),
+        });
+      }
+      const dominant = out.contributions.reduce((a, b) => ((a?.rel ?? 0) >= (b?.rel ?? 0) ? a : b), null);
+      if (dominant) {
+        steps.push({
+          term: t('uncertainty.dominant'),
+          value: t('common.worked_WeighDominant', { name: nameOf[dominant.key] ?? dominant.key }),
+        });
+      }
+      steps.push({
+        term: 'u(C)',
+        value: t('common.worked_WeighCombine', {
+          sum: out.contributions.map((c) => (c.rel ?? 0).toFixed(8)).join(' + '),
+          rel: fmt(out.relative * 100, 4),
+          unc: fmtSci(out.quoted.unc, 3),
+        }),
+      });
+      return steps;
+    }
+    return null;
+  }, [mode, mmLive, out, parsed.terms, scaleFactor, op, t]);
+
   function run() {
     try {
       const result = compute();
@@ -141,6 +257,8 @@ export default function UncertaintyTab({ onRecord, restored }) {
       };
     }
     if (mode === 'weigh') {
+      // `relative` is needed by the worked steps as well as by the note below,
+      // so it is computed once here rather than twice from different places.
       /*
        * The concentration uncertainty from a weighing and a volumetric flask.
        *
@@ -171,6 +289,7 @@ export default function UncertaintyTab({ onRecord, restored }) {
           { key: 'volume', rel: volL.unc / volL.value },
           { key: 'molarMass', rel: mm.molarMass ? mm.unc / mm.molarMass : 0 },
         ],
+        relative: relativeUncertainty(conc),
         record: { conc: conc.value, unc: conc.unc },
       };
     }
@@ -233,6 +352,7 @@ export default function UncertaintyTab({ onRecord, restored }) {
           note={t('uncertainty.mmNote', {
             rel: mmLive.molarMass ? fmt((mmLive.unc / mmLive.molarMass) * 100, 4) : '0',
           })}
+          worked={worked} workedLabel={t('common.worked')}
           rows={mmLive.contributions.map((c) => [
             c.element,
             `×${c.count} · ±${fmtSci(c.count * c.atomicUncertainty, 3)}`,
@@ -258,6 +378,7 @@ export default function UncertaintyTab({ onRecord, restored }) {
               rel: fmt(out.relative * 100, 4),
               rule: out.op === 'sum' ? t('uncertainty.ruleSum') : t('uncertainty.ruleProduct'),
             })}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('uncertainty.rawValue'), fmt(out.combined.value, 8)],
               [t('uncertainty.rawUnc'), fmt(out.combined.unc, 8)],
@@ -292,6 +413,7 @@ export default function UncertaintyTab({ onRecord, restored }) {
             value={`${fmtSci(out.quoted.value, 4)} ± ${fmtSci(out.quoted.unc, 3)}`}
             unit="mol/L"
             note={t('uncertainty.weighNote')}
+            worked={worked} workedLabel={t('common.worked')}
             rows={[
               [t('uncertainty.massTerm'), `±${fmt(out.mass.unc, 5)} g`],
               [t('uncertainty.volumeTerm'), `±${fmt(n(volumeUnc), 4)} mL`],
