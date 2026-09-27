@@ -368,16 +368,31 @@ if (RELEASE) {
      * rather than a setting, so a mismatch is reported rather than fatal —
      * a keystore regenerated on purpose should not require editing this script.
      */
-    const actual = /Signer #1 certificate SHA-256 digest:\s*([0-9a-f:]+)/i.exec(out)?.[1]?.toUpperCase();
+    /*
+     * Both label forms, because apksigner's output differs by version.
+     *
+     * Local build-tools 35 prints `Signer #1 certificate SHA-256 digest:`; the
+     * CI runner prints `V2 Signer: certificate SHA-256 digest:` for the same
+     * package and the same key. Matching only the first reported a correctly
+     * signed APK as unverifiable, twice.
+     *
+     * Anchored on the digest rather than on the label: `[^:]*` covers either
+     * prefix, and the value is what is actually being checked.
+     */
+    const found = /SHA-256 digest:\s*((?:[0-9a-f]{2}:){31}[0-9a-f]{2}|[0-9a-f]{64})/i.exec(out)?.[1];
+    // Colons stripped before comparison: apksigner prints the bare 64-hex form
+    // and `keystore.properties` records the colon-separated one, so comparing
+    // them raw reported a match as a mismatch.
+    const actual = found?.replace(/:/g, '').toUpperCase();
     if (!actual) {
       // Printing what came back rather than only the failure: the first
       // version said "the output format may have changed" and gave nothing to
       // check that against, which cost a second release run to diagnose.
       die(`apksigner 通过了但没有报出指纹。它的输出是：\n${out.slice(0, 600)}`);
     }
-    const recorded = /SHA-256:\s*([0-9A-F:]{95})/i.exec(
+    const recorded = /SHA-256:\s*((?:[0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2})/.exec(
       fs.readFileSync(keystoreProps, 'utf8'),
-    )?.[1]?.toUpperCase();
+    )?.[1]?.replace(/:/g, '').toUpperCase();
     step(`签名校验通过（SHA-256 ${actual}）`);
     if (recorded && recorded !== actual) {
       console.warn(`  ! 与 keystore.properties 记录的指纹不同\n    记录 ${recorded}`);
