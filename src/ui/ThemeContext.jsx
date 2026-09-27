@@ -6,6 +6,9 @@ import {
   THEMES, THEME_GROUPS,
 } from './theme.mjs';
 import { PALETTES } from './palettes.mjs';
+import {
+  loadOverrides, saveOverrides, withOverride, clearOverride, emptyOverrides,
+} from './custom-theme.mjs';
 import { useI18n } from './LocaleContext.jsx';
 
 const Ctx = createContext(null);
@@ -19,6 +22,14 @@ const prefersDark = () => (
 export function ThemeProvider({ store, children }) {
   const [preference, setPreference] = useState(() => detectTheme(prefersDark(), store ? loadTheme(store) : null));
   const [osDark, setOsDark] = useState(prefersDark);
+  /*
+   * The user's token overrides.
+   *
+   * Held here rather than in the settings menu because `applyTheme` needs them
+   * on every palette change — a user who customises the accent keeps it when
+   * they switch palette, and that only works if both live in the same effect.
+   */
+  const [overrides, setOverrides] = useState(() => (store ? loadOverrides(store) : emptyOverrides()));
 
   // Follow the OS live: a user on "system" who flips their OS theme at dusk
   // should not have to reload the page.
@@ -37,6 +48,7 @@ export function ThemeProvider({ store, children }) {
       typeof document !== 'undefined' ? document.documentElement : null,
       resolved,
       preference,
+      overrides,
     );
     // The browser paints the mobile status bar from this tag, so leaving it at
     // the build-time default gives a Catppuccin theme a blue-black chrome.
@@ -44,15 +56,37 @@ export function ThemeProvider({ store, children }) {
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) meta.setAttribute('content', chromeColor(resolved));
     }
-  }, [resolved, preference]);
+  }, [resolved, preference, overrides]);
 
   useEffect(() => { if (store) saveTheme(store, preference); }, [store, preference]);
+  /*
+   * Gated the same way the history save is, and for the same reason: this
+   * effect runs on mount, before the load has landed, and an ungated save
+   * writes the empty initial value over whatever was stored. That bug cost the
+   * history list its entire contents on every page load — see the note in
+   * `App.jsx`.
+   */
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (store) setOverrides(loadOverrides(store));
+    setHydrated(true);
+  }, [store]);
+  useEffect(() => {
+    if (!store || !hydrated) return;
+    saveOverrides(store, overrides);
+  }, [store, overrides, hydrated]);
+
+  const setOverride = useCallback((key, value) => {
+    setOverrides((prev) => (value === null ? clearOverride(prev, key) : withOverride(prev, key, value)));
+  }, []);
+  const resetOverrides = useCallback(() => setOverrides(emptyOverrides()), []);
 
   const cycle = useCallback(() => setPreference((p) => nextTheme(p)), []);
 
   const value = useMemo(() => ({
     preference, resolved, setPreference, cycle, themes: THEMES,
-  }), [preference, resolved, cycle]);
+    overrides, setOverride, resetOverrides,
+  }), [preference, resolved, cycle, overrides, setOverride, resetOverrides]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

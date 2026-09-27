@@ -7,6 +7,7 @@ import { IconStyleToggle } from '../IconStyleContext.jsx';
 import { DensityToggle } from '../DensityContext.jsx';
 import { LocaleSelect } from './LocaleSelect.jsx';
 import { SHORTCUTS } from '../shortcuts.mjs';
+import CustomisePanel from './CustomisePanel.jsx';
 
 /*
  * The update control is loaded on demand, and only when this build can use it.
@@ -214,6 +215,13 @@ export default function SettingsMenu({ open, onOpenChange }) {
             </button>
             {themeOpen && <ThemePicker />}
           </div>
+
+          {/*
+            Customisation, directly under the theme list it layers on top of.
+            Above the shortcut list because it is a setting and the shortcuts
+            are reference material — the panel's own ordering rule.
+          */}
+          <CustomisePanel />
 
           {/*
             The shortcut list.

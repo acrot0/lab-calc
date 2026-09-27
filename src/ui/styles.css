@@ -4553,6 +4553,42 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .settings-block-toggle .caret { transition: transform var(--dur-fast) var(--ease); }
 
 /*
+ * The customisation panel.
+ *
+ * Sits inside the settings block, so it reuses the block's border rather than
+ * adding its own. The colour input is sized down because the browser default
+ * is a large square that dwarfs every other control in the row.
+ */
+.custom-body { margin-top: var(--s2); display: flex; flex-direction: column; gap: var(--s2); }
+
+.custom-accent { display: inline-flex; align-items: center; gap: var(--s2); }
+
+.custom-accent input[type='color'] {
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: none;
+  cursor: pointer;
+}
+
+.custom-accent input[type='color']::-webkit-color-swatch-wrapper { padding: 2px; }
+.custom-accent input[type='color']::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+.custom-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: var(--s1);
+}
+
+/* Resetting is destructive to a customisation the user built, so it is the one
+   control in the row that reads as a warning rather than as a link. */
+.custom-reset { color: var(--err-ink); }
+
+/*
  * The update row.
  *
  * Reuses the `.settings-block` top border so it reads as one more section of

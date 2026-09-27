@@ -80,7 +80,7 @@ export function alpha(hex, a) {
  * gradient stop, and exactness here would mean a colour-space conversion for
  * one token.
  */
-function darkenHex(hex, t) {
+export function darkenHex(hex, t) {
   const h = hex.replace('#', '');
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
   const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -111,7 +111,7 @@ function darkenHex(hex, t) {
  * automatically, but it is the wrong model — it inverts on a dark palette (as
  * `darkenHex` above records) and it desaturates as it goes.
  */
-function shiftLightness(hex, t) {
+export function shiftLightness(hex, t) {
   const h = hex.replace('#', '');
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
   const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];

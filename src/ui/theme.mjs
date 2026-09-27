@@ -10,6 +10,7 @@
  */
 
 import { PALETTES, PALETTE_KEYS, paletteOf, cssVariables } from './palettes.mjs';
+import { resolveOverrides } from './custom-theme.mjs';
 
 export const THEME_KEY = 'lab-calc.theme.v2';
 
@@ -100,7 +101,7 @@ export function nextTheme(current) {
  * make the active palette readable from the DOM — which is how the visual
  * tests confirm the theme actually applied rather than assuming it did.
  */
-export function applyTheme(root, resolved, preference = resolved) {
+export function applyTheme(root, resolved, preference = resolved, overrides = null) {
   if (!root?.dataset) return;
   const palette = paletteOf(resolved);
   root.dataset.theme = resolved;
@@ -112,6 +113,44 @@ export function applyTheme(root, resolved, preference = resolved) {
     for (const [name, value] of Object.entries(cssVariables(resolved))) {
       root.style.setProperty(name, value);
     }
+    /*
+     * The user's overrides go on last, so they win.
+     *
+     * Applied after the palette rather than merged into it: an override is a
+     * layer, and a user who switches palette keeps their customisation — the
+     * accent they chose stays chosen. The alternative (writing overrides into
+     * the palette's token object) would lose them on the next palette switch,
+     * because `cssVariables` rebuilds from the palette each time.
+     *
+     * ## Removing the previous override, not the current one
+     *
+     * A token an override set has to be removed when the user clears it,
+     * otherwise the old value stays in the inline style and reset appears to do
+     * nothing. The first version removed every token an override *could* set
+     * that the current set does not contain — which also removed the tokens the
+     * palette had just written, because `--accent` and `--r-*` are among them.
+     * Measured: with no overrides at all, `--accent` was absent from the inline
+     * style and the app rendered with the stylesheet's fallback colour.
+     *
+     * So the removal is driven by what the *previous* application wrote, which
+     * is tracked on the root rather than guessed from the current set.
+     */
+    const custom = resolveOverrides(overrides, palette.scheme);
+    for (const name of root.__customTokens ?? []) {
+      if (!(name in custom)) root.style.removeProperty(name);
+    }
+    for (const [name, value] of Object.entries(custom)) {
+      root.style.setProperty(name, value);
+    }
+    /*
+     * What this call set, for the next one to clean up.
+     *
+     * Stored on the root as a plain property rather than in a module-level
+     * variable: there is one root per document, but a module variable would be
+     * shared across every `applyTheme` call including the ones in tests, and a
+     * test that applied to one fake root would leave state for the next.
+     */
+    root.__customTokens = Object.keys(custom);
     // Keep the mobile browser chrome, scrollbars and form controls in step
     // with the palette. `color-scheme` is what the browser reads for those;
     // it is not derivable from the background colour.

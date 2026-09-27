@@ -12,13 +12,15 @@ import { staleNumbers } from '../scripts/lib/doc-numbers.mjs';
  * command. On a project whose pitch is "the numbers are checked", that is the
  * worst place to be wrong.
  *
- * `npm run verify` runs this, so the counts cannot drift again. The alternative
- * — a release checklist item — is the mechanism that already failed twice.
- *
- * The scanning is in `scripts/lib/doc-numbers.mjs` so the guard and this test
- * share one implementation rather than two that can disagree.
+ * The scanning is in `scripts/lib/doc-numbers.mjs` and runs from
+ * `scripts/check-doc-numbers.mjs`, which `npm run verify` and CI both call. This
+ * file tests the scanner's behaviour and the wiring, not the repository — see
+ * the note above the wiring block for why.
  */
 
+// A synthetic suite size. Deliberately not the real count: these cases test the
+// scanner's arithmetic, and using the live number would make this file drift
+// with the suite for no gain.
 const ACTUAL = { tests: 1987 };
 
 describe('staleNumbers', () => {
@@ -67,20 +69,24 @@ describe('staleNumbers', () => {
   });
 });
 
-describe('the repository documents', () => {
-  const docs = ['README.md', 'docs/ROADMAP.md'].filter(existsSync);
-
-  it('should have documents to check', () => {
-    expect(docs.length).toBeGreaterThan(0);
+/*
+ * The scan over the real documents lives in `scripts/check-doc-numbers.mjs`,
+ * not here. This file cannot count the suite it is running inside — spawning
+ * `vitest --reporter=json` from a vitest worker is recursion, and hardcoding
+ * the number is the very failure this guard exists to catch: it sat at 1987
+ * while the suite passed 2024, and the two scanners then disagreed about which
+ * number was stale. One source of truth, and it is the one that can measure.
+ */
+describe('the document scan is wired up', () => {
+  it('should be part of the verify pipeline, so the counts cannot drift', () => {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+    expect(pkg.scripts.verify).toContain('check-doc-numbers.mjs');
   });
 
-  it('should state the real test count everywhere it states one', () => {
-    const problems = [];
-    for (const file of docs) {
-      for (const s of staleNumbers(readFileSync(file, 'utf8'), ACTUAL)) {
-        problems.push(`${file}:${s.line} 写着 ${s.found}，实际 ${ACTUAL.tests}`);
-      }
+  it('should scan every document that states a build number', () => {
+    const src = readFileSync('scripts/check-doc-numbers.mjs', 'utf8');
+    for (const doc of ['README.md', 'docs/ROADMAP.md', 'docs/research-value.zh.md']) {
+      expect(src, `${doc} is not scanned`).toContain(doc);
     }
-    expect(problems, problems.join('\n')).toEqual([]);
   });
 });
