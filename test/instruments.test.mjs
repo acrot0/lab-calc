@@ -5,6 +5,8 @@ import {
   weighingUncertainty, instrumentUncertainty, INSTRUMENT_KINDS,
   spectrophotometerUncertainty, cuvetteUncertainty,
   SPECTROPHOTOMETER_ACCURACY_A, CUVETTE_PATH_TOLERANCE_MM,
+  nucleicAcidInstrumentUncertainty,
+  PEDESTAL_RELATIVE_ACCURACY, CUVETTE_RELATIVE_REPRODUCIBILITY,
 } from '../src/calc/instruments.mjs';
 
 /*
@@ -239,5 +241,63 @@ describe('instrumentUncertainty dispatch for the new kinds', () => {
 
   it('should dispatch a spectrophotometer by name', () => {
     expect(instrumentUncertainty({ kind: 'spectrophotometer', absorbance: 0.5 }).unit).toBe('A');
+  });
+});
+
+/*
+ * The nucleic-acid case, which is unlike everything above it.
+ *
+ * Every other term in this module is absolute in the quantity measured — a
+ * tolerance in mL, a readability in g, an accuracy in A. This one is *relative*,
+ * and the distinction has a practical consequence: the usual advice to keep a
+ * reading between 0.1 and 1.0 AU exists to bound an absolute term, and it does
+ * not transfer to an instrument specified as a fraction of the answer.
+ */
+describe('nucleicAcidInstrumentUncertainty', () => {
+  it('should quote the pedestal figure Thermo publishes', () => {
+    // "Typically within 3% at the 1 mm pathlength" — the NanoDrop manual's own
+    // answer, not an estimate of it.
+    const q = nucleicAcidInstrumentUncertainty({ concentration: 42.5, kind: 'pedestal' });
+    expect(q.unc).toBeCloseTo(42.5 * PEDESTAL_RELATIVE_ACCURACY, 9);
+    expect(q.relative).toBe(PEDESTAL_RELATIVE_ACCURACY);
+  });
+
+  it('should give a fixed-path cuvette a six-fold better figure', () => {
+    // 0.5% against 3%. This is the reason a GMP lab still uses a cuvette, and
+    // it is the whole point of offering the choice.
+    const pedestal = nucleicAcidInstrumentUncertainty({ concentration: 100, kind: 'pedestal' });
+    const cuvette = nucleicAcidInstrumentUncertainty({ concentration: 100, kind: 'cuvette' });
+    expect(cuvette.unc).toBeCloseTo(100 * CUVETTE_RELATIVE_REPRODUCIBILITY, 9);
+    expect(pedestal.unc / cuvette.unc).toBeCloseTo(6, 6);
+  });
+
+  it('should keep the relative figure constant as the concentration changes', () => {
+    // The property that separates it from the photometer's absolute term. A
+    // dilute sample is not worse-determined *in relative terms* on a pedestal,
+    // and code that assumed the Beer's law behaviour would say it was.
+    const low = nucleicAcidInstrumentUncertainty({ concentration: 2, kind: 'pedestal' });
+    const high = nucleicAcidInstrumentUncertainty({ concentration: 2000, kind: 'pedestal' });
+    expect(low.relative).toBe(high.relative);
+  });
+
+  it('should default to the pedestal, which is what a modern bench has', () => {
+    expect(nucleicAcidInstrumentUncertainty({ concentration: 50 }).kind).toBe('pedestal');
+  });
+
+  it('should reject an unknown instrument class', () => {
+    // A caller that mistypes the kind must not silently get a number.
+    expect(() => nucleicAcidInstrumentUncertainty({ concentration: 50, kind: 'plate' })).toThrow();
+  });
+
+  it('should reject a negative concentration', () => {
+    expect(() => nucleicAcidInstrumentUncertainty({ concentration: -1 })).toThrow();
+  });
+
+  it('should report zero uncertainty for a zero concentration rather than NaN', () => {
+    // A blank reads zero, and a tab that shows "± NaN" for a blank is worse
+    // than one that shows nothing.
+    const q = nucleicAcidInstrumentUncertainty({ concentration: 0 });
+    expect(q.unc).toBe(0);
+    expect(Number.isFinite(q.unc)).toBe(true);
   });
 });

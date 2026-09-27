@@ -5,12 +5,14 @@ import {
   michaelisMenten, catalyticEfficiency,
 } from '../../calc/bio.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
-import { fmt, fmtSci, n, shownFor } from '../format.mjs';
+import { UncertaintyPanel, Contribution } from '../components/UncertaintyPanel.jsx';
+import { fmt, fmtSci, fmtMeasured, n, shownFor } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
 import KineticsPlot from '../components/KineticsPlot.jsx';
+import { nucleicAcidInstrumentUncertainty } from '../../calc/instruments.mjs';
 
 /**
  * Molecular biology: the nine calculations a wet lab does every day.
@@ -76,6 +78,31 @@ export default function BioTab({ onRecord, restored, theme = 'dark' }) {
 
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+
+  /*
+   * Which instrument read the A260, collapsed by default.
+   *
+   * The two classes differ by a factor of six in the uncertainty they carry —
+   * 3% against 0.5% — and a tab that reports a concentration without saying
+   * which one produced it is quoting a number whose trustworthiness is not on
+   * screen. The default is the pedestal, because that is what a modern
+   * molecular-biology bench actually has.
+   */
+  const [uncOpen, setUncOpen] = useState(false);
+  const [instrument, setInstrument] = useState('pedestal');
+
+  const budget = useMemo(() => {
+    const shownOut = shownFor(out, 'mode', mode);
+    if (!shownOut || mode !== 'nucleic') return null;
+    try {
+      return nucleicAcidInstrumentUncertainty({
+        concentration: shownOut.concNgPerUl,
+        kind: instrument,
+      });
+    } catch {
+      return null;
+    }
+  }, [out, mode, instrument]);
 
   useEffect(() => {
     setOut(null); setErr(null);
@@ -355,16 +382,49 @@ export default function BioTab({ onRecord, restored, theme = 'dark' }) {
       {err && <Err>{err}</Err>}
 
       {shown?.mode === 'nucleic' && (
-        <Result
-          value={fmtSci(shown.concNgPerUl, 4)}
-          unit="ng/µL"
-          note={t('bio.nucleicNote', { k: shown.coefficient, type: t(`bio.na_${naType}`) })}
-          rows={[
-            [t('bio.concUgMl'), `${fmtSci(shown.concUgPerMl, 4)} µg/mL`],
-            [t('bio.coefficient'), `${shown.coefficient} µg/mL per A260`],
-          ]}
-          worked={worked} workedLabel={t('common.worked')}
-        />
+        <>
+          <Result
+            value={fmtSci(shown.concNgPerUl, 4)}
+            unit="ng/µL"
+            note={t('bio.nucleicNote', { k: shown.coefficient, type: t(`bio.na_${naType}`) })}
+            unc={uncOpen && budget ? {
+              ...fmtMeasured(budget.value, budget.unc, { unit: ' ng/µL' }),
+              detail: `${t('unc.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,
+            } : null}
+            rows={[
+              [t('bio.concUgMl'), `${fmtSci(shown.concUgPerMl, 4)} µg/mL`],
+              [t('bio.coefficient'), `${shown.coefficient} µg/mL per A260`],
+            ]}
+            worked={worked} workedLabel={t('common.worked')}
+          />
+          <UncertaintyPanel
+            open={uncOpen}
+            onToggle={() => setUncOpen((v) => !v)}
+            budget={budget}
+            state={{}}
+            intro={t('unc.uncBioIntro')}
+            caveats={(
+              <>
+                <p className="unc-caveat">{t('unc.uncBioNotModelled')}</p>
+                <p className="unc-caveat">{t('unc.uncBioCoefficientNote')}</p>
+              </>
+            )}
+            fields={(
+              <label className="field">
+                <span className="field-label">{t('unc.uncBioInstrument')}</span>
+                <select value={instrument} onChange={(e) => setInstrument(e.target.value)}>
+                  <option value="pedestal">{t('unc.uncBioPedestal')}</option>
+                  <option value="cuvette">{t('unc.uncBioCuvette')}</option>
+                </select>
+              </label>
+            )}
+          >
+            <Contribution
+              label={t('unc.uncBioConc')} value={budget?.value}
+              unc={budget?.unc} unit="ng/µL"
+            />
+          </UncertaintyPanel>
+        </>
       )}
 
       {shown?.mode === 'purity' && (

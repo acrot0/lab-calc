@@ -327,6 +327,64 @@ export function cuvetteUncertainty({ pathMm, toleranceMm = CUVETTE_PATH_TOLERANC
 }
 
 /**
+ * The accuracy of a microvolume pedestal instrument (NanoDrop class), as a
+ * relative figure.
+ *
+ * "Typically within 3% at the 1 mm pathlength" — Thermo's own published answer
+ * for the NanoDrop nucleic-acid workflow.
+ *
+ * This is a *relative* specification, unlike `SPECTROPHOTOMETER_ACCURACY_A`
+ * above, and the difference is not cosmetic. An absolute term in A becomes
+ * larger relatively as the reading falls; a relative term does not. So the
+ * usual advice — "keep A between 0.1 and 1.0" — does not transfer to a pedestal
+ * instrument: its error is quoted as a fraction of the answer, whatever the
+ * answer is.
+ *
+ * The 3% is also not the instrument alone. It is dominated by the 1–2 µL drop
+ * between two pedestals, which the user re-forms by hand for every reading, and
+ * the published drop-to-drop variability for that category is 2–5%. A cuvette
+ * holds 50–3500 µL in a fixed chamber and reproduces to ±0.5%, which is the
+ * honest reason a GMP lab still uses one.
+ */
+export const PEDESTAL_RELATIVE_ACCURACY = 0.03;
+
+/** The reproducibility of a reading taken in a fixed-path cuvette. */
+export const CUVETTE_RELATIVE_REPRODUCIBILITY = 0.005;
+
+/**
+ * The uncertainty on a nucleic-acid quantification, by instrument class.
+ *
+ * `kind` is 'pedestal' for a NanoDrop-class microvolume instrument, 'cuvette'
+ * for a conventional spectrophotometer with a fixed cell.
+ *
+ * The returned uncertainty is on the *concentration*, because that is what the
+ * tab reports and what the user acts on. Both terms are relative, so it is a
+ * simple product with the value.
+ *
+ * The extinction coefficient is deliberately excluded — see the caveat in the
+ * tab. 50 ng·cm/µL for dsDNA is an *average over base compositions*, and a
+ * plasmid that is GC-rich differs from it by more than either term here. It is
+ * a property of the molecule, not of the measurement, and inventing a figure
+ * for it would put a number on screen the user cannot check against anything.
+ */
+export function nucleicAcidInstrumentUncertainty({
+  concentration, kind = 'pedestal',
+}) {
+  requireNonNegative(concentration, 'concentration');
+  if (kind !== 'pedestal' && kind !== 'cuvette') fail('unknownInstrument', { kind });
+  const relative = kind === 'pedestal'
+    ? PEDESTAL_RELATIVE_ACCURACY
+    : CUVETTE_RELATIVE_REPRODUCIBILITY;
+  return {
+    value: concentration,
+    unc: concentration * relative,
+    relative,
+    kind,
+    unit: 'ng/uL',
+  };
+}
+
+/**
  * The uncertainty on a quantity, dispatched by instrument.
  *
  * One entry point so a caller does not have to know which table applies. A
