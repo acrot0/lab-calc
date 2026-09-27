@@ -890,6 +890,50 @@ select.control {
 }
 
 /*
+ * On a tall desktop window the working card fills the height it is given.
+ *
+ * Measured before this rule: at 1920x900 the card was 336px tall and the
+ * viewport left **481px — 53% of the screen — empty below it**. The complaint
+ * was "排布很丑很不协调", and this is the number behind it: a small box in the
+ * top-left of a large window, with more empty space than content.
+ *
+ * `align-items: start` on the grid is what caused it, and it is right for the
+ * history column — a panel that stretches to the floor to hold three rows looks
+ * worse than one that ends where its content does. So the stretch is applied to
+ * the working column alone.
+ *
+ * The card grows rather than the fields spreading out: `justify-content:
+ * space-between` would push the Calculate button to the bottom of a 900px card,
+ * which is a longer trip for the thumb and separates the button from the fields
+ * it acts on. The fields stay at the top and the card's own padding absorbs the
+ * extra height, so the result panel that appears after a calculation has room
+ * without moving anything the user has already aimed at.
+ *
+ * Gated on height as well as width, because a short window is the case where
+ * stretching would add a scrollbar instead of removing dead space.
+ */
+@media (min-width: 1100px) and (min-height: 720px) {
+  .split { align-items: stretch; }
+  .split > .card { align-self: start; }
+  .split > .work { align-self: stretch; }
+  /*
+   * The subtraction is the chrome above and below the card, not a guess.
+   * Measured at 1920x900: header bottom at 75px, card top at 83px, and the
+   * page bottom padding plus footer take another ~90px. `--s10` alone (40px)
+   * left the card 43px past the fold, which trades empty space for a
+   * scrollbar — worse than the thing being fixed.
+   *
+   * `100dvh` rather than `100vh` so a mobile browser's collapsing toolbar does
+   * not leave the last row of the card behind the address bar.
+   */
+  .split > .work > .card {
+    min-height: calc(100dvh - 200px);
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/*
  * The working column is the container the card queries measure.
  *
  * It has to be this wrapper and not `.split`, because the history panel is also
