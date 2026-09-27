@@ -7,7 +7,7 @@ import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { Icons, ICON_SIZE } from '../icons.jsx';
-import { canFill, fillField, onFieldChange } from '../field-bridge.mjs';
+import { canFill, currentFieldLabel, fillField, onFieldChange } from '../field-bridge.mjs';
 import {
   clampPosition, defaultPosition, dragTo, isDragHandle, keyboardInset,
 } from '../float-window.mjs';
@@ -75,6 +75,10 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   // Whether a numeric field is currently claiming the fill target. Tracked in
   // state so the button appears and disappears as focus moves.
   const [canFillHere, setCanFillHere] = useState(false);
+  // What that field is called. The target survives losing focus, so by the
+  // time the button is visible the field may have been focused several tabs
+  // ago — without its name the button cannot say where the value will land.
+  const [fillTarget, setFillTarget] = useState(null);
   const [filled, setFilled] = useState(false);
   // Which function page the keypad shows. An index rather than a boolean, so a
   // third page would be a change to the data and not to this component.
@@ -478,8 +482,12 @@ export default function CalculatorDrawer({ open, onClose, store }) {
    */
   useEffect(() => {
     if (!open) return undefined;
-    setCanFillHere(canFill());
-    return onFieldChange(() => setCanFillHere(canFill()));
+    const sync = () => {
+      setCanFillHere(canFill());
+      setFillTarget(currentFieldLabel());
+    };
+    sync();
+    return onFieldChange(sync);
   }, [open]);
 
   if (!open) return null;
@@ -630,38 +638,48 @@ export default function CalculatorDrawer({ open, onClose, store }) {
           )}
 
           {/* Filling the field behind the window is the reason the window can
-              stay open at all. It appears only when a numeric field has been
-              focused, so it never offers to write somewhere there is nowhere
-              to write to. */}
-          {canFillHere && result && !result.error && (
-            <button
-              type="button"
-              className="calc-fill"
-              onClick={() => {
-                /*
-                 * Write the value at the precision a person can use.
-                 *
-                 * `String(result.value)` gives all seventeen digits a double
-                 * carries — `2.1389459274469544` for a perfectly ordinary
-                 * dilution — which is unreadable in a form field, and false
-                 * precision besides: the calculator's own readout shows ten
-                 * significant figures, so the rest is noise the user cannot
-                 * check. Twelve significant figures is more than any bench
-                 * measurement justifies and short enough to read at a glance.
-                 *
-                 * `Number(...)` at the end strips the trailing zeros that
-                 * `toPrecision` pads with, so 0.500000000000 comes back as 0.5.
-                 */
-                const text = Number(result.value.toPrecision(12)).toString();
-                if (fillField(text)) {
-                  setFilled(true);
-                  window.setTimeout(() => setFilled(false), 1600);
-                }
-              }}
-            >
-              <Icons.check size={ICON_SIZE.inline} aria-hidden="true" />
-              {filled ? t('convert.calcFilled') : t('convert.calcFill')}
-            </button>
+              stay open at all.
+
+              It is always present, and disabled when there is nowhere to write
+              — rather than hidden. A button that comes and goes is a button the
+              user has to work out the rules for; a disabled one with a reason
+              beside it teaches the rule in one reading. The label names the
+              destination, because the target survives losing focus and may be a
+              field the user has since scrolled away from. */}
+          <button
+            type="button"
+            className="calc-fill"
+            disabled={!canFillHere || !result || !!result.error}
+            title={canFillHere ? undefined : t('convert.calcFillNoTarget')}
+            onClick={() => {
+              /*
+               * Write the value at the precision a person can use.
+               *
+               * `String(result.value)` gives all seventeen digits a double
+               * carries — `2.1389459274469544` for a perfectly ordinary
+               * dilution — which is unreadable in a form field, and false
+               * precision besides: the calculator's own readout shows ten
+               * significant figures, so the rest is noise the user cannot
+               * check. Twelve significant figures is more than any bench
+               * measurement justifies and short enough to read at a glance.
+               *
+               * `Number(...)` at the end strips the trailing zeros that
+               * `toPrecision` pads with, so 0.500000000000 comes back as 0.5.
+               */
+              const text = Number(result.value.toPrecision(12)).toString();
+              if (fillField(text)) {
+                setFilled(true);
+                window.setTimeout(() => setFilled(false), 1600);
+              }
+            }}
+          >
+            <Icons.check size={ICON_SIZE.inline} aria-hidden="true" />
+            {filled
+              ? t('convert.calcFilled')
+              : (fillTarget ? t('convert.calcFillInto', { field: fillTarget }) : t('convert.calcFill'))}
+          </button>
+          {!canFillHere && (
+            <p className="calc-fill-hint">{t('convert.calcFillNoTarget')}</p>
           )}
 
           <div className="calc-units" role="group" aria-label={t('convert.calcUnits')}>

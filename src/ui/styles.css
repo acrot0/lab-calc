@@ -2402,7 +2402,30 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 
-.calc-fill:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.calc-fill:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/*
+ * The disabled state is a real state, not a dimmed one.
+ *
+ * It appears before any field has been focused, which is the common case on
+ * first open — so it is the state most users see first, and it has to read as
+ * "there is nothing to fill yet" rather than as a broken control. The hint
+ * below it carries the reason; the button itself drops the accent so the two
+ * do not compete.
+ */
+.calc-fill:disabled {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.calc-fill-hint {
+  margin: calc(-1 * var(--s1)) 0 0;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  text-align: center;
+}
 
 .calc-units {
   display: flex;

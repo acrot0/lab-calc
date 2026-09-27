@@ -33,11 +33,15 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
   const inputRef = useRef(null);
 
   /*
-   * Tell the calculator which field it may fill.
+   * Tell the calculator which field it may fill, and what it is called.
    *
    * On focus rather than on mount: a tab can render twenty fields, and the one
    * the user means is the one they were last typing in. The claim is released
    * on unmount so a removed field is never written to.
+   *
+   * The label goes with the claim so the calculator's fill button can name its
+   * destination. It is the same string rendered above this input, not a lookup
+   * by id, so the button and the field cannot end up describing it differently.
    */
   useEffect(() => {
     const el = inputRef.current;
@@ -45,14 +49,14 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
     let release = null;
     const onFocus = () => {
       release?.();
-      release = claimField(el);
+      release = claimField(el, label);
     };
     el.addEventListener('focus', onFocus);
     return () => {
       el.removeEventListener('focus', onFocus);
       release?.();
     };
-  }, []);
+  }, [label]);
   /*
    * `draft` holds what the user is typing; `value` is the evaluated number the
    * tab holds. Without the draft, typing `0.1*2` would re-render the field with

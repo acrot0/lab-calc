@@ -28,6 +28,19 @@
 /** The element currently accepting a filled value, or null. */
 let target = null;
 
+/**
+ * What that field is called, in the reader's language.
+ *
+ * The button says 「填入 目标浓度 (mol/L)」 rather than 「填入字段」. A target
+ * survives losing focus — the user's next action is clicking into the
+ * calculator, which is the moment focus leaves — so by the time the button is
+ * visible the field may have been focused several tabs ago, and a button that
+ * does not name it gives no way to tell which box the number is about to land
+ * in. The label is the same string the field renders above itself, passed in by
+ * the field rather than looked up, so the two cannot disagree.
+ */
+let targetLabel = null;
+
 /** Listeners, so the calculator can show or hide its fill button reactively. */
 const listeners = new Set();
 
@@ -38,17 +51,20 @@ function announce() {
 /**
  * Register a field as the fill target.
  *
- * Returns the unregister function, so a caller can pass it straight to an
- * effect's cleanup.
+ * `label` is optional: a caller that does not have one still gets a working
+ * fill, it just cannot be named. Returns the unregister function, so a caller
+ * can pass it straight to an effect's cleanup.
  */
-export function claimField(el) {
+export function claimField(el, label) {
   target = el;
+  targetLabel = typeof label === 'string' && label.trim() !== '' ? label : null;
   announce();
   return () => {
     // Only clear if we are still the current target — otherwise unmounting an
     // old field would wipe a newer one that had already taken over.
     if (target === el) {
       target = null;
+      targetLabel = null;
       announce();
     }
   };
@@ -57,6 +73,23 @@ export function claimField(el) {
 /** The current target, or null. */
 export function currentField() {
   return target;
+}
+
+/** What the current target is called, or null when there is none. */
+export function currentFieldLabel() {
+  return target && target.isConnected ? targetLabel : null;
+}
+
+/**
+ * Drop the target.
+ *
+ * Only for tests and for a caller that knows the whole form has gone; ordinary
+ * unmounting goes through the release function `claimField` returns.
+ */
+export function clearField() {
+  target = null;
+  targetLabel = null;
+  announce();
 }
 
 /**
