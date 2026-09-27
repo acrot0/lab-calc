@@ -92,5 +92,26 @@ export default defineConfig(({ mode }) => ({
     // to package.json. Reading it from the manifest at build time removes the
     // drift rather than relying on the release checklist to catch it.
     __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version),
+    /*
+     * The desktop build must not register the service worker.
+     *
+     * It used to, and it blanked the window. Tauri serves the app from
+     * `http://tauri.localhost`, which is a real HTTP origin — unlike Electron's
+     * `file://`, where `navigator.serviceWorker` is genuinely absent. So the
+     * runtime guard in `main.jsx` passed, the worker registered, and its
+     * offline fallback began serving an index.html from an earlier build. That
+     * shell references hashed asset filenames that no longer exist, so the app
+     * failed to boot — and kept failing, because the cache outlives the
+     * process. Relaunching did not clear it.
+     *
+     * The old guard asked "does the browser have the API". The right question
+     * is "does this build need an offline cache", and for a packaged app the
+     * answer is no: the assets are already on disk. That is a fact about the
+     * build, not about the browser, so it belongs here rather than in a
+     * runtime check that cannot tell the two builds apart.
+     *
+     * The web build keeps the worker — that is where offline has real value.
+     */
+    __NO_SW__: mode === 'desktop',
   },
 }));

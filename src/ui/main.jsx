@@ -60,10 +60,25 @@ createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 );
 
-// Register the service worker so the app keeps working without a network.
-// Guarded on `serviceWorker in navigator`: it is absent in older browsers and
-// in any non-secure context, and registration must not break the app there.
-if ('serviceWorker' in navigator) {
+/*
+ * Register the service worker so the web build keeps working without a network.
+ *
+ * Two guards, and they answer different questions.
+ *
+ * `__NO_SW__` is a build constant, true for the desktop build. A packaged app
+ * has its assets on disk, so an offline cache adds nothing and can only go
+ * wrong — and it did: under Tauri the origin is `http://tauri.localhost`, a
+ * real HTTP origin, so the API guard below passed and the worker registered.
+ * Its offline fallback then served a shell from an earlier build whose hashed
+ * assets no longer existed, and the window came up blank on every launch until
+ * the cache was cleared by hand. Relaunching could not fix it, because the
+ * cache outlives the process. See the constant in `vite.config.js`.
+ *
+ * `serviceWorker in navigator` is the runtime guard, and it still earns its
+ * place for the web build: the API is absent in older browsers and in any
+ * non-secure context, and registration must not break the app there.
+ */
+if (!__NO_SW__ && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {
       // A failed registration only costs offline support; the app still runs.

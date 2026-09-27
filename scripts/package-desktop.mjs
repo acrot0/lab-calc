@@ -235,11 +235,13 @@ fs.writeFileSync(
  *    against a null container and die with "target container is not a DOM
  *    element". `defer` restores the original ordering.
  *
- * 3. The service worker registration is pointless here: `navigator.
- *    serviceWorker` is unavailable under file://, the offline cache adds
- *    nothing to files that are already local, and the manifest link would 404.
- *    The manifest is removed; the registration is guarded in main.jsx and
- *    simply does not run.
+ * 3. The manifest link would 404, so it is removed. The service worker
+ *    registration is guarded by the `__NO_SW__` build constant, which the
+ *    desktop mode sets — see `vite.config.js`. (An earlier version of this
+ *    comment said `navigator.serviceWorker` is unavailable under `file://`
+ *    and left the registration to a runtime check. That is true for Electron
+ *    and false for Tauri, which serves from `http://tauri.localhost`; the
+ *    worker registered there and served a stale shell, blanking the window.)
  */
 const htmlPath = path.join(appDir, 'app', 'index.html');
 let html = fs.readFileSync(htmlPath, 'utf8');
