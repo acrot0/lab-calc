@@ -2012,6 +2012,110 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
  * the whole point of keeping it is that the user can find it again. Dimming and
  * a dashed edge say "this is out of the list" without saying "this is gone".
  */
+/*
+ * The group bar.
+ *
+ * Chips rather than a dropdown, because the count is the information: a user
+ * scanning for the experiment they were running needs to see how much of each
+ * there is without opening anything. The list is short by construction.
+ *
+ * Wraps rather than scrolls — a horizontally scrolling row of chips on a phone
+ * hides the one the user is looking for behind a gesture they have to discover.
+ */
+.group-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+  margin-bottom: var(--s3);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--border);
+}
+
+.group-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  min-width: 0;
+}
+
+.group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 3px var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.group-chip:hover { border-color: var(--border-strong); color: var(--text); }
+
+/* The selected chip is the filter, so it is the one thing in the row that has
+   to be unmistakable at a glance. */
+.group-chip.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 550;
+}
+
+.group-chip-count {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9em;
+}
+
+.group-chip.is-on .group-chip-count { color: var(--text-mid); }
+
+.group-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-left: auto;
+}
+
+.group-new { display: inline-flex; align-items: center; gap: var(--s1); }
+
+.group-new input {
+  width: 12rem;
+  max-width: 45vw;
+  padding: 3px var(--s2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--t-xs);
+}
+
+/* Deleting a group is the one destructive control here, and the tooltip says
+   the records survive — but the colour says to read it before clicking. */
+.group-delete { color: var(--err-ink); }
+
+/* The group on a record, on the collapsed annotation line. */
+.entry-meta-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-mid);
+}
+
+.entry-meta-field select {
+  padding: 4px var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--t-sm);
+}
+
 .trash {
   margin-top: var(--s3);
   padding-top: var(--s3);

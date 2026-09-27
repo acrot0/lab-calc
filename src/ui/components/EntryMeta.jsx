@@ -21,7 +21,7 @@ import { META_FIELDS } from '../history.mjs';
  * calculation someone did not need to annotate, and three empty inputs per
  * record would turn the list into a form.
  */
-export default function EntryMeta({ entry, onSave }) {
+export default function EntryMeta({ entry, onSave, groups = [], onGroupChange }) {
   const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
   // Local drafts, so typing does not round-trip through the store per keystroke.
@@ -29,6 +29,10 @@ export default function EntryMeta({ entry, onSave }) {
 
   const meta = entry?.meta ?? {};
   const filled = META_FIELDS.filter((f) => meta[f.key]);
+  // The group is shown on the collapsed line as well: "which experiment was
+  // this" is the question the feature exists to answer, and answering it only
+  // after a click would leave the list as unreadable as it was before.
+  const group = groups.find((g) => g.id === entry?.groupId) ?? null;
 
   function commit(key, value) {
     if ((meta[key] ?? '') === value.trim()) return;
@@ -38,6 +42,12 @@ export default function EntryMeta({ entry, onSave }) {
   if (!open) {
     return (
       <div className="entry-meta">
+        {group && (
+          <span className="entry-meta-chip entry-meta-group" title={group.note || undefined}>
+            <Icons.group size={ICON_SIZE.inline} aria-hidden="true" />
+            {group.name}
+          </span>
+        )}
         {filled.length > 0 && (
           <span className="entry-meta-values">
             {filled.map((f) => (
@@ -65,6 +75,23 @@ export default function EntryMeta({ entry, onSave }) {
 
   return (
     <div className="entry-meta entry-meta-open">
+      {/* Only rendered when the caller wired it up: a select with one option
+          and no handler is a control that looks broken. */}
+      {onGroupChange && (
+        <label className="entry-meta-field">
+          <span className="entry-meta-label">{t('history.groupIn')}</span>
+          <select
+            value={entry?.groupId ?? ''}
+            aria-label={t('history.groupIn')}
+            onChange={(e) => onGroupChange(entry.id, e.target.value || null)}
+          >
+            <option value="">{t('history.groupNone')}</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+        </label>
+      )}
       {META_FIELDS.map((f) => (
         <label className="entry-meta-field" key={f.key}>
           <span className="entry-meta-label">{f.label[locale] ?? f.label.zh}</span>

@@ -4,6 +4,9 @@ import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, restoreEntry, clearHistory,
   planReplay, setEntryMeta, visibleEntries, deletedEntries, MAX_ENTRIES,
 } from './history.mjs';
+import {
+  loadGroups, saveGroups, createGroup, renameGroup, removeGroup, setGroupNote, assignGroup,
+} from './groups.mjs';
 import { mergeEntries } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
@@ -137,6 +140,7 @@ export default function App() {
   const { resolved } = useTheme();
   const [tab, setTab] = useState(initialTab);
   const [entries, setEntries] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [restored, setRestored] = useState(null);
   const [nonce, setNonce] = useState(0);
   const [noticeOpen, setNoticeOpen] = useState(false);
@@ -229,8 +233,60 @@ export default function App() {
 
   useEffect(() => { backNavRef.current?.resync(); }, [noticeOpen, calcOpen, ackd]);
 
-  useEffect(() => { setEntries(loadHistory(store)); }, [store]);
-  useEffect(() => { saveHistory(store, entries); }, [store, entries]);
+  /*
+   * Load once, and do not save until the load has landed.
+   *
+   * ## The bug this fixes
+   *
+   * The two effects below used to be siblings:
+   *
+   *     useEffect(() => setEntries(loadHistory(store)), [store]);
+   *     useEffect(() => saveHistory(store, entries), [store, entries]);
+   *
+   * Effects run in order after the first paint, so on mount the save ran with
+   * `entries` still `[]` — the initial state, not the loaded one — and wrote an
+   * empty array over the stored history. The load's `setState` then scheduled a
+   * re-render with the value it had read *before* the wipe.
+   *
+   * Measured on the dev server: seeding one record and reloading left
+   * `localStorage` reading `[]`, with `saveHistory` having written `"[]"` three
+   * times before anything rendered. Under `StrictMode` the double-invoked
+   * effect makes it worse, but it is not a StrictMode bug — the ordering is
+   * wrong on its own.
+   *
+   * ## Why this is the worst bug the project has had
+   *
+   * The app's whole pitch is 「每次计算自动留存」 — every calculation is kept.
+   * It was not: the history was erased on every page load, so a user who
+   * closed the tab and came back found an empty list and no way to know why.
+   * Nothing failed loudly. No test covered it, because every test builds its
+   * own store and calls the module functions directly; the module was correct
+   * and the wiring was not.
+   *
+   * ## The fix
+   *
+   * `hydrated` gates the save. It starts false, the load effect sets it true
+   * after reading, and the save effect returns early until then. So the first
+   * save can only ever run with loaded state.
+   *
+   * The load effect also runs once (`[]` deps): re-reading on a store change
+   * would clobber edits made since, and the store is resolved once from a
+   * `useMemo` anyway.
+   */
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setEntries(loadHistory(store));
+    setGroups(loadGroups(store));
+    setHydrated(true);
+  }, [store]);
+  useEffect(() => {
+    if (!hydrated) return;
+    saveHistory(store, entries);
+  }, [store, entries, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    saveGroups(store, groups);
+  }, [store, groups, hydrated]);
 
   // Show the notice on first visit. Deferred to an effect rather than initial
   // state so it never flashes for a returning user.
@@ -265,6 +321,35 @@ export default function App() {
    */
   const visible = useMemo(() => visibleEntries(entries), [entries]);
   const deleted = useMemo(() => deletedEntries(entries), [entries]);
+
+  /*
+   * Group operations write through to state, which the save effect persists.
+   *
+   * `create` returns the new group so the panel can select it — creating a
+   * group is how the next record gets filed, so leaving the filter where it was
+   * would make the user repeat a step they just took.
+   */
+  const makeGroup = useCallback((name) => {
+    let made = null;
+    setGroups((prev) => { const r = createGroup(prev, name); made = r.group; return r.groups; });
+    return made;
+  }, []);
+  const rename = useCallback((id, name) => setGroups((prev) => renameGroup(prev, id, name)), []);
+  const noteGroup = useCallback((id, note) => setGroups((prev) => setGroupNote(prev, id, note)), []);
+  /*
+   * Deleting a group orphans its records rather than deleting them.
+   *
+   * Both lists change, so both are updated here in one place. The alternative —
+   * the panel removing the group and the records keeping a dangling id — shows
+   * records that match no chip and vanish from every filter.
+   */
+  const dropGroup = useCallback((id) => {
+    setEntries((prev) => { const r = removeGroup([], id, prev); return r.entries; });
+    setGroups((prev) => removeGroup(prev, id, []).groups);
+  }, []);
+  const setRecordGroup = useCallback((id, groupId) => {
+    setEntries((prev) => assignGroup(prev, id, groupId));
+  }, []);
 
   /*
    * Annotating a record writes straight through to state, which the existing
@@ -361,8 +446,10 @@ export default function App() {
             </Suspense>
           </div>
           <HistoryPanel entries={visible} allEntries={entries} deleted={deleted}
-            onRemove={remove} onRestore={restore} onReplay={replay} onClear={clear}
-            onImport={importEntries} onMeta={setMeta} />
+            groups={groups} onRemove={remove} onRestore={restore} onReplay={replay} onClear={clear}
+            onImport={importEntries} onMeta={setMeta}
+            onCreateGroup={makeGroup} onRenameGroup={rename} onDeleteGroup={dropGroup}
+            onGroupNote={noteGroup} onSetRecordGroup={setRecordGroup} />
         </main>
       </div>
 

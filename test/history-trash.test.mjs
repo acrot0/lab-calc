@@ -234,3 +234,91 @@ describe('deleted records survive a backup round trip', () => {
     expect(deletedEntries(back.entries).map((e) => e.id)).toEqual(['a']);
   });
 });
+
+/*
+ * The history survives a page load.
+ *
+ * This is the bug the whole feature was built on and never had: the save
+ * effect ran on mount with the empty initial state, before the load effect's
+ * `setState` landed, and wrote `[]` over the stored history. Every page load
+ * erased everything.
+ *
+ * It shipped from the first commit and no test caught it, because every test
+ * builds its own store and calls the module functions directly — `loadHistory`
+ * and `saveHistory` were both correct, and the wiring between them was not.
+ * Mounting the whole App is what makes the ordering observable.
+ */
+describe('history survives a page load', () => {
+  it('should not erase stored records on mount', async () => {
+    const { default: App } = await import('../src/ui/App.jsx');
+    const { ThemeProvider } = await import('../src/ui/ThemeContext.jsx');
+    const { MaterialProvider } = await import('../src/ui/MaterialContext.jsx');
+    const { STORAGE_KEY } = await import('../src/ui/history.mjs');
+
+    const seeded = [
+      { id: 'seed1', at: '2026-09-27T10:00:00.000Z', kind: 'dilution', inputs: { c1: 1, v1: 1, c2: 0.1, v2: 100 } },
+      { id: 'seed2', at: '2026-09-27T10:01:00.000Z', kind: 'dilution', inputs: { c1: 2, v1: 1, c2: 0.5, v2: 50 } },
+    ];
+    globalThis.localStorage.clear();
+    globalThis.localStorage.setItem('lab-calc.disclaimer-ack.v1', '1');
+    globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+    await act(async () => {
+      root.render(React.createElement(LocaleProvider, { store: null },
+        React.createElement(ThemeProvider, { store: null },
+          React.createElement(MaterialProvider, { store: null },
+            React.createElement(App)))));
+    });
+
+    // The records are still in storage...
+    const after = JSON.parse(globalThis.localStorage.getItem(STORAGE_KEY));
+    expect(after.map((e) => e.id)).toEqual(['seed1', 'seed2']);
+    // ...and on screen.
+    expect(container.querySelectorAll('.history-list .history-item')).toHaveLength(2);
+  }, 30000);
+
+  it('should still save once the load has landed', async () => {
+    /*
+     * The gate must delay saving, not disable it. Asserted through the same
+     * two modules the App uses rather than through a click: the tab is lazy and
+     * does not resolve inside `act`, and what is being tested is the gate, not
+     * the tab.
+     *
+     * The sequence mirrors the App's effects exactly — load, then save — which
+     * is what makes it a test of the fix rather than of the modules.
+     */
+    const { loadHistory, saveHistory, addEntry, STORAGE_KEY } = await import('../src/ui/history.mjs');
+    const store = memoryStore({ [STORAGE_KEY]: JSON.stringify([
+      { id: 'seed1', at: '2026-09-27T10:00:00.000Z', kind: 'dilution', inputs: { c1: 1 } },
+    ]) });
+
+    // The gate: nothing is written before the load.
+    let hydrated = false;
+    const save = (list) => { if (hydrated) saveHistory(store, list); };
+
+    let entries = [];
+    save(entries); // the mount-time call that used to wipe the store
+    expect(JSON.parse(store.getItem(STORAGE_KEY))).toHaveLength(1);
+
+    // The load, then the gate opens.
+    entries = loadHistory(store);
+    hydrated = true;
+    expect(entries).toHaveLength(1);
+
+    // And a new record is persisted.
+    entries = addEntry(entries, {
+      id: 'new1', kind: 'dilution', inputs: { c1: 2 }, at: '2026-09-27T11:00:00.000Z',
+    });
+    save(entries);
+    const after = JSON.parse(store.getItem(STORAGE_KEY));
+    expect(after).toHaveLength(2);
+    // `addEntry` mints the id — the caller's is ignored, so the assertion is on
+    // the order (newest first) rather than on an id this test does not control.
+    expect(after[0].inputs).toEqual({ c1: 2 });
+    expect(after[1].id).toBe('seed1');
+  });
+});

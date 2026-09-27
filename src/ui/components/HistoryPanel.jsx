@@ -2,6 +2,8 @@ import React, { useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { filterHistory, visibleEntries } from '../history.mjs';
+import { filterByGroup, groupCounts, ungroupedCount, ALL_GROUPS } from '../groups.mjs';
+import GroupPicker from './GroupPicker.jsx';
 import {
   downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
   detailColumns,
@@ -28,13 +30,18 @@ import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 const Report = lazy(() => import('./Report.jsx'));
 
 export default function HistoryPanel({
-  entries, allEntries, deleted = [], onRemove, onRestore, onReplay, onClear, onImport, onMeta,
+  entries, allEntries, deleted = [], groups = [],
+  onRemove, onRestore, onReplay, onClear, onImport, onMeta,
+  onCreateGroup, onRenameGroup, onDeleteGroup, onGroupNote, onSetRecordGroup,
 }) {
   const { t, locale } = useI18n();
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  // Which group the list is filtered to. `all` rather than null so the control
+  // has a value to render on first paint.
+  const [groupFilter, setGroupFilter] = useState(ALL_GROUPS);
   const fileRef = useRef(null);
   // Which fields the data view carries. `null` means all of them — see the
   // note on ColumnPicker for why "everything" is the honest default.
@@ -50,7 +57,18 @@ export default function HistoryPanel({
    * by tests and by any future caller that hands it the raw list.
    */
   const live = useMemo(() => visibleEntries(entries), [entries]);
-  const shown = useMemo(() => filterHistory(live, query), [live, query]);
+  /*
+   * The group filter is applied before the search, not after.
+   *
+   * The counts on the chips are of the whole group, so a search that narrowed
+   * the list while the counts stayed at the group total would be two different
+   * numbers on screen for the same thing. Filtering first keeps the count and
+   * the list describing the same set.
+   */
+  const inGroup = useMemo(() => filterByGroup(live, groupFilter), [live, groupFilter]);
+  const shown = useMemo(() => filterHistory(inGroup, query), [inGroup, query]);
+  const counts = useMemo(() => groupCounts(live), [live]);
+  const ungrouped = useMemo(() => ungroupedCount(live), [live]);
   // What the data view could offer, computed from the records actually being
   // exported rather than from the whole history — the picker must not offer a
   // column the file will not contain.
@@ -220,6 +238,19 @@ export default function HistoryPanel({
         </div>
       )}
 
+      {onCreateGroup && groups.length + ungrouped > 0 && (
+        <GroupPicker
+          groups={groups}
+          counts={counts}
+          ungrouped={ungrouped}
+          value={groupFilter}
+          onChange={setGroupFilter}
+          onCreate={onCreateGroup}
+          onRename={onRenameGroup}
+          onDelete={onDeleteGroup}
+        />
+      )}
+
       {live.length > 0 && (
         <div className="search">
           <Icons.search size={ICON_SIZE.inline} aria-hidden="true" />
@@ -244,7 +275,15 @@ export default function HistoryPanel({
       ) : shown.length === 0 ? (
         <div className="empty">
           <ArtEmptySearch />
-          {t('history.noMatch', { query })}
+          {/*
+            Three different empties, three different sentences. "No match for
+            X" is wrong when the search box is empty and the group is the
+            reason nothing is showing — and it is the state a user hits right
+            after making a group.
+          */}
+          {query.trim() !== ''
+            ? t('history.noMatch', { query })
+            : t('history.groupEmpty')}
         </div>
       ) : (
         <div className="history-list">
@@ -255,7 +294,12 @@ export default function HistoryPanel({
                 <div className="body">
                   <div className="summary">{summary}</div>
                   <div className="when">{new Date(e.at).toLocaleString()}</div>
-                  {onMeta && <EntryMeta entry={e} onSave={onMeta} />}
+                  {onMeta && (
+                    <EntryMeta
+                      entry={e} onSave={onMeta}
+                      groups={groups} onGroupChange={onSetRecordGroup}
+                    />
+                  )}
                 </div>
                 <button
                   className="icon-btn"

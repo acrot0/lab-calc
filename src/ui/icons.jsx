@@ -31,6 +31,7 @@ import { ClockCounterClockwise } from '@phosphor-icons/react/dist/csr/ClockCount
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
 import { Trash } from '@phosphor-icons/react/dist/csr/Trash';
 import { Tag } from '@phosphor-icons/react/dist/csr/Tag';
+import { FolderSimple } from '@phosphor-icons/react/dist/csr/FolderSimple';
 import { ArrowCounterClockwise } from '@phosphor-icons/react/dist/csr/ArrowCounterClockwise';
 import { DownloadSimple } from '@phosphor-icons/react/dist/csr/DownloadSimple';
 import { FileXls } from '@phosphor-icons/react/dist/csr/FileXls';
@@ -227,6 +228,7 @@ export const Icons = {
   remove: styled(Trash, 'remove'),
   replay: styled(ArrowCounterClockwise, 'replay'),
   meta: styled(Tag, 'meta'),
+  group: styled(FolderSimple, 'group'),
   download: styled(DownloadSimple, 'download'),
   csv: styled(FileXls, 'csv'),
   markdown: styled(FileText, 'markdown'),
