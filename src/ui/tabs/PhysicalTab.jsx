@@ -291,7 +291,7 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
       {mode === 'kinetics' && (
         <>
           <TextField
-            label={t('physical.concTime')} value={kinPoints} onChange={setKinPoints}
+            label={t('physical.concTime')} value={kinPoints} onChange={setKinPoints} rows={5}
             hint={t('physical.concTimeHint')}
             error={parsedKin.bad.length ? t('physical.badLines', { lines: parsedKin.bad.join(' / ') }) : null}
           />
@@ -301,7 +301,7 @@ export default function PhysicalTab({ onRecord, restored, theme = 'dark' }) {
 
       {mode === 'arrhenius' && (
         <TextField
-          label={t('physical.tempRate')} value={arrPoints} onChange={setArrPoints}
+          label={t('physical.tempRate')} value={arrPoints} onChange={setArrPoints} rows={4}
           hint={t('physical.tempRateHint')}
           error={parsedArr.bad.length ? t('physical.badLines', { lines: parsedArr.bad.join(' / ') }) : null}
         />

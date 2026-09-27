@@ -191,7 +191,30 @@ export function NumField({ label, value, onChange, hint, error, step = 'any', mi
 
 /** The value of an expression, or null if it does not evaluate. */
 
-export function TextField({ label, value, onChange, hint, error, placeholder, id: idProp }) {
+/**
+ * A text field, or a multi-line one when `rows` is given.
+ *
+ * ## Why `rows` exists
+ *
+ * Five fields documented "one per line" — the propagation terms, the kinetics
+ * and Arrhenius point pairs, the blank replicates, the recovery list — were
+ * rendered as `<input type="text">`. An input cannot hold a newline: the browser
+ * strips them on the way in, so the field showed `0, 1.0010, 0.8220, 0.67…`
+ * for a five-point default while the parser still received the real newlines
+ * and computed correctly. The display and the value had silently diverged.
+ *
+ * Touching the field ended the divergence the bad way: React wrote the
+ * newline-free text back into state, the five points collapsed into one
+ * unreadable line, and the tab reported "这几行读不出来" for data the user never
+ * touched. Pasting a column out of a spreadsheet did the same thing one step
+ * earlier — `98.2\n97.5` arrives as `98.2975`, one plausible number, so the mean
+ * came out over five points where the user had entered seven.
+ *
+ * A textarea is the only element that can hold what these fields are for. The
+ * hint was already telling the user to enter one per line; this makes the box
+ * capable of it.
+ */
+export function TextField({ label, value, onChange, hint, error, placeholder, rows, id: idProp }) {
   const id = idProp ?? `f-${label}`;
   /*
    * A text field is a fill target too.
@@ -202,19 +225,22 @@ export function TextField({ label, value, onChange, hint, error, placeholder, id
    * `useFillTarget` for why the registration is a hook.
    */
   const inputRef = useFillTarget(label);
+
+  const shared = {
+    ref: inputRef,
+    id,
+    value,
+    'aria-invalid': error ? 'true' : undefined,
+    'aria-describedby': hint || error ? `${id}-hint` : undefined,
+    onChange: (e) => onChange(e.target.value),
+  };
+
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input
-        ref={inputRef}
-        id={id}
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        aria-invalid={error ? 'true' : undefined}
-        aria-describedby={hint || error ? `${id}-hint` : undefined}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {rows
+        ? <textarea {...shared} className="points-input" rows={rows} spellCheck={false} />
+        : <input {...shared} type="text" placeholder={placeholder} />}
       {(error || hint) && (
         <div className={`hint${error ? ' err' : ''}`} id={`${id}-hint`}>{error || hint}</div>
       )}

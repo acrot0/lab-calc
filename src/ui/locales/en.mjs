@@ -1647,7 +1647,7 @@ export const en = {
     mSought: 'Molar mass of sought',
     mWeighed: 'Molar mass of weighed form',
     recoveries: 'Recovery replicates (%)',
-    recoveriesHint: 'Percent recovery from repeated spikes, comma separated',
+    recoveriesHint: 'Percent recovery from repeated spikes. Separate with commas, spaces or newlines — paste straight from a spreadsheet.',
     unspiked: 'Unspiked measurement',
     spiked: 'Spiked measurement',
     added: 'Amount added',

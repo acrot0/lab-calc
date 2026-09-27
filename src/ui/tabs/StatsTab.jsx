@@ -250,12 +250,12 @@ export default function StatsTab({ onRecord, restored }) {
   return (
     <Card>
       <TextField
-        label={t('stats.sampleA')} value={seriesA} onChange={setSeriesA}
+        label={t('stats.sampleA')} value={seriesA} onChange={setSeriesA} rows={3}
         hint={t('stats.seriesHint')}
         error={parsed.a.bad.length ? t('stats.badNumbers', { values: parsed.a.bad.join(', ') }) : null}
       />
       <TextField
-        label={t('stats.sampleB')} value={seriesB} onChange={setSeriesB}
+        label={t('stats.sampleB')} value={seriesB} onChange={setSeriesB} rows={3}
         hint={t('stats.seriesHint')}
         error={parsed.b.bad.length ? t('stats.badNumbers', { values: parsed.b.bad.join(', ') }) : null}
       />

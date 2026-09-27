@@ -322,7 +322,7 @@ export default function UncertaintyTab({ onRecord, restored }) {
             </select>
           </div>
           <TextField
-            label={t('uncertainty.terms')} value={termText} onChange={setTermText}
+            label={t('uncertainty.terms')} value={termText} onChange={setTermText} rows={4}
             hint={t('uncertainty.termsHint')}
             error={parsed.bad.length
               ? t('uncertainty.badLines', { lines: parsed.bad.join(' / ') }) : null}

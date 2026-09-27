@@ -304,7 +304,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
       {mode === 'recovery' && (
         <>
           <TextField
-            label={t('analytical.recoveries')} value={recoveries} onChange={setRecoveries}
+            label={t('analytical.recoveries')} value={recoveries} onChange={setRecoveries} rows={3}
             hint={t('analytical.recoveriesHint')}
             error={parsedRecoveries.bad.length
               ? t('stats.badNumbers', { values: parsedRecoveries.bad.join(', ') }) : null}
@@ -318,7 +318,7 @@ export default function AnalyticalTab({ onRecord, restored }) {
       {mode === 'lod' && (
         <>
           <TextField
-            label={t('analytical.blanks')} value={blanks} onChange={setBlanks}
+            label={t('analytical.blanks')} value={blanks} onChange={setBlanks} rows={3}
             hint={t('analytical.blanksHint')}
             error={parsedBlanks.bad.length
               ? t('stats.badNumbers', { values: parsedBlanks.bad.join(', ') }) : null}

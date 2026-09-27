@@ -1648,7 +1648,7 @@ export const zh = {
     mSought: '待测组分摩尔质量',
     mWeighed: '称量形式摩尔质量',
     recoveries: '回收率重复值 (%)',
-    recoveriesHint: '多次加标回收的百分比，逗号分隔',
+    recoveriesHint: '多次加标回收的百分比，逗号、空格或换行分隔。可直接从表格粘贴。',
     unspiked: '未加标测定值',
     spiked: '加标后测定值',
     added: '加标量',
