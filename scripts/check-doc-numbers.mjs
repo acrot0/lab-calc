@@ -8,12 +8,21 @@
  * first screen of a repository whose whole pitch is that its numbers are
  * checked, where any reader can disprove it in one command.
  *
+ * Both kinds it checks were found the same way: the test count after two
+ * documented drifts, and the test-FILE count after the README's status table
+ * said `测试 2055 通过 / 100 文件` against a suite of 2069 tests in 101 files.
+ * The number was there to be read — the scan walked past it because the count
+ * came after the word instead of before. Hence a pattern list covering the
+ * phrasings these documents actually use, not just the one that came to mind.
+ *
  * ## Why it runs the suite instead of counting the tests itself
  *
  * Reading `it(` out of the test files would be faster and wrong — a count of
  * declarations is not a count of tests, and the two diverge exactly when a test
  * is skipped or a file fails to load. The number the README promises is the
- * number `npm test` reports, so that is the number this asks for.
+ * number `npm test` reports, so that is the number this asks for. The file
+ * count comes from the same report and for the same reason: files that produced
+ * results, not files on disk.
  *
  * The cost is a second suite run inside `npm run verify`. That is ~9s locally
  * and it is the price of the claim being true; a stale count costs more.
@@ -64,23 +73,29 @@ function actualTestCount() {
   const report = JSON.parse(out.slice(start));
   const passed = report.numPassedTests ?? 0;
   const failed = report.numFailedTests ?? 0;
-  return passed + failed;
+  return {
+    tests: passed + failed,
+    // Files that ran, not files on disk: the README is claiming results, and a
+    // file whose import fails produces no results.
+    files: (report.testResults ?? []).length,
+  };
 }
 
-const actual = { tests: actualTestCount() };
+const actual = actualTestCount();
 let problems = 0;
 
 for (const rel of DOCS) {
   const file = path.join(ROOT, rel);
   if (!fs.existsSync(file)) continue;
   for (const s of staleNumbers(fs.readFileSync(file, 'utf8'), actual)) {
-    console.error(`  ✗ ${rel}:${s.line} 写着 ${s.found} 个测试，实际 ${actual.tests}`);
+    const noun = s.kind === 'files' ? '个测试文件' : '个测试';
+    console.error(`  ✗ ${rel}:${s.line} 写着 ${s.found} ${noun}，实际 ${actual[s.kind]}`);
     problems += 1;
   }
 }
 
 if (problems > 0) {
-  console.error(`\n  ${problems} 处陈旧数字。改成 ${actual.tests} 后重跑。`);
+  console.error(`\n  ${problems} 处陈旧数字。改成 ${actual.tests} 个测试 / ${actual.files} 个文件后重跑。`);
   process.exit(1);
 }
-console.log(`  ok    文档里的测试数一致（${actual.tests}）`);
+console.log(`  ok    文档里的测试数一致（${actual.tests} 个测试 / ${actual.files} 个文件）`);

@@ -21,7 +21,7 @@ import { staleNumbers } from '../scripts/lib/doc-numbers.mjs';
 // A synthetic suite size. Deliberately not the real count: these cases test the
 // scanner's arithmetic, and using the live number would make this file drift
 // with the suite for no gain.
-const ACTUAL = { tests: 1987 };
+const ACTUAL = { tests: 1987, files: 96 };
 
 describe('staleNumbers', () => {
   it('should find a plain count', () => {
@@ -68,6 +68,46 @@ describe('staleNumbers', () => {
     expect(staleNumbers('the file has 3 tests', ACTUAL)).toEqual([]);
   });
 });
+
+  it('should find the README status table wording', () => {
+    // `测试 2055 通过 / 100 文件` — the count comes AFTER the word here, which is
+    // the order the first version of this scan did not know. It passed while
+    // that line was wrong in both of its numbers.
+    expect(staleNumbers('| **状态** | v0.9.2 · 测试 2055 通过 / 100 文件 |', ACTUAL)).toEqual([
+      { kind: 'tests', found: 2055, line: 1 },
+      { kind: 'files', found: 100, line: 1 },
+    ]);
+  });
+
+  it('should find a count with a qualifier between it and the noun', () => {
+    // `750 个自动化测试` — a doc's own phrasing, not the terse one tests use.
+    expect(staleNumbers('**750 个自动化测试**', ACTUAL)).toEqual([
+      { kind: 'tests', found: 750, line: 1 },
+    ]);
+  });
+
+  it('should find a test-file count', () => {
+    // The test count is correct here on purpose, built from ACTUAL rather than
+    // written out: this case is about the FILE count being found, and a stale
+    // test count in the same sentence would make it pass for the wrong reason.
+    expect(staleNumbers(`${ACTUAL.tests} 个自动化测试（36 个测试文件）`, ACTUAL)).toEqual([
+      { kind: 'files', found: 36, line: 1 },
+    ]);
+  });
+
+  it('should not report a file count as a test count too', () => {
+    // Both kinds are checked against the same sentence, so a file count that
+    // also matched the test patterns would produce two findings for one wrong
+    // number, each suggesting a different correct value.
+    const hits = staleNumbers(`${ACTUAL.tests} 个测试（36 个测试文件）`, ACTUAL);
+    expect(hits).toEqual([{ kind: 'files', found: 36, line: 1 }]);
+  });
+
+  it('should accept the real file count in either language', () => {
+    const n = ACTUAL.files;
+    expect(staleNumbers(`${n} 个测试文件`, ACTUAL)).toEqual([]);
+    expect(staleNumbers(`${n} test files`, ACTUAL)).toEqual([]);
+  });
 
 /*
  * The scan over the real documents lives in `scripts/check-doc-numbers.mjs`,
