@@ -494,24 +494,26 @@ export default function AnalyticalTab({ onRecord, restored }) {
                 ]}
               />
               {/*
-                * The charge imbalance is shown rather than hidden — a neutral
-                * salt solution ought to be electrically neutral, so a large
-                * residual means the component list is missing an ion, which is
-                * a fact about the input the user can act on.
+                * The charge imbalance is reported as a figure, never as a
+                * warning, and the first version of this got that wrong.
                 *
-                * The threshold is absolute, not relative, and that is the
-                * correction to the first version. A relative test fires on the
-                * AgCl preset, whose imbalance is exactly [OH⁻] = 1e-7 M: that
-                * is water's own dissociation, not a missing ion, and warning
-                * about it teaches the user to ignore the warning. 1e-5 mol/L is
-                * far above any water term and far below any real missing
-                * counter-ion, which is present at the concentration of the salt.
+                * A fixed-pH speciation cannot be electrically neutral in
+                * general. The model supplies no counter-ion, and holding the
+                * pH constant means whatever charge the solution carries is
+                * balanced by an acid or base the model never sees — so a
+                * non-zero imbalance is a property of the *method*, not a
+                * mistake in the input. Warning about it would tell the user to
+                * fix something that is not broken.
+                *
+                * The figure is still worth showing, because it does bound what
+                * the model is claiming: 0.033 mol/L of excess cation means the
+                * answer describes a solution that would need that much
+                * hydroxide (or a counter-ion) to exist, and a reader comparing
+                * against a real preparation should know that.
                 */}
-              {Math.abs(out.res.chargeBalance) > 1e-5 && (
-                <Warn>{t('analytical.equilibriumChargeImbalance', {
-                  value: fmtSci(out.res.chargeBalance, 3),
-                })}</Warn>
-              )}
+              <div className="hint">{t('analytical.eqChargeBalance', {
+                value: fmtSci(out.res.chargeBalance, 3),
+              })}</div>
             </>
           ) : (
             <Err>{t('analytical.equilibriumNotConverged', {

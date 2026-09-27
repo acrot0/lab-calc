@@ -1633,6 +1633,7 @@ export const zh = {
     equilibriumNotConverged: '方程组没有收敛（残差 {residual}）。结果不可用——请检查总浓度与平衡常数是否量级合理。',
     equilibriumNoSolidFormed: '该条件下没有固体析出（离子积低于溶度积）。',
     equilibriumChargeImbalance: '电荷不平衡 {value} mol/L。这通常不是算错，而是输入里少了抗衡离子——中性盐溶液本该电中性。',
+    eqChargeBalance: '电荷不平衡 {value} mol/L。固定 pH 的形态分布本就不保证电中性——模型不提供抗衡离子，pH 是外加约束，这部分电荷由模型看不见的酸碱承担。若拿去对照真实配制，需要知道这一项。',
     metal: '待测金属',
     ph: '滴定 pH',
     phHint: 'EDTA 的条件常数随 pH 变化极大：pH 10 时钙可以滴定，pH 5 时完全不行',

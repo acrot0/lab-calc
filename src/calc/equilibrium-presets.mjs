@@ -70,7 +70,15 @@ export const EQUILIBRIUM_PRESETS = [
       zh: '为什么氯化银溶于氨水？溶度积单独预测不了。',
       en: 'Why does silver chloride dissolve in ammonia? The solubility product alone cannot say.',
     },
-    source: 'log β₁ = 3.31、log β₂ = 7.23（Ag⁺–NH₃，25 °C）；NH₄⁺ pKa = 9.25',
+    /*
+     * IUPAC's recommended stepwise pair, log K₁ = 3.24 and log K₂ = 3.99,
+     * whose sum is the overall log β₂ = 7.23 the tables also print. Both
+     * numbers are in circulation and they are not interchangeable: quoting
+     * β₁ = 3.31 alongside β₂ = 7.23 implies K₂ = 3.92, which is neither of the
+     * tabulated values. The two are consistent here, which is what the source
+     * line is claiming.
+     */
+    source: 'log K₁ = 3.24、log K₂ = 3.99 → log β₂ = 7.23（Ag⁺–NH₃，IUPAC，25 °C、I = 0）；NH₄⁺ pKa = 9.25',
     /*
      * The demonstration this whole module exists for. Ksp alone says the
      * solubility is √Ksp whatever else is in solution; the diammine complex
@@ -91,8 +99,8 @@ export const EQUILIBRIUM_PRESETS = [
         },
       ],
       complexes: [
-        { id: 'AgNH3', metal: 'Ag', ligands: { NH3: 1 }, logK: 3.31, charge: 1, label: '[Ag(NH₃)]⁺' },
-        { id: 'AgNH32', metal: 'Ag', ligands: { NH3: 2 }, logK: 7.23, charge: 1, label: '[Ag(NH₃)₂]⁺' },
+        { id: 'AgNH3', metal: 'Ag', ligands: { NH3: 1 }, logK: 3.24, charge: 1, label: '[Ag(NH₃)]⁺', stepwise: [3.24] },
+        { id: 'AgNH32', metal: 'Ag', ligands: { NH3: 2 }, logK: 3.24 + 3.99, charge: 1, label: '[Ag(NH₃)₂]⁺', stepwise: [3.24, 3.99] },
       ],
       solids: [{ id: 'AgCl', logKsp: -9.75, ions: { Ag: 1, Cl: 1 } }],
     },
@@ -167,10 +175,10 @@ export const EQUILIBRIUM_PRESETS = [
         },
       ],
       complexes: [
-        { id: 'CuNH3', metal: 'Cu', ligands: { NH3: 1 }, logK: 4.13, charge: 2, label: '[Cu(NH₃)]²⁺' },
-        { id: 'CuNH32', metal: 'Cu', ligands: { NH3: 2 }, logK: 4.13 + 3.48, charge: 2, label: '[Cu(NH₃)₂]²⁺' },
-        { id: 'CuNH33', metal: 'Cu', ligands: { NH3: 3 }, logK: 4.13 + 3.48 + 2.87, charge: 2, label: '[Cu(NH₃)₃]²⁺' },
-        { id: 'CuNH34', metal: 'Cu', ligands: { NH3: 4 }, logK: 4.13 + 3.48 + 2.87 + 2.11, charge: 2, label: '[Cu(NH₃)₄]²⁺' },
+        { id: 'CuNH3', metal: 'Cu', ligands: { NH3: 1 }, logK: 4.13, charge: 2, label: '[Cu(NH₃)]²⁺' , stepwise: [4.13] },
+        { id: 'CuNH32', metal: 'Cu', ligands: { NH3: 2 }, logK: 4.13 + 3.48, charge: 2, label: '[Cu(NH₃)₂]²⁺' , stepwise: [4.13, 3.48] },
+        { id: 'CuNH33', metal: 'Cu', ligands: { NH3: 3 }, logK: 4.13 + 3.48 + 2.87, charge: 2, label: '[Cu(NH₃)₃]²⁺' , stepwise: [4.13, 3.48, 2.87] },
+        { id: 'CuNH34', metal: 'Cu', ligands: { NH3: 4 }, logK: 4.13 + 3.48 + 2.87 + 2.11, charge: 2, label: '[Cu(NH₃)₄]²⁺' , stepwise: [4.13, 3.48, 2.87, 2.11] },
       ],
     },
     check: { dominantSpecies: 'CuNH34', unit: '' },

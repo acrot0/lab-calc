@@ -119,4 +119,51 @@ describe('equilibrium presets', () => {
         .toBeGreaterThan(10);
     }
   });
+
+  it('should keep every complex cumulative, not a mixture of tabulated forms', () => {
+    /*
+     * The defect this catches is specific and was real: the silver preset
+     * originally quoted log K₁ = 3.31 from one table and log β₂ = 7.23 from
+     * another. Both numbers are in circulation, and together they imply
+     * K₂ = 3.92, which is neither of the values any table prints. The solver
+     * cannot tell — it just uses 3.31 and 7.23 as given, converges, and returns
+     * a distribution built on an inconsistency.
+     *
+     * The check is that every complex's log K equals the sum of the stepwise
+     * constants it is built from. `stepwise` is the preset's own declaration
+     * of those, so the assertion compares the number in the solver against the
+     * number in the source line rather than against a third copy.
+     */
+    for (const p of EQUILIBRIUM_PRESETS) {
+      for (const cx of p.spec.complexes ?? []) {
+        const ligands = Object.values(cx.ligands).reduce((a, b) => a + b, 0);
+        if (!cx.stepwise) continue;
+        expect(cx.stepwise, `${p.id}/${cx.id} should list ${ligands} stepwise constants`)
+          .toHaveLength(ligands);
+        const sum = cx.stepwise.reduce((a, b) => a + b, 0);
+        expect(cx.logK, `${p.id}/${cx.id} log K should be the sum of its stepwise constants`)
+          .toBeCloseTo(sum, 10);
+      }
+    }
+  });
+
+  it('should build each complex from the stepwise constants its source quotes', () => {
+    // And the constants must be present, not merely self-consistent: a preset
+    // that declared `stepwise: [cx.logK]` would satisfy the sum check while
+    // documenting nothing.
+    const withStepwise = EQUILIBRIUM_PRESETS
+      .flatMap((p) => (p.spec.complexes ?? []).map((c) => ({ preset: p.id, cx: c })))
+      .filter(({ cx }) => cx.stepwise);
+    expect(withStepwise.length, 'at least one preset should document stepwise constants')
+      .toBeGreaterThan(0);
+    for (const { preset, cx } of withStepwise) {
+      // Every stepwise value must also appear in the preset's source line, so
+      // the reader can find where each came from.
+      const p = presetById(preset);
+      for (const k of cx.stepwise) {
+        expect(p.source, `${preset}/${cx.id}: ${k} should appear in the source line`)
+          .toContain(String(k));
+      }
+    }
+  });
 });

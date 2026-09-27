@@ -1633,6 +1633,7 @@ export const en = {
     equilibriumNotConverged: 'The system did not converge (residual {residual}). The result is unusable — check that the total concentrations and equilibrium constants are of sensible magnitude.',
     equilibriumNoSolidFormed: 'No solid forms under these conditions: the ion product stays below the solubility product.',
     equilibriumChargeImbalance: 'Charge imbalance of {value} mol/L. This is usually not an arithmetic error but a missing counter-ion — a neutral salt solution ought to be electrically neutral.',
+    eqChargeBalance: 'Charge imbalance {value} mol/L. A fixed-pH speciation is not required to be electrically neutral: the model supplies no counter-ion and the pH is an imposed constraint, so this charge is carried by an acid or base the model never sees. It matters when comparing against a real preparation.',
     metal: 'Metal',
     ph: 'Titration pH',
     phHint: 'The conditional constant of EDTA depends enormously on pH: calcium titrates at pH 10 and not at all at pH 5',
