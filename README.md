@@ -198,9 +198,9 @@ src/
     ├── history.mjs       历史记录（存储接口注入）
     ├── export.mjs        Excel / CSV / Markdown / PDF 导出
     ├── xlsx.mjs          手写的 .xlsx 生成器（零依赖）
-    ├── palettes.mjs      6 套主题配色（含 Catppuccin / Rosé Pine）
+    ├── palettes.mjs      10 套主题配色（含 Catppuccin / Rosé Pine / Gruvbox / Solarized）
     ├── styles.css        设计 token + 组件样式
-    ├── tabs/             16 个计算标签页
+    ├── tabs/             20 个计算标签页
     └── components/       表单原语、历史面板、须知弹窗、SVG 插画
 ```
 

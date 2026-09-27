@@ -3,13 +3,26 @@
 Where this project is going, and why in this order. Written down because the
 sequencing has dependencies that are not obvious from the feature list.
 
-## Where it stands (v0.8.0)
+## Where it stands (v0.9.2)
 
-16 calculation tabs, a 118-element periodic table with exam properties, six
-charts drawn from the calculations themselves, bilingual UI, six themes plus
-follow-the-system, PWA-installable, offline-capable, and a portable Windows
-build. 2,055 tests. 592 KB of JS (185 KB gzipped), no charting dependency — the
-charts are hand-drawn canvas, and the .xlsx writer is hand-written too.
+20 calculation tabs, a 118-element periodic table with exam properties, six
+charts drawn from the calculations themselves, bilingual UI, eleven themes plus
+follow-the-system and a user override layer, PWA-installable, offline-capable,
+and signed desktop builds with a working update channel. 2,055 tests. No
+charting dependency — the charts are hand-drawn canvas, and the .xlsx writer is
+hand-written too.
+
+**Uncertainty reaches seven tabs.** Every result that comes off an instrument
+carries a ± and a disclosure naming each source's contribution: glassware
+tolerances from ISO 1042 / ASTM E288 and ISO 648 / ASTM E969, balance terms per
+Eurachem QUAM:2012 §8.1.4, photometer accuracy, cuvette path tolerance, burette
+readings, and the instrument class for nucleic-acid quantification. The point is
+not the number but the list — a single combined figure tells you the result is
+uncertain, the breakdown tells you which instrument to change.
+
+**Records do not disappear.** Deleting marks rather than removes, a deleted
+section restores, and the exported backup includes what was deleted — otherwise
+"export, clear, re-import" loses exactly what you meant to keep.
 
 The calculator panel works on a phone: 44px touch targets, a bottom sheet that
 lifts clear of the software keyboard, and a two-column layout when the phone is
