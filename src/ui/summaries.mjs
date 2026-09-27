@@ -86,6 +86,24 @@ const curve = (i, o, t) => {
 };
 
 /**
+ * The same kind, reached two ways.
+ *
+ * The model mode predicts a curve from the inputs; the measured mode locates
+ * the equivalence point in a table of readings. They record different fields —
+ * `equivalenceMl`/`equivalencePh` against `volumeMl`/`method` — so the one
+ * summary above read `undefined mol/L ... undefined mL` for every measured
+ * record. Branching is what keeps the history line honest about which question
+ * was answered.
+ */
+const curveByMode = (i, o, t) => (i.mode === 'measured'
+  ? t('summaries.curveMeasured', {
+    n: String(i.rowsText ?? '').split('\n').filter((l) => l.trim() !== '').length,
+    volume: fmt(o.volumeMl),
+    method: t(`curve.method_${o.method}`),
+  })
+  : curve(i, o, t));
+
+/**
  * Five directions share one kind, so the summary branches on `mode`. Without
  * that branch every reagent calculation would read as a stock conversion,
  * which is wrong for four of the five.
@@ -284,7 +302,7 @@ const BY_KIND = {
   bufferRecipe: buffer,
   phCalc: ph,
   percentSolution: percent,
-  titrationCurve: curve,
+  titrationCurve: curveByMode,
   reagent,
   spectro,
   lab,

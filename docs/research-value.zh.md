@@ -61,7 +61,7 @@ Kf / Kb 用的是标准表列值（水 Kf=1.86、Kb=0.512 K·kg/mol 等），共
 
 ## 三、结果是怎么验证的
 
-**2083 个自动化测试**（102 个测试文件）+ **20 项对已知答案的冒烟检查**。
+**2087 个自动化测试**（103 个测试文件）+ **20 项对已知答案的冒烟检查**。
 
 验证方式分三层：
 
@@ -181,7 +181,7 @@ Kf / Kb 用的是标准表列值（水 Kf=1.86、Kb=0.512 K·kg/mol 等），共
 git clone https://github.com/acrot0/lab-calc
 cd lab-calc
 npm install
-npm test          # 2083 个测试
+npm test          # 2087 个测试
 npm run verify    # 20 项已知答案检查
 ```
 

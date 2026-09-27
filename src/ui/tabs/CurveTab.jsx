@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { titrationCurve, findEquivalencePoint, equivalenceVolumes } from '../../calc/curve.mjs';
+import {
+  titrationCurve, findEquivalencePoint, equivalenceVolumes, locateEquivalencePoint,
+} from '../../calc/curve.mjs';
 import { NumField, Result, Warn, Err } from '../components/Fields.jsx';
 import { UncertaintyPanel, Contribution } from '../components/UncertaintyPanel.jsx';
 import { fmt, fmtSci, fmtMeasured, n } from '../format.mjs';
@@ -17,6 +19,26 @@ function parsePkaList(text) {
   const nums = parts.map(Number);
   if (nums.length === 0 || nums.some((v) => !Number.isFinite(v))) return null;
   return nums;
+}
+
+/**
+ * Parse a titration table: one `volume, pH` pair per line.
+ *
+ * Blank lines are skipped rather than reported — a trailing newline is how a
+ * textarea ends, not a mistake — but a line that is present and unreadable is
+ * kept as-is so the calc layer's own error names the offending row. The shape
+ * matches the standards-points box in the spectroscopy tab, so a table pasted
+ * into one can be pasted into the other.
+ */
+function parseRows(text) {
+  return String(text ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split(/[\s,;]+/).filter(Boolean);
+      return { volumeMl: Number(parts[0]), ph: Number(parts[1]) };
+    });
 }
 
 /*
@@ -145,6 +167,25 @@ function CurveChart({ points, eqVolumes, width = 560, height = 280, theme = 'dar
 
 const ACID_TYPES = ['weakAcid', 'strongAcid', 'polyprotic'];
 
+/**
+ * A bench titration, as it actually comes off the burette.
+ *
+ * 0.100 M acetic acid, 50.00 mL, titrated with 0.100 M NaOH, read every 4 mL
+ * away from the jump and every 2 mL through it. The equivalence volume is
+ * 50.00 mL, so a user who presses the button without reading the hint gets a
+ * number they can check against the model above — which is the point of a
+ * default: it shows what the feature does before asking for anything.
+ *
+ * The values come from the app's own curve at those volumes, because a
+ * hand-written table would have to be checked against something anyway.
+ */
+const DEFAULT_TITRATION_ROWS = [
+  '0, 2.88', '4, 3.71', '8, 4.04', '12, 4.26', '16, 4.43', '20, 4.58',
+  '24, 4.73', '28, 4.87', '32, 5.01', '36, 5.17', '40, 5.36', '44, 5.63',
+  '46, 5.82', '48, 6.14', '50, 9.01', '52, 11.29', '54, 11.58',
+  '58, 11.87', '62, 12.03', '66, 12.14', '70, 12.22',
+].join('\n');
+
 export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [acidType, setAcidType] = useState(restored?.acidType ?? 'weakAcid');
@@ -155,6 +196,28 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
   const [titrant, setTitrant] = useState(restored?.titrantConc != null ? String(restored.titrantConc) : '0.1');
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+
+  /*
+   * The measured table, and the mode that uses it.
+   *
+   * The model above answers "where would the equivalence point be, given what
+   * I put in the flask". A real titration asks the reverse: here is the burette
+   * reading and the pH at each point, where *was* the equivalence point. The
+   * two methods for that had been in `curve.mjs` since the module was written
+   * and no screen reached them — the module's own tests exercise them against
+   * synthetic data, so they were correct and unreachable.
+   *
+   * `locateEquivalencePoint` is the entry point rather than either method
+   * alone: the derivative needs a sample at the equivalence point and is at the
+   * mercy of how finely the burette was read, while the Gran plot uses only the
+   * straight regions either side and extrapolates. Running them by hand and
+   * comparing is the obvious thing to do and it is wrong — the Gran fit needs a
+   * hint, and the only hint available is the derivative's answer, which is
+   * exactly what is wrong when the curve has two steep regions.
+   */
+  const [mode, setMode] = useState(restored?.mode ?? 'model');
+  const [rowsText, setRowsText] = useState(restored?.rowsText ?? DEFAULT_TITRATION_ROWS);
+  const [located, setLocated] = useState(null);
 
   /*
    * The burette and the standard solution, collapsed by default.
@@ -291,7 +354,43 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
     return steps;
   }, [out, conc, volume, titrant, acidType, pka, pkaList, t]);
 
+  /*
+   * The derivation for the measured mode.
+   *
+   * Different arithmetic from the model above and worth showing for the same
+   * reason: the answer is an extrapolation, not a division, and a user who
+   * cannot see that has no way to judge how much to trust the number.
+   */
+  const locatedWorked = useMemo(() => {
+    if (!located) return null;
+    const d = located.derivative;
+    const gran = located.gran;
+    const steps = [
+      { term: t('curve.byDerivativeTerm'), value: t('curve.worked_Derivative', {
+        n: parseRows(rowsText).length,
+        volume: fmt(d.sampledVolumeMl, 3),
+        slope: fmtSci(d.maxSlope, 4),
+        refined: fmt(d.volumeMl, 3),
+      }) },
+    ];
+    if (gran.side) {
+      steps.push({ term: t('curve.byGranTerm'), value: t('curve.worked_Gran', {
+        side: t(`curve.side_${gran.side}`),
+        r2: fmt(gran.r2, 5),
+        volume: fmt(gran.volumeMl, 3),
+      }) });
+    }
+    steps.push({ term: t('curve.chosenTerm'), value: t('curve.worked_Chosen', {
+      method: t(`curve.method_${located.method}`),
+      reason: located.method === 'gran' ? t('curve.reasonGran') : t('curve.reasonDerivative'),
+    }) });
+    return steps;
+  }, [located, rowsText, t]);
+
   useEffect(() => { setOut(null); setErr(null); }, [acidType, pka, pkaList, conc, volume, titrant]);
+  // Editing the table invalidates the located point: the numbers below would
+  // describe a table that is no longer on screen.
+  useEffect(() => { setLocated(null); setErr(null); }, [rowsText]);
 
   function buildSpec() {
     const base = { conc: n(conc), volumeMl: n(volume), titrantConc: n(titrant) };
@@ -302,6 +401,37 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
       return { ...base, pKas };
     }
     return { ...base, pKa: n(pka) };
+  }
+
+  /**
+   * Locate the equivalence point in a measured table.
+   *
+   * The rows are parsed here rather than by the calc layer because a blank line
+   * and a malformed one are different things: a trailing newline is how a
+   * textarea ends, while `abc, 7` is a row the user believes they entered. The
+   * blanks are dropped and everything else is passed through, so
+   * `titrationRows` reports the unreadable one by position.
+   */
+  function runMeasured() {
+    try {
+      const rows = parseRows(rowsText);
+      const r = locateEquivalencePoint(rows, { initialVolumeMl: 0 });
+      setLocated(r);
+      setErr(null);
+      const inputs = { mode: 'measured', rowsText, initialVolumeMl: 0 };
+      const outputs = {
+        volumeMl: r.volumeMl,
+        method: r.method,
+        granR2: r.gran?.r2 ?? null,
+      };
+      onRecord({
+        kind: 'titrationCurve', inputs, outputs,
+        summary: recordSummary({ kind: 'titrationCurve', inputs, outputs }, t),
+      });
+    } catch (e) {
+      setErr(errorMessage(e, t));
+      setLocated(null);
+    }
   }
 
   function run() {
@@ -328,6 +458,55 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
 
   return (
     <Card>
+      <div className="field">
+        <label htmlFor="curve-mode">{t('curve.mode')}</label>
+        <select id="curve-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
+          <option value="model">{t('curve.mode_model')}</option>
+          <option value="measured">{t('curve.mode_measured')}</option>
+        </select>
+      </div>
+
+      {mode === 'measured' ? (
+        <>
+          <div className="field">
+            <label htmlFor="titration-rows">{t('curve.rows')}</label>
+            <textarea id="titration-rows" className="points-input" rows={8} value={rowsText}
+              onChange={(e) => setRowsText(e.target.value)} spellCheck={false} />
+            <div className="hint">{t('curve.rowsHint')}</div>
+          </div>
+          <button className="primary" onClick={runMeasured}>{t('curve.locate')}</button>
+          {err && <Err>{err}</Err>}
+          {located && (
+            <div className="result">
+              <Result
+                value={fmt(located.volumeMl, 2)}
+                unit={t('curve.equivalenceUnit')}
+                note={t('curve.locatedNote', {
+                  method: t(`curve.method_${located.method}`),
+                })}
+                worked={locatedWorked} workedLabel={t('common.worked')}
+                rows={[
+                  [t('curve.byDerivative'), `${fmt(located.derivative.volumeMl, 3)} mL`],
+                  [t('curve.byGran'), located.gran.volumeMl != null
+                    ? `${fmt(located.gran.volumeMl, 3)} mL` : '—'],
+                  /*
+                   * Whether the two agree is the diagnostic, not decoration.
+                   * Two independent methods landing on the same volume is
+                   * evidence; disagreeing by more than 2% is a finding about
+                   * the data — too coarse a grid, or an acid not behaving —
+                   * and averaging it away would hide the only warning there is.
+                   */
+                  [t('curve.agree'), located.agree ? t('curve.agreeYes') : t('curve.agreeNo')],
+                  [t('curve.granFit'), located.gran.r2 != null ? fmt(located.gran.r2, 5) : '—'],
+                ]}
+              />
+              {!located.agree && <Warn>{t('curve.disagreeWarn')}</Warn>}
+            </div>
+          )}
+          <Warn>{t('curve.measuredWarning')}</Warn>
+        </>
+      ) : (
+        <>
       <div className="field">
         <label htmlFor="acid-type">{t('curve.acidType')}</label>
         <select id="acid-type" value={acidType} onChange={(e) => setAcidType(e.target.value)}>
@@ -421,6 +600,8 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
           unc={budget?.titrant.unc} unit="mol/L"
         />
       </UncertaintyPanel>
+        </>
+      )}
     </Card>
   );
 }

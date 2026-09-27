@@ -261,6 +261,10 @@ const COMMON = {
   confidence: { zh: '置信水平 (%)', en: 'Confidence level (%)' },
   sd: { zh: '标准差 s', en: 'Standard deviation s' },
   k: { zh: 'k', en: 'k' },
+
+  /* --- The titration table. --- */
+  rowsText: { zh: '滴定数据', en: 'Titration data' },
+  initialVolumeMl: { zh: '滴定前体积 (mL)', en: 'Initial volume (mL)' },
 };
 
 
