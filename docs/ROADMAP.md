@@ -8,7 +8,7 @@ sequencing has dependencies that are not obvious from the feature list.
 20 calculation tabs, a 118-element periodic table with exam properties, six
 charts drawn from the calculations themselves, bilingual UI, eleven themes plus
 follow-the-system and a user override layer, PWA-installable, offline-capable,
-and signed desktop builds with a working update channel. 2,234 tests. No
+and signed desktop builds with a working update channel. 2,248 tests. No
 charting dependency — the charts are hand-drawn canvas, and the .xlsx writer is
 hand-written too.
 

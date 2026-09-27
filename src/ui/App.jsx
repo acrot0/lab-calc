@@ -13,6 +13,7 @@ import { useI18n } from './LocaleContext.jsx';
 import { useTheme } from './ThemeContext.jsx';
 import { useFields } from './FieldsContext.jsx';
 import { defaultsOf } from './field-template.mjs';
+import { tabDirection } from './tab-motion.mjs';
 import SettingsMenu from './components/SettingsMenu.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
@@ -142,6 +143,14 @@ export default function App() {
   const { resolved } = useTheme();
   const { fields } = useFields();
   const [tab, setTab] = useState(initialTab);
+  /*
+   * Which way the last tab switch travelled, as `1`/`-1`/`0`.
+   *
+   * Held beside the tab rather than derived at render time, because by then the
+   * previous tab is gone: the transition needs to know where the view came
+   * *from*, and that is only available at the moment of the change.
+   */
+  const [tabDir, setTabDir] = useState(0);
   const [entries, setEntries] = useState([]);
   const [groups, setGroups] = useState([]);
   const [restored, setRestored] = useState(null);
@@ -154,6 +163,28 @@ export default function App() {
   // it is open.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const store = useMemo(() => resolveStore(), []);
+
+  /*
+   * Switch tabs, recording which way the view travelled.
+   *
+   * `goTo` is the only way the tab changes. A bare `setTab` would leave `tabDir`
+   * describing the previous switch, so the transition would slide the wrong way
+   * for every change that did not go through here — and the shortcut handler
+   * below is bound once, so it cannot close over the current tab.
+   */
+  const goTo = useCallback((next) => {
+    setTab((prev) => {
+      setTabDir(tabDirection(prev, next, TAB_IDS));
+      return next;
+    });
+  }, []);
+
+  // The shortcut effect is bound with `[]` deps, so it reads the current tab and
+  // the current `goTo` through refs rather than closing over a stale pair.
+  const latest = useRef({ goTo });
+  latest.current.goTo = goTo;
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
 
   /*
    * The keyboard shortcuts.
@@ -184,8 +215,8 @@ export default function App() {
       e.preventDefault();
       switch (action) {
         case 'calc': setCalcOpen((v) => !v); break;
-        case 'nextTab': setTab((t) => cycleTab(TAB_IDS, t, 1)); break;
-        case 'prevTab': setTab((t) => cycleTab(TAB_IDS, t, -1)); break;
+        case 'nextTab': latest.current.goTo(cycleTab(TAB_IDS, tabRef.current, 1)); break;
+        case 'prevTab': latest.current.goTo(cycleTab(TAB_IDS, tabRef.current, -1)); break;
         // Move the focus into the tab's own content, so a keyboard user lands
         // on the form rather than having to tab through the whole navigation.
         case 'focusWork': document.querySelector('.work input, .work select, .work button')?.focus(); break;
@@ -388,10 +419,10 @@ export default function App() {
   const replay = useCallback((entry) => {
     const plan = planReplay(entry);
     if (!plan) return;
-    setTab(plan.tab);
+    goTo(plan.tab);
     setRestored(plan.inputs);
     setNonce((k) => k + 1);
-  }, []);
+  }, [goTo]);
 
   const acceptNotice = useCallback(() => {
     acknowledge(store);
@@ -436,7 +467,7 @@ export default function App() {
           JavaScript would mean measuring the viewport in React, which is how a
           resize gets missed — and this app is installed as a PWA, where a
           rotate is a resize. */}
-      <MobileNav tabs={TABS} current={tab} onSelect={setTab} />
+      <MobileNav tabs={TABS} current={tab} onSelect={goTo} />
 
       {/* The rail and the content share a row so the rail can sit beside the
           table on a wide screen. The grid column stays 56px even while the rail
@@ -444,7 +475,7 @@ export default function App() {
           pushing it sideways — a layout that shifts under the pointer is worse
           than one that overlays. */}
       <div className="shell">
-        <NavRail tabs={TABS} current={tab} onSelect={setTab} />
+        <NavRail tabs={TABS} current={tab} onSelect={goTo} />
 
         {/* The tab panel is the page's main content; the topbar and footer are
             chrome around it. Without this landmark a screen reader can only jump
@@ -454,7 +485,13 @@ export default function App() {
               against, which is why it is a wrapper rather than the <main>
               itself: the history panel is a `.card` too, and a container on
               <main> would have the panel matching the card rules. */}
-          <div className="work">
+          {/* `data-dir` drives the direction of the switch transition: the card
+              comes in from the side the user moved toward, so a rail click and
+              an arrow key both confirm which way they went. It lives on `.work`
+              rather than on a new wrapper element because the card is a direct
+              child of `.work` in several layout rules, and an extra div between
+              them would silently drop every one of them. */}
+          <div className="work" data-dir={tabDir}>
             {/* The tab's chunk is fetched on demand. The fallback is a plain
                 card of the same height so the layout does not jump when the
                 real one replaces it — a spinner that collapses to nothing and

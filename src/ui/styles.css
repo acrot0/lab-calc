@@ -1138,6 +1138,61 @@ select.control {
 }
 
 /*
+ * Direction of travel.
+ *
+ * The card comes in from the side the user moved toward — a rail click low in
+ * the list and an arrow key both confirm which way they went, which a fade from
+ * one fixed place cannot say. `data-dir` is set by `App.jsx` from
+ * `tabDirection()`, which resolves the wraparound so the last tab to the first
+ * reads as one step forward rather than as a slide across the whole rail.
+ *
+ * The lateral offset is larger than the 4px the vertical one uses, because it
+ * is saying something different: `card-in`'s translate is "content arrived",
+ * this is "you moved". It is still small enough (10px) to read as a nudge
+ * rather than as a page slide, which would be sluggish at this duration.
+ *
+ * `translateX` is added to the same keyframes rather than replacing them, so
+ * the card still rises slightly on the way in and the two motions compose.
+ */
+@keyframes card-in-forward {
+  from { opacity: 0; transform: translateX(10px) translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes card-in-backward {
+  from { opacity: 0; transform: translateX(-10px) translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/*
+ * Scoped to the working column, so the history panel keeps the plain vertical
+ * `card-in`. The panel does not change when the tab does, and sliding it
+ * sideways on every switch would make the one element that stayed put look
+ * like it had moved.
+ */
+.work[data-dir="1"] > .card { animation-name: card-in-forward; }
+.work[data-dir="-1"] > .card { animation-name: card-in-backward; }
+
+/*
+ * The card lifts on hover.
+ *
+ * It is a transition rather than an animation because it is reversible: a hover
+ * that fades in has to fade out the same way. `--shadow-1` to `--shadow-2` is
+ * the app's own two-step elevation scale, so the card rises within the depth
+ * vocabulary the palettes already define rather than to an invented height.
+ *
+ * Gated on `hover: hover` so a touch device does not latch the raised state
+ * onto whatever the last tap landed on.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .work > .card:hover,
+  .split > .card:hover {
+    box-shadow: var(--shadow-2);
+    border-color: var(--border-strong, var(--border));
+  }
+}
+
+/*
  * The placeholder shown while a tab's chunk loads.
  *
  * It is the same `.card` with grey bars in place of the content, so the card
