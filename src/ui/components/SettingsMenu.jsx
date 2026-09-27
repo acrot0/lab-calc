@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
@@ -7,6 +7,19 @@ import { IconStyleToggle } from '../IconStyleContext.jsx';
 import { DensityToggle } from '../DensityContext.jsx';
 import { LocaleSelect } from './LocaleSelect.jsx';
 import { SHORTCUTS } from '../shortcuts.mjs';
+
+/*
+ * The update control is loaded on demand, and only when this build can use it.
+ *
+ * The component imports `@tauri-apps/plugin-updater` dynamically, but the
+ * component itself still has to be fetched — and on the web build that fetch is
+ * a request for a chunk that does nothing. Gating on the build constant keeps
+ * it out of the web bundle entirely.
+ *
+ * Declared here rather than at module scope so the constant is read at render,
+ * which is also what makes it stubbable in a test.
+ */
+const UpdatePanel = lazy(() => import('./UpdatePanel.jsx'));
 
 /**
  * The four preference controls, behind one button.
@@ -161,6 +174,22 @@ export default function SettingsMenu({ open, onOpenChange }) {
             <DensityToggle />
           </div>
           <p className="settings-note">{t('app.densityNote')}</p>
+
+          {/*
+            The update row, desktop only.
+
+            Rendered here rather than as its own screen because it is one
+            setting among six, and because the user asked for an app that does
+            not interrupt — a control they have to go looking for is the point.
+            `Suspense` with a null fallback: the chunk is a few hundred bytes
+            and the row appearing a frame late is invisible, while a spinner
+            where a settings row will be is not.
+          */}
+          {typeof __TAURI_UPDATER__ !== 'undefined' && __TAURI_UPDATER__ && (
+            <Suspense fallback={null}>
+              <UpdatePanel />
+            </Suspense>
+          )}
 
           {/*
             The theme list, behind a disclosure.

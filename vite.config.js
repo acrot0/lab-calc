@@ -113,5 +113,22 @@ export default defineConfig(({ mode }) => ({
      * The web build keeps the worker — that is where offline has real value.
      */
     __NO_SW__: mode === 'desktop',
+    /*
+     * True for the Tauri build, and only for it.
+     *
+     * The updater is a Tauri plugin: on the web build and in the Android app
+     * there is nothing to call, and importing `@tauri-apps/plugin-updater`
+     * would either throw or silently do nothing. The settings panel needs to
+     * know whether to render the control at all.
+     *
+     * `TAURI_ENV_PLATFORM` is what distinguishes it, not the mode. Both desktop
+     * builds share `--mode desktop` — that flag is about `file://` and IIFE
+     * output, which Electron and Tauri need equally — so the mode cannot tell
+     * them apart, and the Electron build must not be handed this channel. The
+     * Tauri CLI sets this variable for `beforeBuildCommand` (see the
+     * environment-variables reference), which is exactly the hook that runs
+     * this file, so it is present here and absent in every other build.
+     */
+    __TAURI_UPDATER__: Boolean(process.env.TAURI_ENV_PLATFORM),
   },
 }));

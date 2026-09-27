@@ -4,6 +4,63 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] — 2026-09-27
+
+The version that stops data from disappearing, and stops results from claiming
+a precision the instruments do not have.
+
+### Added
+
+- **Uncertainty on every weighed and diluted result.** The result panel now
+  carries a ± and a disclosure listing each source's contribution. Tolerances
+  come from ISO 1042 / ASTM E288 (flasks) and ISO 648 / ASTM E969 (pipettes) at
+  class A, converted to standard uncertainties through a rectangular
+  distribution (GUM 4.3.7, Eurachem QUAM:2012 §8.1.4). Balance linearity is
+  counted twice, because weighing by difference reads it twice — omitting that
+  understates the uncertainty by 41%. Measured: 0.5 mol/L NaCl in a 500 mL
+  class A flask is 0.034% combined, dominated by the flask (0.029%) and the
+  molar mass (0.017%), with the balance contributing 0.001%.
+- **A desktop update channel.** The settings panel can check for updates,
+  download, install and relaunch. Packages are signed and verified against a
+  public key compiled into the binary; the private key is in GitHub Secrets and
+  never in the repository.
+- **Release notes as repository files.** `docs/releases/vX.Y.Z.md`, checked and
+  attached by the release workflow. They are a different document from this
+  changelog: this one is a terse record for a developer, they are an argument to
+  a user about whether to install.
+
+### Changed
+
+- **Deleting a record marks it instead of erasing it.** It leaves the list and
+  stays in the file, with a "deleted" section to restore from, individually or
+  all at once. The JSON backup carries deleted records, so exporting, clearing
+  and re-importing no longer loses exactly what the archive exists to keep.
+- Relative uncertainty is quoted to three decimals rather than two. Below 0.05%
+  two decimals collapsed every budget to "0.03%", so switching a 500 mL flask
+  for a 1000 mL one — a 17% improvement — read as no change at all.
+
+### Fixed
+
+- **The print report had no Suspense boundary.** `Report` is loaded lazily and
+  rendered into a portal with no boundary above it, so React unmounted the whole
+  app to its fallback while the chunk downloaded. On a cold load that is a blank
+  window. Invisible in a browser on localhost, where the chunk arrives in
+  milliseconds, and invisible to every existing test, none of which mount the
+  history panel.
+- **"Clear all" erased the tombstones along with the records.** The handler
+  called `clearHistory()` with no argument, which fell back to its empty-array
+  default. The module's own tests passed the list in and were green; the browser
+  was not, and the records were gone.
+- **The uncertainty under a result rendered the value instead of the ±**, so the
+  mass appeared twice and the uncertainty not at all.
+- **The combined budget omitted the balance term**, which is the dominant source
+  for a small sample — 0.1 mmol/L in 10 mL reported as well-determined when the
+  balance is exactly what makes it not.
+- **`.unc-relative strong` used `--accent` as 16px text.** Not WCAG large text,
+  so it needs 4.5:1, and the accent measures 3.95:1 in the light theme and
+  3.71:1 in Catppuccin Latte. The palette guard only requires 3:1 of the accent
+  because it is documented as a component colour.
+
 ## [0.9.0] — 2026-09-26
 
 The calculator became the thing the rest of the app is built around, and the

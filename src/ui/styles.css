@@ -4448,6 +4448,81 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .settings-block-toggle[aria-expanded="true"] .caret { transform: rotate(180deg); }
 .settings-block-toggle .caret { transition: transform var(--dur-fast) var(--ease); }
 
+/*
+ * The update row.
+ *
+ * Reuses the `.settings-block` top border so it reads as one more section of
+ * the same panel rather than a thing bolted on. The message and the bar are the
+ * only new shapes; everything else is the existing label/current pair.
+ */
+.update-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  min-height: 32px;
+}
+
+.update-msg {
+  margin: var(--s2) 0 0;
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+}
+
+/* A failure is the one thing here the user has to act on, so it is the one
+   thing that gets the error ink rather than the quiet mid-tone. */
+.update-msg.is-err { color: var(--err-ink); }
+
+.update-bar {
+  margin-top: var(--s2);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.update-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--dur-fx-s) var(--ease);
+}
+
+/*
+ * No content length from the server: a bar that sweeps rather than one that
+ * fills. A percentage invented from nothing would sit at 0% and read as a hang.
+ */
+.update-bar.is-indeterminate .update-bar-fill {
+  width: 35%;
+  animation: update-sweep 1.2s var(--ease) infinite;
+}
+
+@keyframes update-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(300%); }
+}
+
+.update-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s2);
+}
+
+.update-install {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  color: var(--accent);
+  font-weight: 550;
+}
+
+/* The sweep is decoration, not information — the message above already says a
+   download is running. Removed rather than shortened when motion is off. */
+@media (prefers-reduced-motion: reduce) {
+  .update-bar.is-indeterminate .update-bar-fill { animation: none; width: 100%; opacity: 0.4; }
+  .update-bar-fill { transition: none; }
+}
+
 .settings-menu .theme-item .theme-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* The credit is provenance; in a panel this narrow it is the first thing that
    should go rather than the theme's own name. */

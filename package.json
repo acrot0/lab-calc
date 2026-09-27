@@ -1,6 +1,6 @@
 {
   "name": "lab-calc",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "实验室溶液计算器：称量、稀释、缓冲液、pH、滴定曲线。每次计算自动留存，可导出。中英双语，可离线。",
   "type": "module",
   "license": "MIT",
@@ -39,7 +39,9 @@
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
-    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/plugin-process": "2.3.1",
+    "@tauri-apps/plugin-updater": "2.12.0",
     "gruvbox": "^1.1.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

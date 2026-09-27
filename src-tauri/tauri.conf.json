@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Lab Calc",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "identifier": "com.labcalc.app",
   "build": {
     "frontendDist": "../dist",
@@ -41,6 +41,18 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk5RTRDMzE0QUUzRDJGMUIKUldRYkx6MnVGTVBrbWJUbmZ2aXVtS0FvTy9WVXV4Y2pyUXhPd1hwc1JZaHZoeUtsYlZZRkJBdnkK",
+      "endpoints": [
+        "https://github.com/acrot0/lab-calc/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

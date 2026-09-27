@@ -1,0 +1,127 @@
+name: Release
+
+# Tag-driven, and nothing else.
+#
+# A release is a decision, not a side effect of merging. Pushing a `v*` tag is
+# the decision; this workflow turns it into an installer, a signature and the
+# `latest.json` the updater reads. Running on every push to main would publish
+# whatever happened to be merged, which for an app a chemist runs mid-experiment
+# is not a risk worth taking.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (must already exist)'
+        required: true
+
+permissions:
+  # The release is created and its assets uploaded with this token.
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.x'
+
+      - name: Install Rust
+        # Pinned to the same toolchain the local build uses, so the artifact CI
+        # produces is the artifact the developer tested.
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        # The Tauri build is the slow part — a cold cargo build of the WebView2
+        # bindings runs to several minutes. The cache key includes the lockfile
+        # so a dependency change invalidates it rather than serving stale
+        # artifacts.
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Gate — the same checks a push to main gets
+        # A release that fails its own tests is a release nobody can install
+        # twice. The web deploy already refuses to publish an untested build;
+        # this is the same gate for the installer.
+        shell: bash
+        run: |
+          npm test
+          node scripts/check-imports.mjs src
+          npm run verify
+
+      - name: Assert the tag matches the version being built
+        # The updater compares versions, and a tag that disagrees with
+        # `package.json` produces a release the app either never sees or sees
+        # forever. Cheaper to fail here than to debug from a user's machine.
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag v$TAG does not match package.json version $PKG"
+            exit 1
+          fi
+          echo "OK: tag v$TAG matches package.json"
+
+      - name: Check the release notes exist
+        # The notes are hand-written Chinese prose in `docs/releases/`, because
+        # they are a different document from the English CHANGELOG: the
+        # changelog is a terse record for a developer, the release notes are an
+        # argument to a chemist about why this version is worth installing.
+        #
+        # Checked rather than generated. Generating one from the other produced
+        # a body that was English prose with a Chinese footer, which is worse
+        # than either.
+        shell: bash
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          F="docs/releases/v${V}.md"
+          if [ ! -f "$F" ]; then
+            echo "::error::$F is missing — write the release notes before tagging"
+            exit 1
+          fi
+          # A one-line placeholder publishes a release that says nothing.
+          if [ "$(wc -c < "$F")" -lt 400 ]; then
+            echo "::error::$F is too short to be real release notes"
+            exit 1
+          fi
+          echo "OK: $F"
+
+      - name: Build, sign and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The private key, from repository secrets. It is never written into
+          # the workflow — a key in the repository is the one thing that would
+          # make this whole channel worthless.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Lab Calc ${{ github.ref_name }}'
+          releaseBody: ''
+          releaseDraft: true
+          prerelease: false
+          # Without this the release carries no `.sig` and no `latest.json`, and
+          # the update endpoint 404s forever while the release itself looks fine.
+          includeUpdaterJson: true
+
+      - name: Attach the release notes
+        # `tauri-action` writes its own body, so this replaces it after the fact.
+        # A draft release is edited rather than published, which is the point of
+        # `releaseDraft: true` above: the notes are reviewable before anyone
+        # sees the release, and a mistake is fixed by editing the draft rather
+        # than by deleting something already published.
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${GITHUB_REF_NAME}" --notes-file "docs/releases/v${GITHUB_REF_NAME#v}.md" --draft

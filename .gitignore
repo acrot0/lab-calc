@@ -8,8 +8,13 @@ __pycache__/
 # Desktop build output. The ICO is committed (it is a small generated asset the
 # repo should be able to reproduce from source, and make-icons.mjs regenerates
 # it), but the packaged app is a 322 MB tree that belongs in releases/.
+#
+# The pattern is anchored to the root because an unanchored `releases/` also
+# matches `docs/releases/` — which is where the release notes live, and they
+# belong in the repository. That collision silently excluded them from every
+# commit while `git status` showed nothing wrong.
 dist-desktop/
-releases/
+/releases/
 
 # Session logs a hook writes here. The workspace keeps its memory at the
 # workspace root; this directory is a byproduct of running from inside the
@@ -52,3 +57,12 @@ android/app/build/
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json
 android/capacitor-cordova-android-plugins/
+
+# Tauri updater signing keys. The private key never belongs in the repository —
+# it is what makes a release trustworthy, and a leaked one lets anyone publish
+# an update every install will accept. It lives in `~/.tauri/` on the build
+# machine and in GitHub Secrets for CI. Listed here so that a key generated into
+# the working directory by habit is not committed by accident.
+*.key
+*.key.pub
+!public/**/*.pub
