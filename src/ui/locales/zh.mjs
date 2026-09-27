@@ -209,6 +209,14 @@ export const zh = {
     worked_Resolution: 'R = 2(t₂ − t₁) / (w₁ + w₂) = 2×({t2} − {t1}) ÷ ({w1} + {w2}) = {r}',
     worked_Plates: 'N = 16 (t_R / w)² = 16 × ({tr} ÷ {w})² = {n}',
     worked_Selectivity: 'α = (t₂ − t₀) / (t₁ − t₀) = ({t2} − {t0}) ÷ ({t1} − {t0}) = {alpha}',
+    /*
+     * 平衡计算没有闭式解，所以「计算过程」给的是求解器迭代的那组方程，以及收敛后的
+     * 各自由浓度。读者能核对的不是代入过程，而是各平衡常数是否被满足——这是无解析
+     * 解体系唯一可做的检验，也是这里必须说清楚的事。
+     */
+    worked_EquilibriumMassAction: '对每个物种写质量作用式 [C] = 10^(log K − Σνᵢ·pXᵢ)，对每个组分写质量守恒，对每个固体写溶度积，再联立求解（Newton–Raphson，未知量取 pX = −log₁₀[X]）',
+    worked_EquilibriumComplex: 'log K = {logK} → [配合物] = {conc} mol/L',
+    worked_EquilibriumSolid: 'log Ksp = {logKsp} → 析出 {mass} mol/L',
     // 物理化学：拟合类结果的关键是「这条线是怎么拟合出来的」，所以过程给出
     // 线性化后的变量与拟合量，而不只是最终那个数。
     worked_KineticsOrder: '由半衰期随浓度的变化定级数 n = {order}（0 级：t½ ∝ c₀；1 级：t½ 与 c₀ 无关；2 级：t½ ∝ 1/c₀）',
@@ -1613,6 +1621,18 @@ export const zh = {
     mode_recovery: '回收率与加标',
     mode_lod: '检出限与定量限',
     mode_chromatography: '色谱分离',
+    mode_equilibrium: '溶解度与络合平衡',
+    eqPreset: '体系',
+    eqPh: 'pH',
+    eqPhHint: 'pH 是这些体系真正的自变量——配体是否质子化、固体是否溶解都由它决定',
+    eqNote: '{ph} 时含量最高的物种是 {species}。',
+    eqFree: '自由浓度',
+    eqSolids: '析出的固体',
+    eqNoSolid: '无',
+    eqResidual: '方程残差',
+    equilibriumNotConverged: '方程组没有收敛（残差 {residual}）。结果不可用——请检查总浓度与平衡常数是否量级合理。',
+    equilibriumNoSolidFormed: '该条件下没有固体析出（离子积低于溶度积）。',
+    equilibriumChargeImbalance: '电荷不平衡 {value} mol/L。这通常不是算错，而是输入里少了抗衡离子——中性盐溶液本该电中性。',
     metal: '待测金属',
     ph: '滴定 pH',
     phHint: 'EDTA 的条件常数随 pH 变化极大：pH 10 时钙可以滴定，pH 5 时完全不行',
@@ -1879,5 +1899,6 @@ export const zh = {
     crossoverUndefinedEntropy: 'ΔS 为 0 时没有转变温度。ΔG = ΔH − TΔS 里的熵项整个消失，ΔG 不再随温度变化。',
     moleFractionOutOfRange: '摩尔分数必须在 0 与 1 之间（当前为 {xA}）。',
     phaseComponentMissing: '缺少组分 "{name}" 的参数（需要熔点 meltingC 和熔化焓 fusionKJ）。',
+    equilibriumSolidIonNotListed: '沉淀「{solid}」的离子「{ion}」不在上面的组分里，它的溶解量无从约束。请把该离子也作为一个组分给出。',
   },
 };

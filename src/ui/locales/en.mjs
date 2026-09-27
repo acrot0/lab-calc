@@ -210,6 +210,15 @@ export const en = {
     worked_Resolution: 'R = 2(t2 - t1) / (w1 + w2) = 2×({t2} - {t1}) ÷ ({w1} + {w2}) = {r}',
     worked_Plates: 'N = 16 (t_R / w)^2 = 16 × ({tr} ÷ {w})^2 = {n}',
     worked_Selectivity: 'alpha = (t2 - t0) / (t1 - t0) = ({t2} - {t0}) ÷ ({t1} - {t0}) = {alpha}',
+    /*
+     * An equilibrium calculation has no closed form, so the working shows the
+     * equations the solver iterated and the converged free concentrations. What
+     * the reader can check is that each equilibrium constant is satisfied,
+     * which is the only check available for a system with no analytic solution.
+     */
+    worked_EquilibriumMassAction: 'Mass action for every species [C] = 10^(log K − Σνᵢ·pXᵢ), mass balance for every component, solubility product for every solid, solved simultaneously (Newton–Raphson, with the unknowns taken as pX = −log₁₀[X])',
+    worked_EquilibriumComplex: 'log K = {logK} → [complex] = {conc} mol/L',
+    worked_EquilibriumSolid: 'log Ksp = {logKsp} → precipitated {mass} mol/L',
     // Physical chemistry: for a fitted result the question is how the line was
     // obtained, so the working gives the linearised variables and the fitted
     // quantities rather than only the final number.
@@ -1612,6 +1621,18 @@ export const en = {
     mode_recovery: 'Recovery and spike',
     mode_lod: 'Detection and quantification limits',
     mode_chromatography: 'Chromatographic separation',
+    mode_equilibrium: 'Solubility and complexation',
+    eqPreset: 'System',
+    eqPh: 'pH',
+    eqPhHint: 'The pH is what these systems actually turn on: it decides whether the ligand is protonated and whether the solid dissolves',
+    eqNote: 'At {ph} the dominant species is {species}.',
+    eqFree: 'Free concentrations',
+    eqSolids: 'Precipitated solids',
+    eqNoSolid: 'None',
+    eqResidual: 'Equation residual',
+    equilibriumNotConverged: 'The system did not converge (residual {residual}). The result is unusable — check that the total concentrations and equilibrium constants are of sensible magnitude.',
+    equilibriumNoSolidFormed: 'No solid forms under these conditions: the ion product stays below the solubility product.',
+    equilibriumChargeImbalance: 'Charge imbalance of {value} mol/L. This is usually not an arithmetic error but a missing counter-ion — a neutral salt solution ought to be electrically neutral.',
     metal: 'Metal',
     ph: 'Titration pH',
     phHint: 'The conditional constant of EDTA depends enormously on pH: calcium titrates at pH 10 and not at all at pH 5',
@@ -1879,5 +1900,6 @@ export const en = {
     crossoverUndefinedEntropy: 'With ΔS at zero there is no crossover temperature. The entropy term of ΔG = ΔH − TΔS vanishes entirely, so ΔG stops depending on temperature.',
     moleFractionOutOfRange: 'The mole fraction must be between 0 and 1 ({xA} given).',
     phaseComponentMissing: 'Component "{name}" is missing its parameters (meltingC and fusionKJ are required).',
+    equilibriumSolidIonNotListed: 'Ion "{ion}" of solid "{solid}" is not among the components above, so nothing constrains how much of it dissolves. List that ion as a component too.',
   },
 };

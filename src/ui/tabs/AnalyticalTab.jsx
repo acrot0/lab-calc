@@ -4,6 +4,8 @@ import {
   gravimetricPercent, recoveryBias, redoxEquivalence, spikeRecovery,
 } from '../../calc/analytical.mjs';
 import { detectionLimit, resolution, theoreticalPlates } from '../../calc/instrumental.mjs';
+import { speciate } from '../../calc/equilibrium.mjs';
+import { EQUILIBRIUM_PRESETS, presetById } from '../../calc/equilibrium-presets.mjs';
 import { NumField, TextField, Result, Err, Warn } from '../components/Fields.jsx';
 import { fmt, fmtSci, n } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
@@ -11,7 +13,7 @@ import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
 
-const MODES = ['edta', 'redox', 'gravimetric', 'recovery', 'lod', 'chromatography'];
+const MODES = ['edta', 'redox', 'gravimetric', 'recovery', 'lod', 'chromatography', 'equilibrium'];
 
 /** The metals the conditional-constant table covers, in the order shown. */
 const METALS = Object.keys(EDTA_FORMATION);
@@ -35,10 +37,20 @@ function parseNumbers(text) {
 }
 
 export default function AnalyticalTab({ onRecord, restored }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [mode, setMode] = useState(restored?.mode ?? 'edta');
   const [out, setOut] = useState(null);
   const [err, setErr] = useState(null);
+
+  /*
+   * Equilibrium. The preset id is the only state — the system itself lives in
+   * `equilibrium-presets.mjs`, because a user editing four equilibrium
+   * constants in text fields is a user who will mistype one and get a
+   * confidently wrong answer. The pH is adjustable because it is the variable
+   * these systems actually turn on.
+   */
+  const [eqPreset, setEqPreset] = useState(restored?.eqPreset ?? EQUILIBRIUM_PRESETS[0].id);
+  const [eqPh, setEqPh] = useState(restored?.eqPh ?? '7');
 
   // EDTA
   const [metal, setMetal] = useState(restored?.metal ?? 'Ca');
@@ -89,11 +101,20 @@ export default function AnalyticalTab({ onRecord, restored }) {
       const result = compute();
       setOut(result);
       setErr(null);
+      /*
+       * The equilibrium mode records the pH as an input, not only as an
+       * output: the pH is what the user set, and a replay that restored the
+       * preset without it would recompute a different answer than the one
+       * stored beside it.
+       */
+      const inputs = mode === 'equilibrium'
+        ? { mode, eqPreset, eqPh }
+        : { mode };
       onRecord({
         kind: 'analytical',
-        inputs: { mode },
+        inputs,
         outputs: result.record ?? {},
-        summary: recordSummary({ kind: 'analytical', inputs: { mode }, outputs: result.record ?? {} }, t),
+        summary: recordSummary({ kind: 'analytical', inputs, outputs: result.record ?? {} }, t),
       });
     } catch (e) {
       setErr(errorMessage(e, t));
@@ -147,6 +168,29 @@ export default function AnalyticalTab({ onRecord, restored }) {
       const res = resolution({ t1: n(t1), t2: n(t2), w1: n(w1), w2: n(w2) });
       const plates = theoreticalPlates({ retentionTime: n(t1), width: n(w1), widthBasis: 'baseline' });
       return { mode, res, plates, record: { resolution: res.resolution, plates: plates.plates } };
+    }
+    if (mode === 'equilibrium') {
+      const preset = presetById(eqPreset);
+      /*
+       * The preset's own pH is overridden by the field rather than the field
+       * being initialised from the preset and then forgotten. The two stay in
+       * step because the field is re-seeded whenever the preset changes — see
+       * the `onChange` on the preset select.
+       */
+      const spec = { ...preset.spec, ph: n(eqPh) };
+      const res = speciate(spec);
+      const top = res.species[0];
+      return {
+        mode,
+        preset,
+        res,
+        record: {
+          preset: eqPreset,
+          ph: res.ph,
+          topSpecies: top?.label ?? '',
+          topConc: top?.conc ?? 0,
+        },
+      };
     }
     return { mode };
   }
@@ -251,6 +295,43 @@ export default function AnalyticalTab({ onRecord, restored }) {
         }) },
       ];
     }
+    if (out.mode === 'equilibrium') {
+      /*
+       * This derivation is different in kind from the others on this tab, and
+       * the difference is worth stating in the panel rather than only in the
+       * source: there is no closed form to substitute into. The steps below
+       * are the equations the solver iterated, and the numbers are the
+       * converged values — so what the reader can check is that the
+       * equilibrium constants are satisfied, which is the only check available
+       * for a system with no analytic solution.
+       */
+      const free = Object.entries(out.res.free)
+        .map(([id, v]) => `${id} = ${fmtSci(v, 4)} M`)
+        .join('，');
+      return [
+        { term: t('common.formula'), value: t('common.worked_EquilibriumMassAction') },
+        { term: t('analytical.eqFree'), value: free },
+        ...out.preset.spec.complexes?.slice(0, 3).map((cx) => ({
+          term: cx.label ?? cx.id,
+          value: t('common.worked_EquilibriumComplex', {
+            logK: fmt(cx.logK, 3),
+            conc: fmtSci(out.res.species.find((s) => s.id === cx.id)?.conc ?? 0, 4),
+          }),
+        })) ?? [],
+        ...(out.preset.spec.solids ?? []).map((s) => {
+          const state = out.res.solids.find((x) => x.id === s.id);
+          return {
+            term: s.id,
+            value: state?.present
+              ? t('common.worked_EquilibriumSolid', {
+                logKsp: fmt(s.logKsp, 3), mass: fmtSci(state.precipitated, 4),
+              })
+              : t('analytical.equilibriumNoSolidFormed'),
+          };
+        }),
+        { term: t('analytical.eqResidual'), value: fmtSci(out.res.residual, 3) },
+      ];
+    }
     return null;
   }, [out, t, edtaConc, edtaVol, sampleVol, edtaPh, e1, e2, n1, n2, pptMass, sampleMass, spiked, unspiked, added, slope, t1, t2, w1, w2]);
 
@@ -339,8 +420,107 @@ export default function AnalyticalTab({ onRecord, restored }) {
         </>
       )}
 
+      {mode === 'equilibrium' && (
+        <>
+          <div className="field">
+            <label htmlFor="eq-preset">{t('analytical.eqPreset')}</label>
+            <select
+              id="eq-preset"
+              value={eqPreset}
+              onChange={(e) => {
+                /*
+                 * Re-seed the pH from the chosen preset. Without this the pH
+                 * field keeps the previous system's value, and switching from
+                 * the AgCl-in-ammonia preset at pH 9.5 to the copper one would
+                 * silently compute copper at 9.5 while the label says pH 10.
+                 */
+                const next = presetById(e.target.value);
+                setEqPreset(next.id);
+                setEqPh(String(next.spec.ph));
+                setOut(null);
+              }}
+            >
+              {EQUILIBRIUM_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>{p.label[locale] ?? p.label.zh}</option>
+              ))}
+            </select>
+            <div className="hint">{presetById(eqPreset).question[locale] ?? presetById(eqPreset).question.zh}</div>
+          </div>
+          <NumField label={t('analytical.eqPh')} value={eqPh} onChange={setEqPh}
+            hint={t('analytical.eqPhHint')} />
+        </>
+      )}
+
       <button className="primary" onClick={run}>{t('common.calc')}</button>
       {err && <Err>{err}</Err>}
+
+      {out?.mode === 'equilibrium' && (
+        <>
+          {/*
+            * A stalled solve is not a result. The residual is printed with it
+            * because "did not converge" without a number gives the user no way
+            * to tell a near miss from a system that is not solving at all.
+            */}
+          {out.res.converged ? (
+            <>
+              <Result
+                /*
+                 * fmtSci rather than fmt: a speciation answer has no lower
+                 * bound. The dominant species in the AgCl-in-water preset is
+                 * 1.3e-5 M, and a system with a smaller Ksp would put it far
+                 * lower; `fmt` would print 0.0000 for a number that is the
+                 * entire point of the calculation. The guard in
+                 * `test/ui-strings.test.mjs` caught this exact line.
+                 */
+                value={fmtSci(out.res.species[0]?.conc, 4)}
+                unit="mol/L"
+                note={t('analytical.eqNote', {
+                  species: out.res.species[0]?.label ?? '',
+                  ph: fmt(out.res.ph, 2),
+                })}
+                worked={worked} workedLabel={t('common.worked')}
+                rows={[
+                  ...out.res.species.slice(0, 6).map((s) => [
+                    s.label,
+                    `${fmtSci(s.conc, 3)} mol/L`,
+                  ]),
+                  [
+                    t('analytical.eqSolids'),
+                    out.res.solids.filter((s) => s.present).length > 0
+                      ? out.res.solids.filter((s) => s.present)
+                        .map((s) => `${s.id} ${fmtSci(s.precipitated, 3)} mol/L`).join('、')
+                      : t('analytical.eqNoSolid'),
+                  ],
+                ]}
+              />
+              {/*
+                * The charge imbalance is shown rather than hidden — a neutral
+                * salt solution ought to be electrically neutral, so a large
+                * residual means the component list is missing an ion, which is
+                * a fact about the input the user can act on.
+                *
+                * The threshold is absolute, not relative, and that is the
+                * correction to the first version. A relative test fires on the
+                * AgCl preset, whose imbalance is exactly [OH⁻] = 1e-7 M: that
+                * is water's own dissociation, not a missing ion, and warning
+                * about it teaches the user to ignore the warning. 1e-5 mol/L is
+                * far above any water term and far below any real missing
+                * counter-ion, which is present at the concentration of the salt.
+                */}
+              {Math.abs(out.res.chargeBalance) > 1e-5 && (
+                <Warn>{t('analytical.equilibriumChargeImbalance', {
+                  value: fmtSci(out.res.chargeBalance, 3),
+                })}</Warn>
+              )}
+            </>
+          ) : (
+            <Err>{t('analytical.equilibriumNotConverged', {
+              residual: fmtSci(out.res.residual, 3),
+            })}</Err>
+          )}
+          <div className="hint">{out.preset.source}</div>
+        </>
+      )}
 
       {out?.mode === 'edta' && (
         <>
