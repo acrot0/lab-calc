@@ -1043,7 +1043,7 @@ export const en = {
     era_ceCirca: 'c. AD {years}',
     noValue: '—',
     propertySource: 'Property data source: PubChem (public domain)',
-    discoverySource: 'Discovery dates: isolation year, hand-curated — PubChem marks aluminium and calcium "ancient", which is wrong',
+    discoverySource: "Discovery dates source: isolation year, from this project's curated table",
     unit_melt: 'K',
     unit_boil: 'K',
     unit_density: 'g/cm³',

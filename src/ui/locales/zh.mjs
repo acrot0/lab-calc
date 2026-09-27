@@ -1041,7 +1041,7 @@ export const zh = {
     era_ceCirca: '约公元 {years} 年',
     noValue: '—',
     propertySource: '物性数据来源：PubChem（公有领域）',
-    discoverySource: '发现年份：以「分离出单质」为准，人工校订——PubChem 把铝和钙标成「古代」，是错的',
+    discoverySource: '发现年份来源：以「分离出单质」为准，本项目的校订表',
     unit_melt: 'K',
     unit_boil: 'K',
     unit_density: 'g/cm³',

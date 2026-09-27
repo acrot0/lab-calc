@@ -164,6 +164,42 @@ describe('locale dictionaries', () => {
     walk(en);
   });
 
+  /*
+   * A hint that names a source must not also tell the correction story.
+   *
+   * `elements.discoverySource` shipped as "发现年份：以「分离出单质」为准，人工
+   * 校订——PubChem 把铝和钙标成「古代」，是错的" — a changelog entry in a
+   * user-facing caption. The correction belongs in the module docstring and
+   * NOTICE.md, which is where the reader who cares about provenance looks; a
+   * student checking aluminium's year does not need to be told that PubChem
+   * was wrong, and a caption that reads as an internal note makes the rest of
+   * the panel look like one.
+   *
+   * The sibling hints set the convention: "原子量来源：{source}" and
+   * "物性数据来源：PubChem（公有领域）" name a source and stop.
+   */
+  it('should not narrate past mistakes in a user-facing hint', () => {
+    // Phrases that only make sense to someone reading the repository's history.
+    const NARRATION = [
+      /是错的/, /标成/, /此前/, /原来/, /改(正|成)了/, /曾经/,
+      /was wrong/, /used to/, /previously/, /incorrectly marked/, /we fixed/,
+    ];
+    const offenders = [];
+    for (const [name, dict] of [['zh', zh], ['en', en]]) {
+      for (const key of paths(dict)) {
+        // Only the provenance captions: error messages legitimately explain
+        // what the user did wrong, and that is a different thing.
+        if (!/SourceNote$|Source$/.test(key)) continue;
+        const value = key.split('.').reduce((o, k) => o?.[k], dict);
+        if (typeof value !== 'string') continue;
+        for (const re of NARRATION) {
+          if (re.test(value)) offenders.push(`${name} ${key}: ${value.slice(0, 60)}`);
+        }
+      }
+    }
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+
   it('should translate every category the element table can produce', () => {
     // The element module grew a `metalloid` category and the label was missed,
     // so the legend rendered the raw key `elements.cat_metalloid` to users.
