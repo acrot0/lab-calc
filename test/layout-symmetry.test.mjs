@@ -68,7 +68,7 @@ describe('form card width', () => {
      * A track width cannot depend on what fills it, so it is stable across the
      * whole cycle. That is the property being guarded here.
      */
-    const splitRules = bodies('.split:not(:has(> .card.is-elements))');
+    const splitRules = bodies('.split:not(:has(> .card.is-elements)):not(:has(> .card.is-wide-result))');
     expect(splitRules.length, 'no width rule on the split track').toBeGreaterThan(0);
     const capped = splitRules.some((b) => /grid-template-columns:[^;]*612px/.test(b));
     expect(capped, 'the split track is not sized to the form width').toBe(true);
@@ -110,7 +110,7 @@ describe('form card width', () => {
   it('should keep the periodic table out of the width rule', () => {
     // Its .card-main holds an 18-column grid that needs the whole card; an
     // earlier cap squeezed it to 201px against the 764px it wanted.
-    const splitRules = bodies('.split:not(:has(> .card.is-elements))');
+    const splitRules = bodies('.split:not(:has(> .card.is-elements)):not(:has(> .card.is-wide-result))');
     expect(splitRules.length).toBeGreaterThan(0);
     expect(splitRules.some((b) => /grid-template-columns/.test(b))).toBe(true);
   });

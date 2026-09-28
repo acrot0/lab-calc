@@ -1293,8 +1293,17 @@ select.control {
  * The breakpoint is on the card's own width, not the viewport's: a card is only
  * wide enough to split when the rail and the history panel have both taken
  * their share, and a viewport query cannot see that.
+ *
+ * The threshold is 612px, matching the grid track that sizes this container
+ * (`.split:not(:has(> .card.is-elements)) { grid-template-columns: minmax(0,
+ * 612px) … }`). It was 620px, and 612 < 620, so this query never matched and
+ * every rule inside it was dead — the two-column results layout included. It
+ * looked close enough to right in the block flow that it survived two releases
+ * and the commit that introduced the 612px track, which verified the card
+ * width in a browser without checking that the query depending on it still
+ * fired. `test/container-query.test.mjs` now compares the two numbers.
  */
-@container card (min-width: 620px) {
+@container card (min-width: 612px) {
   /*
    * Two columns, and the reason they are two containers rather than one grid.
    *
@@ -1314,7 +1323,7 @@ select.control {
    * `Card.jsx` does the partitioning, so a tab writes its children in reading
    * order and never thinks about columns.
    */
-  .card:has(> .card-results):not(.is-elements) {
+  .card:has(> .card-results):not(.is-elements):not(.is-wide-result) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0 var(--s6);
@@ -1322,12 +1331,17 @@ select.control {
   }
 
   /* Each column is a plain block stack. `min-width: 0` lets a wide table inside
-     one scroll rather than forcing the column wider than its share. */
+     one scroll rather than forcing the column wider than its share.
+     `flex: 1` on the form column lets a tab's empty-state illustration take the
+     room the form leaves. Without it the column is content-height, the card's
+     remaining space belongs to nobody, and the drawing sits in a 158px strip
+     above 255px of nothing — measured on the dilution tab before this. */
   .card > .card-main,
   .card > .card-results {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    flex: 1;
   }
 
   /* Results are separated from each other, not from the column edge — the
@@ -1360,7 +1374,7 @@ select.control {
    * `:has()` gates it on there being a results column; a tab with no result yet
    * gets no line down the middle of an empty card.
    */
-  .card:has(> .card-results):not(.is-elements) {
+  .card:has(> .card-results):not(.is-elements):not(.is-wide-result) {
     background-image: linear-gradient(
       to right,
       transparent calc(50% - 0.5px),
@@ -1390,6 +1404,24 @@ select.control {
  * whatever cell is selected, and it stays put while the selection moves.
  */
 .card.is-elements {
+  display: block;
+}
+
+/*
+ * A card whose result is a sentence rather than a number.
+ *
+ * The two-column split gives each side 269px of a 612px card, which is right
+ * for a number and wrong for an equation: measured with `2KMnO4 + 16HCl ->
+ * 2KCl + 2MnCl2 + 8H2O + 5Cl2` as the headline, the 34px text wrapped to ten
+ * lines and 150px. Across six number-valued tabs the same element is 37px and
+ * one line at that width.
+ *
+ * Opting out is the same mechanism the periodic table uses, and for a related
+ * reason: that card's content is genuinely wider than a form, and this one's
+ * result is too. The split exists so a tall result cannot push the Calculate
+ * button down; a result that is column-width by nature has no such effect.
+ */
+.card.is-wide-result {
   display: block;
 }
 
@@ -1527,7 +1559,11 @@ select.control {
  * reach them. Measured before and after: 201px to 974px.
  */
 @media (min-width: 1100px) {
-  .split:not(:has(> .card.is-elements)) {
+  /* The 612px track is sized for the form column, and both opt-outs below need
+     the whole card: the periodic table because its grid is wider than a form,
+     and the reaction tab because its result is a sentence rather than a
+     number. Both take the flexible track instead. */
+  .split:not(:has(> .card.is-elements)):not(:has(> .card.is-wide-result)) {
     grid-template-columns: minmax(0, 612px) minmax(320px, 1fr);
   }
 }
@@ -6216,3 +6252,65 @@ body,
   cursor: pointer;
 }
 .undo-close:hover { color: var(--text); }
+
+/* ==========================================================================
+   Tab empty state
+
+   The space under a tab's form before it has been calculated. Sized to sit in
+   the gap rather than to fill it: a drawing stretched to 440px would dominate
+   a screen whose subject is the form above it. It is centred in whatever room
+   there is, and disappears the moment a result exists.
+   ========================================================================== */
+
+.tab-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /*
+   * Near the top of the gap, not centred in it.
+   *
+   * Centring was tried and measured: on the dilution tab the illustration
+   * landed 175px below the Calculate button, floating in the middle of a 389px
+   * void with nothing above or below it. Centring reads as "the content of
+   * this area is the drawing"; a drawing that is a placeholder for a result
+   * should instead read as sitting just under the thing that will replace it.
+   *
+   * So it is anchored with a fixed offset and the rest of the space is left
+   * empty on purpose — the empty space is where the result will go.
+   */
+  justify-content: flex-start;
+  gap: var(--s4);
+  /* Still grows, so the space is claimed rather than collapsing the layout. */
+  flex: 1;
+  min-height: 0;
+  padding: var(--s6) var(--s4);
+  /* Not a dashed outline: this is a placeholder for a result, not an empty slot
+     waiting to be dropped into. */
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.tab-empty .art {
+  margin: 0;
+  /* Held back so it reads as a watermark behind the form's subject, not as
+     content competing with it. The result that replaces it is full strength. */
+  opacity: 0.55;
+}
+
+.tab-empty-hint {
+  margin: 0;
+  max-width: 34ch;
+  font-size: var(--t-sm);
+  line-height: 1.7;
+}
+
+/* Light theme needs a touch more presence against the paler surface. */
+@media (prefers-color-scheme: light) {
+  .tab-empty .art { opacity: 0.62; }
+}
+
+/* On a phone the form already fills the screen; a placeholder would push the
+   Calculate button below the fold. */
+@media (max-width: 700px) {
+  .tab-empty { display: none; }
+}
