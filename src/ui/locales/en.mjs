@@ -1154,6 +1154,14 @@ export const en = {
     unit_ionization: 'eV',
     unit_electronegativity: 'Pauling',
   },
+  /*
+   * Short names for the bottom navigation, where a column is 53px wide.
+   * English has more room per character than CJK, so only the longest label
+   * needs one — see the note in `zh.mjs`.
+   */
+  tabsShort: {
+    elements: 'Elements',
+  },
   /* What a tab's result will look like, shown before anything is calculated. */
   empty: {
     weigh: 'You get the mass to weigh out, and how that mass was arrived at',

@@ -36,6 +36,20 @@ import { isPrimary, primaryTabs, secondaryTabs } from '../nav.mjs';
  */
 export default function MobileNav({ tabs, current, onSelect }) {
   const { t } = useI18n();
+
+  /*
+   * The nav's label for a tab: a short name where one exists, the tab's own
+   * title otherwise.
+   *
+   * A column here is 53px, which at 11.5px holds about four CJK characters.
+   * `元素周期表` is five and wrapped, so the bar showed five one-line labels
+   * beside one two-line one. The fallback is the absence of a `tabsShort` key,
+   * which `t` returns as the key itself.
+   */
+  function navLabel(id) {
+    const short = t(`tabsShort.${id}`);
+    return short === `tabsShort.${id}` ? t(`tabs.${id}`) : short;
+  }
   const [open, setOpen] = useState(false);
   const sheetRef = useRef(null);
 
@@ -99,7 +113,7 @@ export default function MobileNav({ tabs, current, onSelect }) {
                   onClick={() => choose(id)}
                 >
                   <Icon size={ICON_SIZE.display} aria-hidden="true" />
-                  <span>{t(`tabs.${id}`)}</span>
+                  <span>{navLabel(id)}</span>
                 </button>
               ))}
             </div>
@@ -117,7 +131,7 @@ export default function MobileNav({ tabs, current, onSelect }) {
             onClick={() => choose(id)}
           >
             <Icon size={ICON_SIZE.display} aria-hidden="true" />
-            <span>{t(`tabs.${id}`)}</span>
+            <span>{navLabel(id)}</span>
           </button>
         ))}
         <button

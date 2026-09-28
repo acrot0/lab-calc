@@ -25,18 +25,15 @@
 /**
  * The two materials.
  *
- * There is no chooser: the OS decides. The names are still here because the CSS
- * matches on them and `applyMaterial` validates against the list, so a typo in
- * the provider fails at the boundary rather than silently styling nothing.
+ * There is no chooser: the OS decides. The list stays private because it is an
+ * implementation detail of `applyMaterial` — the CSS knows the names, and the
+ * only entry point is `applyMaterial`, which validates against this list so a
+ * typo in the provider fails at the boundary rather than silently styling
+ * nothing.
  */
-export const MATERIALS = ['frosted', 'solid'];
+const MATERIALS = ['frosted', 'solid'];
 
-export const DEFAULT_MATERIAL = 'frosted';
-
-/** Anything unrecognised resolves to the default rather than to no material. */
-export function detectMaterial(value) {
-  return MATERIALS.includes(value) ? value : DEFAULT_MATERIAL;
-}
+const DEFAULT_MATERIAL = 'frosted';
 
 /**
  * Publish the choice on the document element, where the stylesheet reads it.
@@ -48,7 +45,8 @@ export function detectMaterial(value) {
  */
 export function applyMaterial(root, material) {
   if (!root?.dataset) return;
-  root.dataset.material = detectMaterial(material);
+  // Anything unrecognised resolves to the default rather than to no material.
+  root.dataset.material = MATERIALS.includes(material) ? material : DEFAULT_MATERIAL;
 }
 
 /**

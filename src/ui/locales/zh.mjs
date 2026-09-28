@@ -1157,6 +1157,22 @@ export const zh = {
   // is what a screen reader announces. Both are required — a diagram whose
   // point is only visible is a diagram half the readers cannot use.
   /*
+   * Short names for the bottom navigation, where a column is 53px wide.
+   *
+   * Only the ones that need it. At 11.5px, 53px holds about four CJK
+   * characters: measured, `pH 计算` is 41px and fits, `元素周期表` is 49px and
+   * wraps — so the nav showed five one-line labels and one two-line one, which
+   * reads as a mistake rather than as a long word. The tab's own title stays
+   * `元素周期表` everywhere else; this is the nav's name for it, not a rename.
+   *
+   * `word-break: break-word` on the nav label stays: it is what keeps a
+   * genuinely long word from overflowing, and with these names nothing needs
+   * to break.
+   */
+  tabsShort: {
+    elements: '周期表',
+  },
+  /*
    * What a tab's result will look like, shown before anything is calculated.
    *
    * Not a restatement of the field labels above — those already say what goes

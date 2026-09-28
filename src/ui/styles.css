@@ -278,7 +278,8 @@
 
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
   [data-material="frosted"] .topbar,
-  [data-material="frosted"] .rail {
+  [data-material="frosted"] .rail,
+  [data-material="frosted"] .mobile-nav {
     -webkit-backdrop-filter: blur(16px) saturate(180%);
     backdrop-filter: blur(16px) saturate(180%);
   }
@@ -448,6 +449,11 @@ body {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--t-xl);
+  /* A 26px wordmark has one break opportunity — the space — so a long single
+     word would run past the viewport. `anywhere` lets the engine break inside
+     a word as a last resort, and changes nothing until it has to. */
+  overflow-wrap: anywhere;
+  min-width: 0;
   /* 600, not 700. Geist is a variable face so the weight is real rather than
      synthesised, and 600 is where a 26px wordmark reads as deliberate without
      the counters starting to close up. */
@@ -816,9 +822,19 @@ select.control {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--chrome, var(--surface));
   border-top: 1px solid var(--border);
-  /* A blur behind it, so content scrolling under the bar reads as behind it
-     rather than as cut off by it. */
-  backdrop-filter: blur(12px);
+  /*
+   * No `backdrop-filter` here.
+   *
+   * It used to carry its own `blur(12px)`, which was wrong twice over. Declared
+   * outside the `@supports` block, it blurred in *both* materials — and in
+   * solid mode the background is opaque, so the blur was invisible and the
+   * browser still paid for it every frame. It also never picked up the
+   * `saturate(180%)` the topbar and rail share, so one material rendered two
+   * ways in the same viewport.
+   *
+   * The blur belongs with the rest of the frosted treatment, which is where it
+   * now is. `test/material.test.mjs` keeps it there.
+   */
 }
 
 .mobile-nav-item {
@@ -1996,6 +2012,11 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   letter-spacing: -0.025em;
   line-height: 1.1;
   color: var(--accent);
+  /* The headline can be a sentence rather than a number — a balanced equation
+     is the case that exists today. At 34px in a narrow column a long formula
+     has no break opportunity and would overflow rather than wrap. */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .result-main .unit {
