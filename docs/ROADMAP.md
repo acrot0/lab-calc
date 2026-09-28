@@ -8,7 +8,7 @@ sequencing has dependencies that are not obvious from the feature list.
 20 calculation tabs, a 118-element periodic table with exam properties, six
 charts drawn from the calculations themselves, bilingual UI, ten themes plus
 follow-the-system and a user override layer, PWA-installable, offline-capable,
-and signed desktop builds with a working update channel. 2,570 tests. No
+and signed desktop builds with a working update channel. 2,571 tests. No
 charting dependency — the charts are hand-drawn canvas, and the .xlsx writer is
 hand-written too.
 
@@ -26,7 +26,16 @@ section restores, and the exported backup includes what was deleted — otherwis
 
 The calculator panel works on a phone: 44px touch targets, a bottom sheet that
 lifts clear of the software keyboard, and a two-column layout when the phone is
-held sideways.
+held sideways. On a coarse pointer the panel carries its own keypad — the entry
+goes read-only, so the system keyboard never covers the result the user is
+reading.
+
+**The navigation is the user's.** Which tabs the phone bar holds, and in what
+order, is one preference shared by the phone bar and the desktop rail. Dragging
+a tab to the front on a phone moves it to the top of the rail on the desktop.
+The bar is held to the 3–5 destinations both platform guidelines specify, and
+every tab stays reachable through More — the point is to put what you use in
+front, not to hide anything.
 
 **Live: <https://acrot0.github.io/lab-calc/>**
 
@@ -185,6 +194,41 @@ commercial tools. Written for a reader deciding whether to trust it.
 Re-checked against the code on 2026-09-26, which found two sections that had
 gone stale: the activity-correction claim (said to be limited to the reagent
 tab, and it is not) and a duplicated list of idealisation caveats.
+
+### Phase 9 — Personalisation beyond the nav — next
+
+The nav order shipped. The same question applies to the rest of the interface:
+what does a given user actually reach for, and what is in the way.
+
+- **A pinned record field.** The record template already lets a user choose which
+  fields exist and in what order (`field-template.mjs`). What it does not do is
+  remember what a *particular* record needs — a titration wants the burette
+  reading, a buffer wants the pH meter. Per-record-kind defaults are the next
+  step, and the storage shape is already there.
+- **A tab's own default mode.** Several tabs open on the first of two or three
+  modes. Which one a user wants is stable across sessions — a student doing
+  buffers is not doing dilutions tomorrow — so the last mode used is the right
+  default, and it is one field in the same preference store the nav uses.
+- **The recent list, ordered by use.** The nav editor could offer "put my most
+  used in the bar" as a starting arrangement rather than as a permanent sort.
+  Deliberately a starting point: a bar that reorders itself under the user is
+  the thing the whole design avoids.
+
+### Phase 10 — Uncertainty everywhere it applies
+
+Uncertainty reaches seven tabs. The remaining ones are the cases where the
+honest answer is that there is no instrument involved — a unit conversion has no
+±, and inventing one would be inventing a measurement. Worth a pass to say so
+explicitly on those tabs rather than leaving a silent absence, which reads as an
+oversight rather than a decision.
+
+### Phase 11 — Accessibility audit
+
+Not a feature: a measurement. The app has never been run through a screen reader
+end to end, and the nav editor's keyboard reorder is the first interaction
+written with that in mind. An audit would find the rest — the charts are canvas
+and need `aria-label` text summaries, the periodic table is 118 focusable cells,
+and the history list reorders under a filter.
 
 ## Out of scope
 

@@ -36,11 +36,20 @@ async function mountEditor(props = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
+  /*
+   * Wrapped in `StrictMode`, as `main.jsx` does.
+   *
+   * StrictMode calls a `setState` updater twice to surface a side effect inside
+   * one, and the provider writes to storage on every change — so the doubled
+   * call is the thing to keep honest. Mounting without it would test a shape
+   * the app never runs in.
+   */
   await act(async () => {
     root.render(
-      React.createElement(LocaleProvider, { store },
-        React.createElement(NavOrderProvider, { allIds: ALL_IDS, store },
-          React.createElement(NavEditor, { tabs: TABS, onClose: props.onClose ?? (() => {}) }))),
+      React.createElement(React.StrictMode, null,
+        React.createElement(LocaleProvider, { store },
+          React.createElement(NavOrderProvider, { allIds: ALL_IDS, store },
+            React.createElement(NavEditor, { tabs: TABS, onClose: props.onClose ?? (() => {}) })))),
     );
   });
   mounted = {
@@ -164,6 +173,40 @@ describe('the navigation editor', () => {
     expect(shown(c)).toEqual(ALL_IDS);
     expect(c.querySelectorAll('.nav-editor-item.is-in-bar')).toHaveLength(5);
     expect(store.getItem(NAV_STORAGE_KEY)).toBeNull();
+  });
+
+  it('should write the preference once per change, not once per render pass', async () => {
+    /*
+     * The provider persists on every change. Doing that from inside a
+     * `setState` updater would run the write twice under StrictMode — React
+     * calls an updater twice by design, to surface exactly that — and React
+     * logs a purity warning. The write belongs beside the state change, not
+     * inside it.
+     */
+    let writes = 0;
+    const counting = {
+      getItem: (k) => store.getItem(k),
+      removeItem: (k) => store.removeItem(k),
+      setItem: (k, v) => { writes += 1; store.setItem(k, v); },
+    };
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        React.createElement(React.StrictMode, null,
+          React.createElement(LocaleProvider, { store: counting },
+            React.createElement(NavOrderProvider, { allIds: ALL_IDS, store: counting },
+              React.createElement(NavEditor, { tabs: TABS, onClose: () => {} })))),
+      );
+    });
+    const before = writes;
+    await act(async () => {
+      container.querySelectorAll('.nav-editor-stepper .icon-btn')[0].click();
+    });
+    expect(writes - before, 'one size change should write once').toBe(1);
+    await act(async () => { root.unmount(); });
+    container.remove();
   });
 
   it('should announce the position of a held item', async () => {

@@ -1,5 +1,5 @@
 import React, {
-  createContext, useCallback, useContext, useMemo, useState,
+  createContext, useCallback, useContext, useMemo, useRef, useState,
 } from 'react';
 import {
   BAR_SIZE, barTabs, clampBar, clearNav, loadNav, moveItem, saveNav, resolveStore,
@@ -43,41 +43,55 @@ export function NavOrderProvider({ allIds, children, store: storeProp }) {
   const [state, setState] = useState(() => loadNav(store, allIds));
   const { order, size } = state;
 
+  /*
+   * The current state, readable without re-creating every setter.
+   *
+   * The setters below compute their result from it rather than from a `setState`
+   * updater, because they also have to write to storage — and a write inside an
+   * updater is a side effect in a function React requires to be pure. Under
+   * `StrictMode`, which `main.jsx` uses, React calls an updater twice to surface
+   * exactly this; the write would run twice, and React logs a warning about it.
+   *
+   * A ref rather than a dependency: putting `state` in each setter's dep list
+   * would rebuild all four on every change, which is what the `useCallback`s
+   * exist to avoid.
+   */
+  const latest = useRef(state);
+  latest.current = state;
+
+  /**
+   * Apply a change: compute it, persist it, publish it.
+   *
+   * One path for all four setters, so none of them can forget the write or
+   * write a value it did not publish.
+   */
+  const apply = useCallback((next) => {
+    const updated = next(latest.current);
+    saveNav(store, updated);
+    setState(updated);
+  }, [store]);
+
   /** Commit a new order, persisting it. */
   const setOrder = useCallback((next) => {
-    setState((prev) => {
-      const updated = { order: next, size: prev.size };
-      saveNav(store, updated);
-      return updated;
-    });
-  }, [store]);
+    apply((prev) => ({ order: next, size: prev.size }));
+  }, [apply]);
 
   /** Move one tab, persisting the result. */
   const move = useCallback((from, to) => {
-    setState((prev) => {
-      const updated = { order: moveItem(prev.order, from, to), size: prev.size };
-      saveNav(store, updated);
-      return updated;
-    });
-  }, [store]);
+    apply((prev) => ({ order: moveItem(prev.order, from, to), size: prev.size }));
+  }, [apply]);
 
   /** Change how many tabs the bar holds. Clamped to the 3–5 the platforms allow. */
   const setSize = useCallback((n) => {
-    setState((prev) => {
-      const updated = { order: prev.order, size: clampBar(n) };
-      saveNav(store, updated);
-      return updated;
-    });
-  }, [store]);
+    apply((prev) => ({ order: prev.order, size: clampBar(n) }));
+  }, [apply]);
 
   /** Drop the stored preference and fall back to the app's own order. */
   const reset = useCallback(() => {
-    setState(() => {
-      clearNav(store);
-      // Read back rather than constructing: `loadNav` on an empty store is the
-      // one definition of "the default", so the reset cannot drift from it.
-      return loadNav(store, allIds);
-    });
+    clearNav(store);
+    // Read back rather than constructing: `loadNav` on an empty store is the one
+    // definition of "the default", so the reset cannot drift from it.
+    setState(loadNav(store, allIds));
   }, [store, allIds]);
 
   const value = useMemo(() => ({
