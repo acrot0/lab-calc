@@ -156,3 +156,38 @@ describe('the exported Type column', () => {
     expect(cell).toBe(zh.kinds.bio);
   });
 });
+
+describe('the README feature table', () => {
+  /*
+   * Both READMEs carry a table with one row per tab. It had 16 rows against 20
+   * tabs — biology, uncertainty, lab data and physical chemistry were missing
+   * — and nothing could have caught it: the README is prose, and prose about
+   * the product is unverified by construction.
+   *
+   * This is the cheapest possible guard: the tab ids are in `App.jsx`, the
+   * rows are in the README, and the two counts have to match. It does not
+   * check that a row *describes* its tab well — that is a judgement — only
+   * that no tab is missing from the list a reader uses to decide whether the
+   * app does what they need.
+   */
+  const APP = fs.readFileSync(path.resolve(TABS, '../App.jsx'), 'utf8');
+  const TAB_COUNT = [...APP.matchAll(/Component:\s*\w+Tab/g)].length;
+
+  it('should have found the tabs in App.jsx', () => {
+    expect(TAB_COUNT, 'the App.jsx tab table was not matched').toBeGreaterThan(15);
+  });
+
+  for (const [file, header, end] of [
+    ['README.md', '| 标签页 | 算什么 |', '历史记录可导出为'],
+    ['README.en.md', '| Tab | What it works out |', 'History exports as'],
+  ]) {
+    it(`should list every tab in ${file}`, () => {
+      const src = fs.readFileSync(path.resolve(TABS, '../../../', file), 'utf8');
+      const from = src.indexOf(header);
+      expect(from, `${file} has no feature table`).toBeGreaterThan(-1);
+      const to = src.indexOf(end, from);
+      const rows = [...src.slice(from, to).matchAll(/^\| \*\*[^*]+\*\* \|/gm)].length;
+      expect(rows, `${file} documents ${rows} of ${TAB_COUNT} tabs`).toBe(TAB_COUNT);
+    });
+  }
+});
