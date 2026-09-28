@@ -87,16 +87,28 @@ export const shownFor = (out, key, value) => (
  * built only from monoisotopic elements.
  */
 export function fmtMeasured(value, unc, { digits = 4, unit = '' } = {}) {
-  if (!Number.isFinite(value)) return { text: '—', uncText: '' };
+  if (!Number.isFinite(value)) return { text: '—', uncText: '', value: '—', uncValue: '' };
   if (!Number.isFinite(unc) || unc === 0) {
-    return { text: `${fmtSci(value, digits)}${unit}`, uncText: '' };
+    const bare = fmtSci(value, digits);
+    return { text: `${bare}${unit}`, uncText: '', value: bare, uncValue: '' };
   }
   const pair = roundPair({ value, unc });
   // The decimal count of the rounded uncertainty, which is also the value's.
   const places = decimalsOf(pair.unc);
+  const bare = fmt(pair.value, places);
+  const bareUnc = `± ${fmt(pair.unc, places)}`;
+  /*
+   * `value`/`uncValue` carry the numbers with no unit, and `text`/`uncText`
+   * carry them with one. Both are needed: a caller rendering the unit as its
+   * own element (the result panel does, so it can be styled apart from the
+   * digits) must use the bare pair or the unit prints twice. The combined pair
+   * stays for the callers that put the whole thing in one string.
+   */
   return {
-    text: `${fmt(pair.value, places)}${unit}`,
-    uncText: `± ${fmt(pair.unc, places)}${unit}`,
+    text: `${bare}${unit}`,
+    uncText: `${bareUnc}${unit}`,
+    value: bare,
+    uncValue: bareUnc,
   };
 }
 

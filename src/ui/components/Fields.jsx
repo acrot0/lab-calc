@@ -322,10 +322,36 @@ export function Result({ value, unit, note, rows, worked, workedLabel, unc, titl
    * from a stable `value` that is coerced to a string here rather than after
    * the null check.
    */
-  const shown = useNumberReveal(value ?? '', [String(value ?? '')]);
+  /*
+   * When the tab computed an uncertainty, the headline number must be the one
+   * `roundPair` produced — not the tab's own `fmtSci(value, 3)`.
+   *
+   * These are two different roundings and they disagree whenever the
+   * uncertainty is finer than three significant figures. Weighing 14.6099 g
+   * with a balance whose combined term is ±0.00017 g rendered as:
+   *
+   *     14.61 g          ← fmtSci(out.massG, 3)
+   *     ± 0.00017 g      ← roundPair, which put the value at 14.6099
+   *
+   * The ± line claims four decimals of resolution while the number above it
+   * shows two. A reader taking only the headline — which the panel's own
+   * comment says they will — gets a figure two digits coarser than the
+   * measurement supports, and the card contradicts itself.
+   *
+   * `fmtMeasured` returns the pair precisely so the two cannot diverge, and
+   * every call site already spreads it into `unc`. The `text` half was being
+   * computed and then discarded on the assumption, written into the comment
+   * that used to be here, that it always equals the headline. It does not.
+   *
+   * The unit is not appended here: `unc.value` is the bare number, and `unit`
+   * is already rendered as its own span below. Taking `unc.text` instead
+   * printed it twice.
+   */
+  const headline = unc?.value ?? value;
+  const shown = useNumberReveal(headline ?? '', [String(headline ?? '')]);
 
   if (value === null || value === undefined) return null;
-  const stamp = `${value}|${rows?.map(([k, v]) => `${k}${v}`).join(',') ?? ''}`;
+  const stamp = `${headline}|${rows?.map(([k, v]) => `${k}${v}`).join(',') ?? ''}`;
   return (
     <div className="result" role="status" aria-live="polite">
       <div className="result-body" key={stamp}>
@@ -341,7 +367,7 @@ export function Result({ value, unit, note, rows, worked, workedLabel, unc, titl
             gets the value once, immediately, while the visible text resolves.
           */}
           <span aria-hidden="true">{shown}</span>
-          <span className="sr-only">{value}</span>
+          <span className="sr-only">{headline}</span>
           {unit && <span className="unit">{unit}</span>}
         </div>
         {/*
@@ -353,12 +379,12 @@ export function Result({ value, unit, note, rows, worked, workedLabel, unc, titl
         {unc && (unc.uncText || unc.detail) && (
           <div className="result-unc" title={unc.detail ?? undefined}>
             {/*
-              The ± half only. `fmtMeasured` returns the value and the
-              uncertainty as a pair, and the value is already the headline
-              number directly above — rendering it again here printed the mass
-              twice and left the ± out entirely.
+              The ± half only. The value half is the headline directly above,
+              and printing it again here would state the mass twice. Bare
+              rather than `uncText` for the same reason as the headline: the
+              unit is its own span below.
             */}
-            {unc.uncText && <span className="result-unc-value">{unc.uncText}</span>}
+            {unc.uncValue && <span className="result-unc-value">{unc.uncValue}</span>}
             {unc.detail && <span className="result-unc-detail">{unc.detail}</span>}
           </div>
         )}
@@ -371,7 +397,13 @@ export function Result({ value, unit, note, rows, worked, workedLabel, unc, titl
           </div>
         )}
         <ShareButton
-          value={value}
+          /*
+           * The same pair the panel shows, so the exported image cannot state
+           * a different precision from the screen it was taken from. `note`
+           * is used when there is no uncertainty, which is the tab's own
+           * one-line description of what it computed.
+           */
+          value={headline}
           unit={unit}
           note={unc?.uncText || note || ''}
           rows={rows}

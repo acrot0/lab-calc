@@ -151,3 +151,62 @@ describe('Card', () => {
     expect(html).toContain('card is-elements');
   });
 });
+
+describe('Result precision agreement', () => {
+  /*
+   * The card must not state two different precisions for one measurement.
+   *
+   * Measured on the shipped build, weighing 14.6099 g with a balance whose
+   * combined standard uncertainty is ±0.00017 g:
+   *
+   *     14.61 g        ← the tab's own fmtSci(out.massG, 3)
+   *     ± 0.00017 g    ← roundPair, which put the value at 14.6099
+   *
+   * The headline came from the tab and the ± line came from the uncertainty,
+   * so the two were rounded independently. The ± line claimed four decimals
+   * while the number above it showed two, and a reader who took only the
+   * headline — which the panel's own comment says they will — got a figure two
+   * digits coarser than the measurement supports.
+   *
+   * `fmtMeasured` returns the pair precisely so the two cannot diverge, and
+   * every tab already spreads it into `unc`. `Result` was discarding the pair's
+   * `value` half and rendering the tab's own number instead. These tests render
+   * the real component, because that is where the defect lived — asserting on
+   * `fmtMeasured` alone passed while the panel was still wrong.
+   */
+  const renderResult = (props) => renderToStaticMarkup(
+    React.createElement(LocaleProvider, null,
+      React.createElement(Result, props)),
+  );
+
+  /** The headline text: the visually-hidden twin carries it unmasked. */
+  const headlineOf = (html) => /<span class="sr-only">([^<]*)<\/span>/.exec(html)?.[1];
+
+  it('should take the headline from the uncertainty pair, not the coarse value', () => {
+    const html = renderResult({
+      value: '14.61',
+      unit: 'g',
+      unc: { value: '14.6099', uncValue: '± 0.00017', uncText: '± 0.00017 g' },
+    });
+    expect(headlineOf(html)).toBe('14.6099');
+    expect(html).toContain('± 0.00017');
+  });
+
+  it('should not print the unit twice when the pair carries one', () => {
+    // `unc.value` is the bare number and the unit is its own span. Using
+    // `unc.text` here emitted "14.6099 g" followed by a separate "g".
+    const html = renderResult({
+      value: '14.61',
+      unit: 'g',
+      unc: { value: '14.6099', uncValue: '± 0.00017', uncText: '± 0.00017 g' },
+    });
+    const main = html.slice(html.indexOf('result-main'), html.indexOf('result-unc'));
+    expect((main.match(/g</g) ?? []).length).toBe(1);
+  });
+
+  it('should fall back to the plain value when there is no uncertainty', () => {
+    // Most tabs compute no budget; their headline is their own formatted value.
+    const html = renderResult({ value: '14.61', unit: 'g' });
+    expect(headlineOf(html)).toBe('14.61');
+  });
+});
