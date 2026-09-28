@@ -102,7 +102,7 @@ export function ArtEmptyHistory() {
         d="M27 40h19M27 48h19M27 56h13"
         stroke="var(--text-dim)"
         strokeOpacity="0.3"
-        strokeWidth="1.6"
+        strokeWidth="1.2"
         strokeLinecap="round"
       />
 
@@ -112,19 +112,19 @@ export function ArtEmptyHistory() {
         fill={`url(#${u}-glass)`}
         stroke="var(--accent)"
         strokeOpacity="0.6"
-        strokeWidth="1.6"
+        strokeWidth="1.2"
         strokeLinejoin="round"
       />
       {/* The liquid level: a bright band at the surface reads as a meniscus. */}
       <path d="M56 52h19l5.5 14a3 3 0 0 1-2.8 4H53.3a3 3 0 0 1-2.8-4Z" fill="var(--accent)" opacity="0.55" />
-      <path d="M56.6 52h17.8" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M56.6 52h17.8" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" />
 
       {/* Rising bubbles. */}
       <circle cx="63" cy="62" r="2.4" fill="var(--accent)" opacity="0.85" />
       <circle cx="69" cy="58" r="1.7" fill="var(--accent)" opacity="0.7" />
 
       {/* The neck highlight — the one detail that says "glass" rather than "shape". */}
-      <path d="M62.5 25v10" stroke="white" strokeOpacity="0.5" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M62.5 25v10" stroke="white" strokeOpacity="0.5" strokeWidth="0.6" strokeLinecap="round" />
     </Art>
   );
 }
@@ -157,16 +157,16 @@ export function ArtEmptySearch() {
         ry="9"
         stroke="var(--text-dim)"
         strokeOpacity="0.4"
-        strokeWidth="1.5"
+        strokeWidth="1.2"
       />
-      <path d="M20 54v5a24 9 0 0 0 48 0v-5" stroke="var(--text-dim)" strokeOpacity="0.28" strokeWidth="1.5" />
+      <path d="M20 54v5a24 9 0 0 0 48 0v-5" stroke="var(--text-dim)" strokeOpacity="0.28" strokeWidth="1.2" />
 
       {/* The magnifier, tilted. */}
       <circle cx="38" cy="34" r="15" fill="var(--surface-2)" fillOpacity="0.5" />
       <circle cx="38" cy="34" r="15" stroke="var(--accent)" strokeWidth="2.4" strokeOpacity="0.85" />
       {/* Lens glint. */}
-      <path d="M30 27a10 10 0 0 1 6-3" stroke="white" strokeOpacity="0.55" strokeWidth="2" strokeLinecap="round" />
-      <path d="M49 45l9 9" stroke="var(--accent)" strokeWidth="3.4" strokeLinecap="round" strokeOpacity="0.85" />
+      <path d="M30 27a10 10 0 0 1 6-3" stroke="white" strokeOpacity="0.55" strokeWidth="0.6" strokeLinecap="round" />
+      <path d="M49 45l9 9" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeOpacity="0.85" />
     </Art>
   );
 }
@@ -201,7 +201,7 @@ export function ArtReaction() {
         fill={`url(#${u}-g)`}
         stroke="var(--accent)"
         strokeOpacity="0.65"
-        strokeWidth="1.8"
+        strokeWidth="1.2"
         strokeLinejoin="round"
       />
 
@@ -210,7 +210,7 @@ export function ArtReaction() {
         d="M31.5 52h33L74 68.5a3.5 3.5 0 0 1-3.2 4.9H25.2A3.5 3.5 0 0 1 22 68.5Z"
         fill={`url(#${u}-l)`}
       />
-      <path d="M32 52h32" stroke="var(--accent)" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M32 52h32" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" />
 
       {/* Bubbles rising through the liquid. */}
       <circle cx="38" cy="63" r="3" fill="var(--accent)" opacity="0.9" />
@@ -219,10 +219,10 @@ export function ArtReaction() {
       <circle cx="59" cy="61" r="1.3" fill="var(--accent)" opacity="0.55" />
 
       {/* Neck glint. */}
-      <path d="M40.5 16v11" stroke="white" strokeOpacity="0.5" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M40.5 16v11" stroke="white" strokeOpacity="0.5" strokeWidth="0.6" strokeLinecap="round" />
 
       {/* The rim, drawn last so it sits above the body outline. */}
-      <path d="M35 12h26" stroke="var(--accent)" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M35 12h26" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" />
     </Art>
   );
 }
@@ -250,17 +250,17 @@ export function ArtBalance() {
       <ellipse cx="48" cy="78" rx="24" ry="3.2" fill="var(--text-dim)" opacity="0.13" />
 
       {/* Column and base. */}
-      <path d="M48 30v38" stroke="var(--text-dim)" strokeOpacity="0.5" strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M34 70h28" stroke="var(--text-dim)" strokeOpacity="0.5" strokeWidth="3" strokeLinecap="round" />
+      <path d="M48 30v38" stroke="var(--text-dim)" strokeOpacity="0.5" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M34 70h28" stroke="var(--text-dim)" strokeOpacity="0.5" strokeWidth="2.4" strokeLinecap="round" />
 
       {/* The beam, level — the resting state. */}
       <path d="M20 30h56" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeOpacity="0.85" />
       <circle cx="48" cy="30" r="3.6" fill="var(--accent)" opacity="0.9" />
 
       {/* Two pans, hung from the beam ends. */}
-      <path d="M20 30v6M76 30v6" stroke="var(--text-dim)" strokeOpacity="0.45" strokeWidth="1.4" />
-      <path d="M12 36h16l-3 8a5 5 0 0 1-10 0Z" fill={`url(#${u}-pan)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.4" strokeLinejoin="round" />
-      <path d="M68 36h16l-3 8a5 5 0 0 1-10 0Z" fill={`url(#${u}-pan)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M20 30v6M76 30v6" stroke="var(--text-dim)" strokeOpacity="0.45" strokeWidth="1.2" />
+      <path d="M12 36h16l-3 8a5 5 0 0 1-10 0Z" fill={`url(#${u}-pan)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M68 36h16l-3 8a5 5 0 0 1-10 0Z" fill={`url(#${u}-pan)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.2" strokeLinejoin="round" />
     </Art>
   );
 }
@@ -293,12 +293,12 @@ export function ArtCylinder() {
         fill={`url(#${u}-cyl)`}
         stroke="var(--accent)"
         strokeOpacity="0.55"
-        strokeWidth="1.6"
+        strokeWidth="1.2"
         strokeLinejoin="round"
       />
       {/* Liquid to just over half, with a surface line. */}
       <path d="M35 48h26v24a3 3 0 0 1-3 3H38a3 3 0 0 1-3-3Z" fill="var(--accent)" opacity="0.5" />
-      <path d="M35.5 48h25" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+      <path d="M35.5 48h25" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" />
 
       {/* Graduations, shorter on the minor marks. */}
       <path
@@ -308,11 +308,11 @@ export function ArtCylinder() {
         strokeWidth="1.2"
         strokeLinecap="round"
       />
-      <path d="M38 24h9M38 56h9" stroke="var(--text-dim)" strokeOpacity="0.62" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M38 24h9M38 56h9" stroke="var(--text-dim)" strokeOpacity="0.62" strokeWidth="1.2" strokeLinecap="round" />
 
       {/* The pour spout, which is what makes it read as a cylinder and not a tube. */}
-      <path d="M34 18l-3-5h34l-3 5" stroke="var(--accent)" strokeOpacity="0.55" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M37 22v8" stroke="white" strokeOpacity="0.45" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M34 18l-3-5h34l-3 5" stroke="var(--accent)" strokeOpacity="0.55" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M37 22v8" stroke="white" strokeOpacity="0.45" strokeWidth="0.6" strokeLinecap="round" />
     </Art>
   );
 }
@@ -339,18 +339,18 @@ export function ArtConvert() {
       <ellipse cx="48" cy="76" rx="34" ry="3.2" fill="var(--text-dim)" opacity="0.13" />
 
       {/* Left beaker. */}
-      <path d="M10 26h26v42a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3Z" fill={`url(#${u}-b1)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M10 26h26v42a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3Z" fill={`url(#${u}-b1)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.2" strokeLinejoin="round" />
       <path d="M11 48h24v20a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2Z" fill="var(--accent)" opacity="0.5" />
-      <path d="M11.5 48h23" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M11.5 48h23" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" />
 
       {/* Right beaker, same level. */}
-      <path d="M60 26h26v42a3 3 0 0 1-3 3H63a3 3 0 0 1-3-3Z" fill={`url(#${u}-b1)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M60 26h26v42a3 3 0 0 1-3 3H63a3 3 0 0 1-3-3Z" fill={`url(#${u}-b1)`} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.2" strokeLinejoin="round" />
       <path d="M61 48h24v20a2 2 0 0 1-2 2H63a2 2 0 0 1-2-2Z" fill="var(--accent)" opacity="0.5" />
-      <path d="M61.5 48h23" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M61.5 48h23" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" />
 
       {/* The arrow, in the gap. */}
-      <path d="M40 46h16" stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
-      <path d="M52 41l5 5-5 5" stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" strokeOpacity="0.8" />
+      <path d="M40 46h16" stroke="var(--text-mid)" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.8" />
+      <path d="M52 41l5 5-5 5" stroke="var(--text-mid)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" strokeOpacity="0.8" />
     </Art>
   );
 }
