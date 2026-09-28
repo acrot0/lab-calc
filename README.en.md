@@ -266,7 +266,7 @@ On a phone the calculator is a bottom sheet, with touch targets ≥44px, and the
 npm install
 npm run dev      # dev server
 npm run build    # build to dist/, plain static files, hostable anywhere
-npm test         # 2525 tests
+npm test         # 2534 tests
 npm run verify   # import integrity + icon metrics + licences + authorship + 20 smoke checks against known answers
 ```
 
@@ -277,7 +277,7 @@ npm run verify   # import integrity + icon metrics + licences + authorship + 20 
 | **Themes** | 10 (Catppuccin, Rosé Pine, Gruvbox, Solarized) + follow-system + custom accent, radius, density and motion |
 | **Export** | Excel (.xlsx) · CSV · Markdown · PDF report · JSON backup (re-importable) |
 | **Licence** | MIT |
-| **Status** | v1.1.0 · 2525 tests passing / 125 files · all three platforms green in CI |
+| **Status** | v1.1.0 · 2534 tests passing / 126 files · all three platforms green in CI |
 
 ## Structure
 
