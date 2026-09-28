@@ -2,8 +2,10 @@ import React, { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspens
 import { Icons, ICON_SIZE } from './icons.jsx';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, restoreEntry, clearHistory,
-  planReplay, setEntryMeta, visibleEntries, deletedEntries, MAX_ENTRIES,
+  planReplay, replayInputs, setEntryMeta, visibleEntries, deletedEntries, MAX_ENTRIES,
 } from './history.mjs';
+import { scaleInputs, recompute } from './scale-inputs.mjs';
+import { recordSummary } from './summaries.mjs';
 import {
   loadGroups, saveGroups, createGroup, renameGroup, removeGroup, setGroupNote, assignGroup,
 } from './groups.mjs';
@@ -357,6 +359,38 @@ export default function App() {
       : entry;
     return addEntry(prev, seeded);
   }), [fieldDefaults]);
+  /*
+   * Batch scaling: re-make a saved preparation at another size.
+   *
+   * Writes a **new** record rather than editing the original. The original is
+   * the record of what was actually done, and rewriting it would destroy the
+   * audit trail the whole history design exists to keep — the same reason
+   * deletion is a tombstone rather than a filter.
+   *
+   * The new record carries the original's metadata (so a scaled batch stays
+   * filed under the same experiment) and its summary is regenerated from the
+   * new outputs, so the list line matches the numbers behind it.
+   *
+   * A kind with no calculator cannot be scaled; `recompute` returns null and
+   * this does nothing. The button is not rendered for those kinds either, so
+   * this is the second line of defence rather than the first.
+   */
+  const scaleRecord = useCallback((entry, factor) => {
+    const scaled = scaleInputs(replayInputs(entry), factor);
+    const outputs = recompute(entry?.kind, scaled);
+    if (!outputs) return;
+    setEntries((prev) => addEntry(prev, {
+      kind: entry.kind,
+      inputs: scaled,
+      outputs,
+      summary: recordSummary({ kind: entry.kind, inputs: scaled, outputs }, t),
+      // Provenance: the reader of the export can see this is a re-make, and of
+      // what. Kept out of `meta` because `meta` is the user's own annotations
+      // and the template whitelist would drop an unknown key.
+      scaledFrom: { id: entry.id, factor },
+    }));
+  }, [t]);
+
   const remove = useCallback((id) => setEntries((prev) => removeEntry(prev, id)), []);
   const restore = useCallback((id) => setEntries((prev) => restoreEntry(prev, id)), []);
   /*
@@ -550,7 +584,7 @@ export default function App() {
           </div>
           <HistoryPanel entries={visible} allEntries={entries} deleted={deleted}
             groups={groups} onRemove={remove} onRestore={restore} onReplay={replay} onClear={clear}
-            onImport={importEntries} onMeta={setMeta}
+            onImport={importEntries} onMeta={setMeta} onScale={scaleRecord}
             onCreateGroup={makeGroup} onRenameGroup={rename} onDeleteGroup={dropGroup}
             onGroupNote={noteGroup} onSetRecordGroup={setRecordGroup} />
         </main>

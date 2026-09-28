@@ -976,6 +976,15 @@ export const en = {
     replay: 'Reload the inputs from this calculation',
     remove: 'Delete this entry',
     dismiss: 'Dismiss notice',
+    /* Batch scaling. The record is re-calculated as a new entry; the original
+       is untouched — the same principle that makes deletion a tombstone. */
+    scale: 'Re-make at another size',
+    scaleHint: 'Re-calculate this preparation at another size as a new record; the original is kept',
+    scaleFactor: '×{factor}',
+    scaleRecorded: 'New record at ×{factor}',
+    // A concentration is not an amount. Say so, because the field visibly does
+    // not change and that would otherwise read as a bug.
+    scaleKept: '{fields} unchanged — a concentration is not an amount',
     undo: 'Undo',
     undoCleared: 'Cleared {n} records',
     undoRemoved: 'Record deleted',

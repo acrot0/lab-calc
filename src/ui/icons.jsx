@@ -34,6 +34,7 @@ import { Tag } from '@phosphor-icons/react/dist/csr/Tag';
 import { Plus } from '@phosphor-icons/react/dist/csr/Plus';
 import { FolderSimple } from '@phosphor-icons/react/dist/csr/FolderSimple';
 import { ArrowCounterClockwise } from '@phosphor-icons/react/dist/csr/ArrowCounterClockwise';
+import { ArrowsOutSimple } from '@phosphor-icons/react/dist/csr/ArrowsOutSimple';
 import { DownloadSimple } from '@phosphor-icons/react/dist/csr/DownloadSimple';
 import { FileXls } from '@phosphor-icons/react/dist/csr/FileXls';
 import { FileText } from '@phosphor-icons/react/dist/csr/FileText';
@@ -229,6 +230,10 @@ export const Icons = {
   search: styled(MagnifyingGlass, 'search'),
   remove: styled(Trash, 'remove'),
   replay: styled(ArrowCounterClockwise, 'replay'),
+  // Batch scaling. Arrows pointing outward rather than a "×2" glyph: the
+  // action is "make this bigger or smaller", and the factors are in the menu
+  // the button opens.
+  scale: styled(ArrowsOutSimple, 'scale'),
   meta: styled(Tag, 'meta'),
   // Adding a record field. A plus rather than a tag: the tag says "metadata",
   // and the action a user takes on the field list is "add one of these".

@@ -89,6 +89,9 @@ export const ICON_INK = {
   reagent: { x: 40.0, y: 8.0, w: 176.0, h: 224.0 },
   remove: { x: 32.0, y: 16.0, w: 192.0, h: 208.0 },
   replay: { x: 16.0, y: 32.0, w: 208.0, h: 192.0 },
+  // Measured with `node tools/measure-icon-ink.mjs ArrowsOutSimple`. Square and
+  // centred on the grid, so `normalize` scales it by size alone.
+  scale: { x: 40.0, y: 40.0, w: 176.0, h: 176.0 },
   meta: { x: 32, y: 32, w: 211.31, h: 211.31 },
   /*
    * Derived from the glyph's own path data rather than from the browser audit

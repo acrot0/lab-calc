@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons, ICON_SIZE } from '../icons.jsx';
-import { filterHistory, visibleEntries } from '../history.mjs';
+import { filterHistory, visibleEntries, replayInputs } from '../history.mjs';
 import { filterByGroup, groupCounts, ungroupedCount, ALL_GROUPS } from '../groups.mjs';
 import GroupPicker from './GroupPicker.jsx';
 import {
@@ -13,6 +13,8 @@ import ColumnPicker from './ColumnPicker.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import { useUndo } from '../use-undo.mjs';
 import { recordSummary } from '../summaries.mjs';
+import { SCALE_FACTORS, scaleKind, preservedKeys } from '../scale-inputs.mjs';
+import { fieldLabel } from '../field-labels.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 
 /*
@@ -30,9 +32,66 @@ import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
  */
 const Report = lazy(() => import('./Report.jsx'));
 
+/**
+ * The batch-scale control: a button that opens the list of factors.
+ *
+ * A menu rather than five inline buttons because the row already carries
+ * replay and delete, and five more targets beside them would turn a record
+ * into a toolbar. The menu is also where the one thing a user has to
+ * understand about scaling can be said — that the concentration does not
+ * change — which is a sentence, not a button label.
+ */
+function ScaleMenu({ entry, summary, onScale }) {
+  const { t, locale } = useI18n();
+  const [open, setOpen] = useState(false);
+  const preserved = preservedKeys(replayInputs(entry));
+  return (
+    <span className="scale-wrap">
+      <button
+        type="button"
+        className="icon-btn"
+        title={t('history.scaleHint')}
+        aria-label={`${t('history.scale')}: ${summary}`}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icons.scale size={ICON_SIZE.inline} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="scale-menu" role="menu">
+          <div className="scale-menu-hint">{t('history.scaleHint')}</div>
+          {SCALE_FACTORS.map((factor) => (
+            <button
+              key={factor}
+              type="button"
+              role="menuitem"
+              className="scale-menu-item"
+              onClick={() => { setOpen(false); onScale(entry, factor); }}
+            >
+              {t('history.scaleFactor', { factor })}
+            </button>
+          ))}
+          {/*
+            Naming the fields that will not move. A control labelled ×2 that
+            leaves a visible field unchanged reads as broken unless the reason
+            is on screen — and the reason is a real property of the chemistry,
+            not a limitation.
+          */}
+          {preserved.length > 0 && (
+            <div className="scale-menu-kept">
+              {t('history.scaleKept', { fields: preserved.map((k) => fieldLabel(k, locale)).join('、') })}
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
 export default function HistoryPanel({
   entries, allEntries, deleted = [], groups = [],
-  onRemove, onRestore, onReplay, onClear, onImport, onMeta,
+  onRemove, onRestore, onReplay, onClear, onImport, onMeta, onScale,
   onCreateGroup, onRenameGroup, onDeleteGroup, onGroupNote, onSetRecordGroup,
 }) {
   const { t, locale } = useI18n();
@@ -453,6 +512,19 @@ export default function HistoryPanel({
                 >
                   <Icons.replay size={ICON_SIZE.inline} aria-hidden="true" />
                 </button>
+                {/*
+                  Batch scaling, on the records it means something for.
+
+                  Gated on `scaleKind`, which reads the same recipe registry the
+                  procedure steps use: a kind that has bench steps is one a
+                  person makes with their hands, and those are exactly the ones
+                  another batch size is meaningful for. A Nernst potential is a
+                  property of a cell, so it gets no button rather than a button
+                  that produces a meaningless record.
+                */}
+                {onScale && scaleKind(e.kind) && (
+                  <ScaleMenu entry={e} summary={summary} onScale={onScale} />
+                )}
                 <button
                   className="icon-btn"
                   title={t('history.remove')}

@@ -289,6 +289,9 @@ describe('reduced motion coverage', () => {
       // the stylesheet. A dissolve does not say "this arrived over the page".
       '.modal', '.nav-sheet', '.calc-drawer', '.settings-menu', '.scrim',
       '.nav-sheet-scrim',
+      // The export and scale menus are the same case: both hang off a button
+      // they were opened from, and the rise is what says where they came from.
+      '.export-menu', '.scale-menu',
       // The reference window is a tool, not a panel of the app: it has to feel
       // laid over the work rather than part of it, and it is opened rarely
       // enough that the motion is never in the way.
