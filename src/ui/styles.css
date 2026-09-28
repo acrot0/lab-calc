@@ -1082,10 +1082,24 @@ select.control {
  * destination is usually off screen.
  */
 .nav-editor {
-  max-height: 88dvh;
   /* The list is the scroll region, not the sheet, so the header and the size
      control stay put while the rows move under them. */
   overflow: hidden;
+  /*
+   * The bar's height moves from the sheet's bottom padding to a margin below
+   * the panel.
+   *
+   * `.nav-sheet` carries `padding-bottom: var(--nav-h)` so its last row of
+   * destinations is not under the fixed bar. On the editor that padding was
+   * inside the panel's own border — measured at 390×844 it left 57px of dead
+   * space below the reset button, which reads as the panel being cut off. As a
+   * margin the same clearance lifts the whole panel clear of the bar, so the
+   * panel's edge and its content end together.
+   */
+  margin-bottom: var(--nav-h);
+  padding-bottom: 0;
+  /* 88dvh plus that margin still has to fit, or the panel's foot is off screen. */
+  max-height: calc(88dvh - var(--nav-h));
 }
 
 /*
@@ -1113,8 +1127,9 @@ select.control {
     width: min(560px, 100%);
     max-height: min(720px, calc(100dvh - var(--s10)));
     border-radius: var(--r-lg);
-    /* No bottom-bar clearance: there is no bottom bar above 940px, and the
-       sheet's `padding-bottom` would leave 57px of dead space in the dialog. */
+    /* No bottom-bar clearance here: there is no bottom bar above 940px, so both
+       halves of the phone's clearance would be dead space in the dialog. */
+    margin-bottom: 0;
     padding-bottom: 0;
     /* The scrim already fades; the panel rises into place. A dialog that
        appears from the bottom edge would read as a sheet, which is the shape
