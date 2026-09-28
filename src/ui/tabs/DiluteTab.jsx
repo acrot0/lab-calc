@@ -10,6 +10,8 @@ import { productUncertainty } from '../../calc/uncertainty.mjs';
 import { glasswareUncertainty } from '../../calc/instruments.mjs';
 import Card from '../components/Card.jsx';
 import ProcedureFlow from '../components/ProcedureFlow.jsx';
+import TabEmpty from '../components/TabEmpty.jsx';
+import { ArtFlask } from '../components/Illustrations.jsx';
 
 /**
  * The uncertainty budget for a dilution.
@@ -157,6 +159,9 @@ export default function DiluteTab({ onRecord, restored, theme = 'dark' }) {
         />
       </div>
       {err && <Err>{err}</Err>}
+      {/* 414px of card was empty here before a calculation. The flask is the
+          instrument this tab is about: take stock, make it up to the mark. */}
+      {!out && <TabEmpty art={<ArtFlask />} hint={t('empty.dilute')} />}
       <Result
         value={out ? fmt(out.stockVolumeMl, 3) : null}
         unit={t('dilute.unit')}

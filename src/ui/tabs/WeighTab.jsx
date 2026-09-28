@@ -10,6 +10,8 @@ import { molarMassUncertainty, productUncertainty } from '../../calc/uncertainty
 import { glasswareUncertainty, weighingUncertainty } from '../../calc/instruments.mjs';
 import Card from '../components/Card.jsx';
 import ProcedureFlow from '../components/ProcedureFlow.jsx';
+import TabEmpty from '../components/TabEmpty.jsx';
+import { ArtBalance } from '../components/Illustrations.jsx';
 
 /**
  * The uncertainty budget for a "weigh out a solid" calculation.
@@ -232,6 +234,10 @@ export default function WeighTab({ onRecord, restored, theme = 'dark' }) {
         />
       </div>
       {err && <Err>{err}</Err>}
+      {/* Before a calculation the result panel renders nothing, leaving 389px of
+          card empty (measured at 1440×900). A balance says what the tab is
+          about without repeating the field labels above it. */}
+      {!out && <TabEmpty art={<ArtBalance />} hint={t('empty.weigh')} />}
       <Result
         value={out ? fmtSci(out.massG, 3) : null}
         unit={t('weigh.unit')}

@@ -354,3 +354,177 @@ export function ArtConvert() {
     </Art>
   );
 }
+
+/**
+ * A volumetric flask, for the dilution tab's empty state.
+ *
+ * ## Why this shape and not a beaker
+ *
+ * The dilution tab's whole job is "take some stock, make it up to a mark", and
+ * the volumetric flask is the one piece of glassware whose *shape* says that:
+ * a long narrow neck with a single ring on it. A beaker would be a generic
+ * chemistry picture; this one is the operation.
+ *
+ * The proportions are measured rather than invented. A 100 mL Class A flask is
+ * specified at 7.5" tall, 2.3" at its widest and 0.65" across the neck, so:
+ *
+ *     height : widest      = 3.26 : 1
+ *     neck   : widest      = 0.28 : 1
+ *
+ * Those are the numbers used below (68px tall → 20.9px wide → 5.8px neck).
+ * They matter because the neck's slenderness is not styling: a small change in
+ * liquid *height* in a narrow neck is a small change in *volume*, which is what
+ * makes filling to the mark meaningful. A short fat neck would be a flask that
+ * cannot do the thing the tab is about.
+ *
+ * ## The single ring
+ *
+ * One graduation mark, not several. A volumetric flask is calibrated to contain
+ * one precise volume; several marks would make it a graduated cylinder, which
+ * measures a range. Drawing it wrong would teach the wrong instrument.
+ *
+ * The ring is at the point the flask is filled to, so the liquid stops there.
+ */
+export function ArtFlask() {
+  const u = useGradientId();
+  return (
+    <Art size={72}>
+      <defs>
+        <linearGradient id={`${u}-body`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.30" />
+          <stop offset="45%" stopColor="var(--accent)" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.26" />
+        </linearGradient>
+      </defs>
+
+      <ellipse cx="48" cy="85" rx="14" ry="2.6" fill="var(--text-dim)" opacity="0.13" />
+
+      {/* Pear-shaped body: flat base, widest at a third up, drawing in to the neck. */}
+      <path
+        d="M45.1 14h5.8v16.3c0 3.2 4.5 5.6 7.3 12.2 2 4.7 0.2 8.6-0.2 12.9-0.5 5-0.4 9.6-0.4 12.6H37.6c0-3 0.1-7.6-0.4-12.6-0.4-4.3-2.2-8.2-0.2-12.9 2.8-6.6 7.3-9 7.3-12.2V14Z"
+        fill={`url(#${u}-body)`}
+        stroke="var(--accent)"
+        strokeOpacity="0.6"
+        strokeWidth="2.4"
+        strokeLinejoin="round"
+      />
+
+      {/* Liquid, filled to the ring. Bright band at the surface reads as a level. */}
+      <path
+        d="M38.1 68.6c0-3 0.1-7.6-0.4-12.6-0.2-2-0.7-3.9-1-5.5h22.6c-0.3 1.6-0.8 3.5-1 5.5-0.5 5-0.4 9.6-0.4 12.6Z"
+        fill="var(--accent)"
+        opacity="0.42"
+      />
+      <path d="M36.7 50.5h22.6" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" />
+
+      {/* The single graduation ring, in the neck. */}
+      <path d="M45.4 33.5h5.2" stroke="var(--text-dim)" strokeOpacity="0.7" strokeWidth="1.2" strokeLinecap="round" />
+
+      {/* Stopper, drawn as a shallow trapezoid: a flask at rest is stoppered. */}
+      <path
+        d="M44.2 14l0.9-4h5.8l0.9 4"
+        stroke="var(--accent)"
+        strokeOpacity="0.6"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+
+      {/* Neck glint — the detail that says glass rather than shape. */}
+      <path d="M46.3 20v10" stroke="white" strokeOpacity="0.45" strokeWidth="0.6" strokeLinecap="round" />
+    </Art>
+  );
+}
+
+/**
+ * A row of test tubes, for the serial dilution tab's empty state.
+ *
+ * ## What the picture has to say that the form does not
+ *
+ * Serial dilution is the one preparation where the *number of steps* is the
+ * point: each tube takes from the one before it, so the concentration falls by
+ * the same factor every time. A row of tubes whose liquid gets progressively
+ * paler says that in one glance; a single vessel would say "dilution", which is
+ * the neighbouring tab.
+ *
+ * ## Why the liquid fades rather than the level
+ *
+ * The volume in each tube is the same — that is what makes the series a series
+ * and not just five different dilutions. So the levels are drawn equal and the
+ * *colour* steps down. Drawing falling levels would state a procedure nobody
+ * performs: you do not progressively empty the tubes.
+ *
+ * The first tube is the darkest because it holds the stock. The last is nearly
+ * clear, which is what the far end of a five-step 10× series looks like.
+ */
+export function ArtTubes() {
+  const u = useGradientId();
+  const TUBES = [
+    { x: 20, level: 54, opacity: 0.75 },
+    { x: 34, level: 54, opacity: 0.62 },
+    { x: 48, level: 54, opacity: 0.49 },
+    { x: 62, level: 54, opacity: 0.36 },
+    { x: 76, level: 54, opacity: 0.23 },
+  ];
+  return (
+    <Art size={72}>
+      <defs>
+        <linearGradient id={`${u}-glass`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
+          <stop offset="45%" stopColor="var(--accent)" stopOpacity="0.07" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.22" />
+        </linearGradient>
+      </defs>
+
+      {/* One ground shadow under the whole rack, not one per tube — they stand together. */}
+      <ellipse cx="48" cy="83" rx="34" ry="3" fill="var(--text-dim)" opacity="0.13" />
+
+      {/* The rack's back rail, so the tubes read as standing in something. */}
+      <path d="M16 34h64" stroke="var(--text-dim)" strokeOpacity="0.3" strokeWidth="1.2" strokeLinecap="round" />
+
+      {TUBES.map((tube) => (
+        <g key={tube.x}>
+          {/* Round-bottomed tube: the shape that distinguishes it from a cuvette. */}
+          <path
+            d={`M${tube.x} 26h8v48a4 4 0 0 1-4 4 4 4 0 0 1-4-4Z`}
+            fill={`url(#${u}-glass)`}
+            stroke="var(--accent)"
+            strokeOpacity="0.55"
+            strokeWidth="2.4"
+            strokeLinejoin="round"
+          />
+          {/* The liquid, level equal across the row; only the colour steps down. */}
+          <path
+            d={`M${tube.x + 1} ${tube.level}h6v20a3 3 0 0 1-3 3 3 3 0 0 1-3-3Z`}
+            fill="var(--accent)"
+            opacity={tube.opacity}
+          />
+          <path
+            d={`M${tube.x + 1} ${tube.level}h6`}
+            stroke="var(--accent)"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+          {/* Rim, drawn over the body outline. */}
+          <path
+            d={`M${tube.x - 0.5} 26h9`}
+            stroke="var(--accent)"
+            strokeOpacity="0.7"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+          {/* A glint only on the first two: at this size five of them is noise. */}
+          {tube.opacity > 0.6 && (
+            <path
+              d={`M${tube.x + 2.2} 30v9`}
+              stroke="white"
+              strokeOpacity="0.45"
+              strokeWidth="0.6"
+              strokeLinecap="round"
+            />
+          )}
+        </g>
+      ))}
+    </Art>
+  );
+}

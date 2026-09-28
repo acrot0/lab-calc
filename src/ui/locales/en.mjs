@@ -1154,6 +1154,13 @@ export const en = {
     unit_ionization: 'eV',
     unit_electronegativity: 'Pauling',
   },
+  /* What a tab's result will look like, shown before anything is calculated. */
+  empty: {
+    weigh: 'You get the mass to weigh out, and how that mass was arrived at',
+    dilute: 'You get the stock volume to take and the diluent volume to add',
+    series: 'You get the concentration and transfer volume for every tube',
+    reaction: 'You get the balancing coefficients, the limiting reagent and the theoretical yield',
+  },
   procedure: {
     show: 'Show the bench steps',
     hide: 'Hide the bench steps',

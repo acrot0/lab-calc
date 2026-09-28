@@ -10,6 +10,8 @@ import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import TabEmpty from '../components/TabEmpty.jsx';
+import { ArtReaction } from '../components/Illustrations.jsx';
 
 /**
  * Reaction stoichiometry — balancing, limiting reagent, empirical formula.
@@ -272,7 +274,21 @@ export default function ReactionTab({ onRecord, restored, theme = 'dark' }) {
     : null;
 
   return (
-    <Card>
+    /*
+     * Full width, like the periodic table, and for a related reason: this tab's
+     * headline result is a *sentence*, not a number.
+     *
+     * The two-column layout gives each side 269px of a 612px card. Measured
+     * with a balanced equation as the result — `2KMnO4 + 16HCl -> 2KCl +
+     * 2MnCl2 + 8H2O + 5Cl2` — the 34px headline wrapped to ten lines and 150px
+     * tall. Every other tab's result is a number, which stays on one line at
+     * that width (verified across six tabs: all 37px, one line).
+     *
+     * The layout exists so a tall result cannot push the Calculate button
+     * down; that concern does not apply to a tab whose result is the width of
+     * the column regardless.
+     */
+    <Card className="is-wide-result">
       <div className="field">
         <label htmlFor="rx-mode">{t('reaction.mode')}</label>
         <select id="rx-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -347,6 +363,11 @@ export default function ReactionTab({ onRecord, restored, theme = 'dark' }) {
 
       <button className="primary" onClick={run} style={{ marginTop: 'var(--s4)' }}>{t('common.calc')}</button>
       {err && <Err>{err}</Err>}
+      {/* 342px of card was empty here. `ArtReaction` was written for this
+          screen and had never been rendered anywhere — the notice modal uses a
+          warning icon instead, because a modal that says "not for clinical use"
+          wants a warning mark rather than a picture of chemistry. */}
+      {!shown && <TabEmpty art={<ArtReaction />} hint={t('empty.reaction')} />}
 
       {shown?.mode === 'balance' && (
         <Result value={shown.equation}

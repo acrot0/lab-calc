@@ -1156,6 +1156,19 @@ export const zh = {
   // Explanatory figures. The caption is what a sighted reader reads; the label
   // is what a screen reader announces. Both are required — a diagram whose
   // point is only visible is a diagram half the readers cannot use.
+  /*
+   * What a tab's result will look like, shown before anything is calculated.
+   *
+   * Not a restatement of the field labels above — those already say what goes
+   * in. These name the shape of the answer, which is the one thing the form
+   * cannot tell the user.
+   */
+  empty: {
+    weigh: '算完给出应称取的质量，以及这个质量是怎么来的',
+    dilute: '算完给出该取多少母液、该加多少溶剂',
+    series: '算完给出每一管的浓度与移液体积',
+    reaction: '算完给出配平系数、限量试剂与理论产量',
+  },
   procedure: {
     show: '显示操作步骤',
     hide: '隐藏操作步骤',

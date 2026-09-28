@@ -8,6 +8,8 @@ import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
 import ProcedureFlow from '../components/ProcedureFlow.jsx';
+import TabEmpty from '../components/TabEmpty.jsx';
+import { ArtTubes } from '../components/Illustrations.jsx';
 
 export default function SeriesTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
@@ -113,6 +115,11 @@ export default function SeriesTab({ onRecord, restored, theme = 'dark' }) {
         <DilutionDiagram factor={n(factor)} steps={n(steps)} theme={theme} />
       )}
       {err && <Err>{err}</Err>}
+      {/* 440px — the largest gap of any tab. The row of tubes is what makes a
+          serial dilution different from the dilution tab next door: the number
+          of steps is the point, and the colour steps down while the level does
+          not. */}
+      {!out && <TabEmpty art={<ArtTubes />} hint={t('empty.series')} />}
       {out && (
         <div className="result">
           {/* The note carries inline markup, so it is rendered as HTML rather
