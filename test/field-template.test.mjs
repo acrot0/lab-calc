@@ -23,13 +23,31 @@ describe('makeKey', () => {
 
   it('should still produce a key when the label has no ASCII characters', () => {
     // A pure-CJK label slugifies to the empty string. Falling back to a blank
-    // key would collide on the very next field, so the fallback is a name.
-    expect(makeKey('样品编号')).toBe('u-field');
+    // key would collide on the very next field, so the fallback is a hash.
+    const key = makeKey('样品编号');
+    expect(key).toMatch(/^u-x-[0-9a-z]+$/);
+  });
+
+  it('should give two different CJK labels two different keys', () => {
+    /*
+     * The bug this pins: the fallback used to be the constant `u-field`, so a
+     * user who deleted 「样品编号」 and then added 「样品重量」 got the same key
+     * back — and every record still holding the first field's value showed it
+     * under the second field's label.
+     */
+    expect(makeKey('样品编号')).not.toBe(makeKey('样品重量'));
+  });
+
+  it('should give the same CJK label the same key every time', () => {
+    // Deterministic, so re-adding a label reattaches the values the deleted
+    // field left behind rather than forking them onto a new key.
+    expect(makeKey('样品编号')).toBe(makeKey('样品编号'));
   });
 
   it('should not reuse a key that is already taken', () => {
-    expect(makeKey('样品编号', ['u-field'])).toBe('u-field-2');
-    expect(makeKey('样品编号', ['u-field', 'u-field-2'])).toBe('u-field-3');
+    const base = makeKey('样品编号');
+    expect(makeKey('样品编号', [base])).toBe(`${base}-2`);
+    expect(makeKey('样品编号', [base, `${base}-2`])).toBe(`${base}-3`);
   });
 
   it('should not collide when a slugified label matches an existing key', () => {
@@ -155,7 +173,7 @@ describe('defaultsOf', () => {
 describe('addField', () => {
   it('should append a field and return it', () => {
     const { fields, field } = addField([], '样品编号', 'text');
-    expect(field.key).toBe('u-field');
+    expect(field.key).toBe(makeKey('样品编号'));
     expect(fields).toHaveLength(1);
   });
 
@@ -248,8 +266,38 @@ describe('retireField / restoreField', () => {
 
 describe('deleteField', () => {
   it('should delete a user-defined field', () => {
-    const { fields } = addField([], '样品编号');
-    expect(deleteField(fields, 'u-field')).toHaveLength(0);
+    const { fields, field } = addField([], '样品编号');
+    expect(deleteField(fields, field.key)).toHaveLength(0);
+  });
+
+  it('should not hand a deleted field\'s key to a different new field', () => {
+    /*
+     * The user-visible failure, reproduced the way it was found: add a CJK
+     * field, annotate a record, delete the field, add a different CJK field.
+     *
+     * With the old constant fallback both fields got `u-field`, so the record
+     * — which keeps its value because deleting a field does not touch records
+     * — rendered 「样品编号」's `S-001` under 「样品重量」's label. Nothing on
+     * screen said anything was wrong.
+     */
+    const first = addField([], '样品编号').fields;
+    const meta = { [first[0].key]: 'S-001' };
+    const afterDelete = deleteField(first, first[0].key);
+    const second = addField(afterDelete, '样品重量').fields;
+    expect(second[second.length - 1].key).not.toBe(first[0].key);
+    // The stale value is now an orphan with no field claiming it.
+    expect(fieldOf(resolveTemplate(second), first[0].key)).toBeNull();
+    expect(meta[first[0].key]).toBe('S-001');
+  });
+
+  it('should reattach the old values when the same label is added back', () => {
+    // The other half of deriving the key from the label: re-adding 「样品编号」
+    // lands on the same key, so the values still on old records reappear under
+    // the field that owns them rather than being stranded.
+    const first = addField([], '样品编号').fields;
+    const afterDelete = deleteField(first, first[0].key);
+    const again = addField(afterDelete, '样品编号').fields;
+    expect(again[again.length - 1].key).toBe(first[0].key);
   });
 
   it('should refuse to delete a built-in', () => {

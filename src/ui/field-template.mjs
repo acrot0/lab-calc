@@ -84,14 +84,47 @@ export const BUILTIN_FIELDS = [
 ];
 
 /**
+ * A short deterministic tag for a label that yields no ASCII slug.
+ *
+ * FNV-1a over the label's code points, base 36.
+ *
+ * The fallback used to be the constant `u-field`, and that was a data bug: a
+ * user who deleted 「样品编号」 and then added 「样品重量」 got the same key back,
+ * so every record still carrying the first field's value rendered it under the
+ * second field's label — silently, and with no way to tell the two apart. The
+ * counter below does not help, because it only knows the fields that exist
+ * right now, and the deleted one no longer does.
+ *
+ * Deriving the key from the label fixes that at the root: two different labels
+ * cannot collide. It is a hash rather than a random suffix on purpose, so that
+ * re-adding the *same* label lands on the same key — which reattaches the
+ * values the deleted field left on old records instead of forking them.
+ *
+ * Deterministic also means the key is stable across reloads and across
+ * machines, so a record exported from one and imported into another keeps
+ * pointing at the same field.
+ */
+function labelTag(label) {
+  let h = 0x811c9dc5;
+  for (const ch of String(label ?? '')) {
+    const cp = ch.codePointAt(0);
+    h = Math.imul(h ^ (cp & 0xffff), 0x01000193) >>> 0;
+    h = Math.imul(h ^ (cp >>> 16), 0x01000193) >>> 0;
+  }
+  return h.toString(36);
+}
+
+/**
  * A key for a new user-defined field.
  *
- * Derived from the label where the label is ASCII, and from a counter where it
- * is not — a Cyrillic or CJK label slugifies to nothing, and falling back to a
- * blank key would collide on the second field. The counter skips keys already
- * in use, so adding, removing and adding again cannot reuse one.
+ * Derived from the label where the label is ASCII, and from a hash of it where
+ * it is not — a Cyrillic or CJK label slugifies to nothing, and falling back to
+ * a shared constant would let two unrelated fields claim one key. The counter
+ * below is the second line of defence, for the one case a label-derived key
+ * cannot separate: the same label added twice.
  *
- * The `u_` prefix keeps user keys out of the built-in namespace.
+ * The `u-` prefix keeps user keys out of the built-in namespace; the `x-` on a
+ * tag keeps a hash from ever colliding with a real slug.
  */
 export function makeKey(label, taken = []) {
   const used = new Set(taken);
@@ -100,7 +133,7 @@ export function makeKey(label, taken = []) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 24);
-  const base = slug.length > 0 ? `u-${slug}` : 'u-field';
+  const base = slug.length > 0 ? `u-${slug}` : `u-x-${labelTag(label)}`;
   if (!used.has(base)) return base;
   for (let n = 2; n < 1000; n += 1) {
     const candidate = `${base}-${n}`;
