@@ -9,6 +9,7 @@ import { recordSummary } from '../summaries.mjs';
 import { molarMassUncertainty, productUncertainty } from '../../calc/uncertainty.mjs';
 import { glasswareUncertainty, weighingUncertainty } from '../../calc/instruments.mjs';
 import Card from '../components/Card.jsx';
+import ProcedureFlow from '../components/ProcedureFlow.jsx';
 
 /**
  * The uncertainty budget for a "weigh out a solid" calculation.
@@ -69,7 +70,7 @@ function weighBudget({ formula, molarity, volumeMl, flaskMl, flaskGrade, tempC, 
   };
 }
 
-export default function WeighTab({ onRecord, restored }) {
+export default function WeighTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [formula, setFormula] = useState(restored?.formula ?? 'NaCl');
   const [molarity, setMolarity] = useState(restored?.molarity != null ? String(restored.molarity) : '0.5');
@@ -218,7 +219,18 @@ export default function WeighTab({ onRecord, restored }) {
         <NumField label={t('weigh.targetMolarity')} value={molarity} onChange={setMolarity} min="0" />
         <NumField label={t('weigh.finalVolume')} value={volume} onChange={setVolume} min="0" />
       </div>
-      <button className="primary" onClick={run} disabled={!M}>{t('common.calc')}</button>
+      <div className="row row-actions">
+        <button className="primary" onClick={run} disabled={!M}>{t('common.calc')}</button>
+        {/* The bench steps, drawn. Beside Calculate rather than in the results
+            because it answers "what do I do with this", which is the question
+            after reading the number, not part of it. */}
+        <ProcedureFlow
+          kind="stockFromSolid"
+          inputs={{ formula, molarity: n(molarity), volumeMl: n(volume) }}
+          outputs={out}
+          theme={theme}
+        />
+      </div>
       {err && <Err>{err}</Err>}
       <Result
         value={out ? fmtSci(out.massG, 3) : null}

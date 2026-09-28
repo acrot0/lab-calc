@@ -7,6 +7,7 @@ import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import ProcedureFlow from '../components/ProcedureFlow.jsx';
 
 export default function SeriesTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
@@ -96,6 +97,15 @@ export default function SeriesTab({ onRecord, restored, theme = 'dark' }) {
         <button className="link-btn" onClick={() => setShowDiagram((v) => !v)}>
           {showDiagram ? t('diagram.hide') : t('diagram.show')}
         </button>
+        {/* The bench steps, drawn. Separate from the recurrence diagram above:
+            that one says why each tube is a tenth of the last, this one says
+            what to pipette, in what order. */}
+        <ProcedureFlow
+          kind="dilutionSeries"
+          inputs={{ stockConc: n(stock), factor: n(factor), steps: n(steps), stepVolumeMl: n(vol) }}
+          outputs={out ? { series: out } : null}
+          theme={theme}
+        />
       </div>
       {/* Driven by the fields above rather than by the result, so the shape can
           be explored before committing to a calculation. */}

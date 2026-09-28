@@ -8,9 +8,10 @@ import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
 import { recordSummary } from '../summaries.mjs';
 import Card from '../components/Card.jsx';
+import ProcedureFlow from '../components/ProcedureFlow.jsx';
 
 export default function BufferTab({ onRecord, restored, theme = 'dark' }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [preset, setPreset] = useState(restored?.preset ?? '');
   const [pka, setPka] = useState(restored?.pKa != null ? String(restored.pKa) : '4.76');
   const [ph, setPh] = useState(restored?.targetPh != null ? String(restored.targetPh) : '5.0');
@@ -216,6 +217,18 @@ export default function BufferTab({ onRecord, restored, theme = 'dark' }) {
         <button className="link-btn" onClick={() => setShowDiagram((v) => !v)}>
           {showDiagram ? t('diagram.hide') : t('diagram.show')}
         </button>
+        {/* The bench steps, drawn. Separate from the equation diagram because
+            they answer different questions: that one says why the pH holds,
+            this one says what to do with your hands, in what order. */}
+        <ProcedureFlow
+          kind="bufferRecipe"
+          inputs={{
+            pKa: n(pka), targetPh: n(ph), totalConc: n(total),
+            tempC: n(tempC), backgroundSalt: n(salt),
+          }}
+          outputs={out}
+          theme={theme}
+        />
       </div>
       {showDiagram && <BufferDiagram pka={n(pka) || 4.76} theme={theme} />}
       {err && <Err>{err}</Err>}

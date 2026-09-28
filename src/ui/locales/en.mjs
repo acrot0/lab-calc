@@ -1154,9 +1154,14 @@ export const en = {
     unit_ionization: 'eV',
     unit_electronegativity: 'Pauling',
   },
+  procedure: {
+    show: 'Show the bench steps',
+    hide: 'Hide the bench steps',
+  },
   diagram: {
     show: 'Show the diagram',
     hide: 'Hide the diagram',
+    flowOrder: 'Carry out in order; the steps do not commute',
     export: 'Export SVG',
     exported: 'Exported',
     exportHint: 'Export a standalone SVG file for a lab notebook or a paper (colours baked in, no dependency on this app)',

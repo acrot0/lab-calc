@@ -1156,8 +1156,13 @@ export const zh = {
   // Explanatory figures. The caption is what a sighted reader reads; the label
   // is what a screen reader announces. Both are required — a diagram whose
   // point is only visible is a diagram half the readers cannot use.
+  procedure: {
+    show: '显示操作步骤',
+    hide: '隐藏操作步骤',
+  },
   diagram: {
     show: '显示原理图',
+    flowOrder: '按顺序执行，不可调换步骤',
     hide: '隐藏原理图',
     export: '导出 SVG',
     exported: '已导出',

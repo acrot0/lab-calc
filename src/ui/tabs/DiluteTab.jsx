@@ -9,6 +9,7 @@ import { recordSummary } from '../summaries.mjs';
 import { productUncertainty } from '../../calc/uncertainty.mjs';
 import { glasswareUncertainty } from '../../calc/instruments.mjs';
 import Card from '../components/Card.jsx';
+import ProcedureFlow from '../components/ProcedureFlow.jsx';
 
 /**
  * The uncertainty budget for a dilution.
@@ -49,7 +50,7 @@ function diluteBudget({ stockConc, targetConc, targetVolumeMl, pipetteMl, flaskM
   };
 }
 
-export default function DiluteTab({ onRecord, restored }) {
+export default function DiluteTab({ onRecord, restored, theme = 'dark' }) {
   const { t } = useI18n();
   const [stock, setStock] = useState(restored?.stockConc != null ? String(restored.stockConc) : '1');
   const [target, setTarget] = useState(restored?.targetConc != null ? String(restored.targetConc) : '0.1');
@@ -146,7 +147,15 @@ export default function DiluteTab({ onRecord, restored }) {
         <NumField label={t('dilute.targetConc')} value={target} onChange={setTarget} min="0" />
       </div>
       <NumField label={t('dilute.targetVolume')} value={volume} onChange={setVolume} min="0" />
-      <button className="primary" onClick={run}>{t('common.calc')}</button>
+      <div className="row row-actions">
+        <button className="primary" onClick={run}>{t('common.calc')}</button>
+        <ProcedureFlow
+          kind="dilution"
+          inputs={{ stockConc: n(stock), targetConc: n(target), targetVolumeMl: n(volume) }}
+          outputs={out}
+          theme={theme}
+        />
+      </div>
       {err && <Err>{err}</Err>}
       <Result
         value={out ? fmt(out.stockVolumeMl, 3) : null}
