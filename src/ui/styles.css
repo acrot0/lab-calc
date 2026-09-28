@@ -1041,9 +1041,29 @@ select.control {
  * leave the last entry behind the address bar.
  */
 @media (min-width: 1100px) {
+  /*
+   * `height`, not only `max-height`.
+   *
+   * A ceiling is not a size. The panel is `align-self: start` in the grid, so
+   * it is content-sized; with only a ceiling it grew to its content and
+   * stopped. That was invisible while `.history-list` carried a hard
+   * `max-height: 620px`, because that constant is what had been forcing the
+   * panel open — remove it and the panel shrinks.
+   *
+   * Measured after that constant was removed: 894px with 69 records, 382.5px
+   * with the history cleared, against 860px of available space. The empty state
+   * collapsed to its own text, which is a worse asymmetry than the one the fix
+   * was for.
+   *
+   * Claiming the height makes both states agree and gives `flex: 1` on the list
+   * something to distribute. The chrome above the list is still measured by the
+   * panel's own layout rather than subtracted here, because it is not a
+   * constant: the group bar is absent when there are no groups.
+   */
   .split > .card {
     position: sticky;
     top: var(--s6);
+    height: calc(100dvh - var(--s10));
     max-height: calc(100dvh - var(--s10));
     display: flex;
     flex-direction: column;
@@ -2393,13 +2413,48 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   box-shadow: var(--focus-ring) var(--accent-soft);
 }
 
+/*
+ * The list takes whatever the panel has left, rather than a fixed 620px.
+ *
+ * The panel already carried the right rule — `max-height: calc(100dvh -
+ * var(--s10))` on `.split > .card` — and this cap defeated it: measured panel
+ * 805.2px against its own 894px ceiling, with the list stuck at exactly 620.
+ *
+ * Two visible symptoms came from that one constant, and neither moved when the
+ * viewport did (measured at 900px and 934px tall: the two columns were 97.6px
+ * apart both times):
+ *
+ *   1. The columns could never agree. The left one is sized by its content and
+ *      the right one by 620 + chrome, so they are two unrelated rules and the
+ *      gap is whatever those two happen to produce.
+ *   2. The scroll clip landed wherever 620px fell. A scroll container clips
+ *      mid-child by definition, but a hard clip with no fade at the boundary
+ *      reads as a rendering fault instead of as "there is more below".
+ *
+ * `flex: 1` + `min-height: 0` is what makes the panel report its own chrome
+ * height instead of anyone subtracting a constant for it. The chrome is not a
+ * constant: the group bar is absent when there are no groups, so a
+ * `calc(100dvh - Npx)` here would be the same mistake one level down.
+ *
+ * The mask fades the top and bottom edges. Both, not just the bottom: the
+ * screenshot that prompted this showed a card sliced in half at the *top*, and
+ * a fade there is what distinguishes "scrolled down" from "broken".
+ */
 .history-list {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  max-height: 620px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--s4),
+    #000 calc(100% - var(--s4)),
+    transparent 100%
+  );
 }
 
 .history-item {
