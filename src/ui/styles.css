@@ -1450,29 +1450,76 @@ select.control {
 }
 
 /*
- * A card with no results column is capped, so its button is not a metre wide.
+ * A form card narrows to its content, so its button is not a metre wide.
  *
- * The field cap above fixes the inputs; the primary button is not a field and
- * was still spanning the whole card — measured at 1920px, a 220px input above
- * an 894px button, which reads as two unrelated layouts stacked. The cap is on
- * the column rather than on the button so everything in it agrees.
+ * ## What this replaced, and why the old shape was wrong
  *
- * 560px is wide enough for the two-column `.row` the forms use (each half about
- * 270px) and for a result table, and narrow enough that a button is a button.
- * Only the single-column case: a card with a results column is already two
- * ~460px columns at this width, and capping those would waste the layout.
+ * The previous rule capped the *column*:
  *
- * `:not(.is-elements)` for the same reason the two rules above carry it: the
+ *     @container card (min-width: 620px) {
+ *       .card:not(:has(> .card-results)):not(.is-elements) > .card-main { max-width: 560px; }
+ *     }
+ *
+ * Its intent was right — measured at 1920px, a 220px input above an 894px
+ * button reads as two unrelated layouts stacked, and the button is what had to
+ * be stopped. But capping the column left the *card* at its full width, so the
+ * space the column did not use became dead: measured at 1440px, an 849px card
+ * holding a 560px column, 289px empty down the right side (319px at 1920px).
+ *
+ * It also split the form's own fields into two widths. `.field` carries
+ * `max-width: max(220px, 34ch)` (327px here) and `.row .field` is exempt from
+ * it, so a lone 化学式 field rendered at 327px above a 560px row of two — the
+ * same card, two widths, neither matching the other.
+ *
+ * ## Why the cap is on the card
+ *
+ * Moving the cap to the card keeps the original intent and removes the dead
+ * space: the card stops growing once the form is at a comfortable width,
+ * instead of the form stopping while the card keeps going. Every field then
+ * shares one width because they all fill the same column.
+ *
+ * 612px is the 560px the form wants plus the card's own padding (2 × 24px)
+ * plus its 1px borders, so the *content* lands at the same 560px the old rule
+ * was reaching for. Verified in the browser: card 849 → 612px, dead space
+ * 289 → 25px (which is the padding), every field 563px, no overflow.
+ *
+ * ## Why the cap is on the split grid, not on the card
+ *
+ * Capping the card with `:has()` was the first attempt and it introduced a
+ * defect worse than the one it fixed: `:not(:has(> .card-results))` stops
+ * matching the moment a result appears, so the card **jumped 237px wider**
+ * (612 → 849px) when the user pressed Calculate. Measured in the browser. A
+ * shift that large on the primary action is worse than quiet dead space.
+ *
+ * The jump is structural: the two states genuinely want different widths, and
+ * any rule that keys the width off `:has(> .card-results)` will jump. So the
+ * width is fixed one level up, on the grid track, where it cannot depend on
+ * the card's contents. The track is 612px and the history panel takes the
+ * remainder, so both are stable across the whole calculation cycle.
+ *
+ * `minmax(320px, 1fr)` for the panel rather than a fixed width: it is a list
+ * of records and gets more useful the more of a summary line it can show.
+ *
+ * `:not(.is-elements)` for the same reason the field rules above carry it: the
  * periodic table is not a form. Its `.card-main` holds an 18-column grid that
- * needs the whole card, and the cap squeezed it to 201px against the 764px it
- * wanted — every cell clipped, with the wrapper scrolling sideways to reach
- * them. Measured before and after: 201px to 974px.
+ * needs the whole card, and an earlier cap squeezed it to 201px against the
+ * 764px it wanted — every cell clipped, with the wrapper scrolling sideways to
+ * reach them. Measured before and after: 201px to 974px.
  */
-@container card (min-width: 620px) {
-  .card:not(:has(> .card-results)):not(.is-elements) > .card-main { max-width: 560px; }
+@media (min-width: 1100px) {
+  .split:not(:has(> .card.is-elements)) {
+    grid-template-columns: minmax(0, 612px) minmax(320px, 1fr);
+  }
 }
 
 .row .field { max-width: none; }
+
+/* A field that is a direct child of the form fills it.
+ *
+ * Without this the 34ch cap above wins and the field is 327px while the `.row`
+ * beside it is 563px — the two-widths-in-one-card defect. Scoped to the direct
+ * child so a field inside a `.row` keeps the row's own sizing. */
+.card-main > .field { max-width: none; }
 
 /* A field that genuinely needs the width says so. The converter's dimension
    picker and the calculator's entry are the two: one lists 35 dimension names,
