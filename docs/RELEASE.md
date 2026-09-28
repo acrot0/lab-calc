@@ -93,9 +93,9 @@ npm run package:desktop
 
 ### 代码
 
-- [ ] `npm test` 全绿
+- [ ] `npm test` 全绿（**先跑这个**；`npm run verify` 不检查测试失败，见第 4 节）
 - [ ] `npm run verify` 全绿（含作者署名检查：只允许 `acrot0`，无任何 AI 署名）
-- [ ] `package.json` 与 `src-tauri/tauri.conf.json` 版本一致
+- [ ] `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 三处版本一致
 - [ ] `node -e "import('./src/ui/version.mjs').then(m=>console.log(m.androidVersionCode('X.Y.Z')))"` 能算出整数且大于上一版
 
 ### 人工核对
@@ -123,12 +123,21 @@ npm run package:desktop
 
 ## 4. 版本号怎么改
 
-三处必须同时改，改漏一处会出现「网页显示 1.0.1、APK 显示 1.0.0」：
+**四处**，改漏一处就会出现版本不一致：
 
-| 文件 | 字段 |
-|---|---|
-| `package.json` | `version` |
-| `src-tauri/tauri.conf.json` | `version` |
-| Android | **不改**——从 `package.json` 推导 |
+| 文件 | 字段 | 漏了会怎样 |
+|---|---|---|
+| `package.json` | `version` | 发布 tag 与文档里的版本号错位 |
+| `src-tauri/tauri.conf.json` | `version` | 桌面端关于页显示旧版本 |
+| `src-tauri/Cargo.toml` | `version` | **更新通道失效**：安装包按 Cargo.toml 构建，更新检查拿二进制自己的版本比对，用户在新版上仍被提示「已是最新」 |
+| Android | **不改**——从 `package.json` 推导 | — |
 
-改完跑 `npm run verify`，`check-doc-numbers` 会核对文档里的版本相关数字。
+`Cargo.toml` 这一行是本表原先漏掉的第四处（2026-09-28 v1.1.0 发版时被
+CI 的 `test/update-channel.test.mjs` 拦下）。漏掉它不会有任何本地症状：
+构建成功、安装包产出、发布照常，只有更新检查静默失效。
+
+改完**必须跑 `npm test`**——`npm run verify` 不够。`check-doc-numbers`
+会用 `--reporter=json` 跑一遍套件，但它只读取报告里的测试**计数**，
+不检查是否有失败（那是 `npm test` 的职责），所以套件有失败时 verify
+仍可能报绿。v1.1.0 发版时就踩了这个：verify 全绿，CI 红了。
+正确的顺序是 `npm test` → `npm run verify`。

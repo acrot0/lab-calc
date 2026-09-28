@@ -26,6 +26,15 @@
  *
  * The cost is a second suite run inside `npm run verify`. That is ~9s locally
  * and it is the price of the claim being true; a stale count costs more.
+ *
+ * ## It also fails on a red suite (2026-09-28)
+ *
+ * Because it runs the suite anyway, it is the cheapest place to notice that the
+ * suite is red — and the release checklist treats `verify` as the gate, so a
+ * red suite that this script ignored was a gate that let a broken build
+ * through. It did exactly that on the v1.1.0 release. A run with failures now
+ * exits non-zero and the count is of passing tests, which is what the documents
+ * actually claim.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -55,30 +64,57 @@ function actualTestCount() {
       maxBuffer: 64 * 1024 * 1024,
     });
   } catch (e) {
-    // A non-zero exit means tests failed. That is `npm test`'s business to
-    // report, not this script's — but the count is still in the output, so it
-    // is used, and a genuine parse failure is reported as its own thing rather
-    // than as a stale number.
+    /*
+     * A failing suite lands here, and it used to be shrugged off — the count was
+     * read out of the output and the exit code ignored, on the reasoning that
+     * reporting failures is `npm test`'s job. That reasoning was wrong in the
+     * one place it mattered: `npm run verify` is what the release checklist
+     * treats as the gate, so a red suite with a stale-but-consistent count
+     * passed the gate. It happened on the v1.1.0 release — verify reported
+     * green while `update-channel.test.mjs` was failing on an unbumped
+     * `Cargo.toml`, and only CI caught it.
+     *
+     * So a failed run is now this script's failure too.
+     */
     out = e.stdout;
     if (!out) {
-      console.error('check-doc-numbers: 无法运行测试套件，跳过数字核对。');
-      process.exit(0);
+      console.error('check-doc-numbers: 无法运行测试套件。');
+      process.exit(1);
+    }
+    const report = parseReport(out);
+    if (report) {
+      const failed = report.numFailedTests ?? 0;
+      if (failed > 0) {
+        console.error(`  ✗ 测试套件有 ${failed} 个失败——数字核对不作数，先修测试。`);
+        process.exit(1);
+      }
     }
   }
-  const start = out.indexOf('{');
-  if (start < 0) {
+  const report = parseReport(out);
+  if (!report) {
     console.error('check-doc-numbers: 测试输出里没有 JSON，跳过数字核对。');
     process.exit(0);
   }
-  const report = JSON.parse(out.slice(start));
-  const passed = report.numPassedTests ?? 0;
-  const failed = report.numFailedTests ?? 0;
   return {
-    tests: passed + failed,
+    // Passing tests, because that is what the documents claim ("N 通过"). A
+    // failed test is not a test that passed, and counting it as one would let
+    // the documented number be right while the suite is red.
+    tests: report.numPassedTests ?? 0,
     // Files that ran, not files on disk: the README is claiming results, and a
     // file whose import fails produces no results.
     files: (report.testResults ?? []).length,
   };
+}
+
+/** The JSON report vitest writes, or null when the output does not carry one. */
+function parseReport(out) {
+  const start = out.indexOf('{');
+  if (start < 0) return null;
+  try {
+    return JSON.parse(out.slice(start));
+  } catch {
+    return null;
+  }
 }
 
 const actual = actualTestCount();
