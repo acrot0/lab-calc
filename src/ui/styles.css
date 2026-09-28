@@ -146,6 +146,22 @@
   --dur-exit: var(--dur-fx-l);
 
   /*
+   * How much vertical room the fixed phone bar occupies, including its top
+   * border and the device's bottom inset.
+   *
+   * One token because four rules have to agree on it: the bar's own item
+   * height, the bottom sheet's padding, the card padding on a phone, and the
+   * calculator keypad's sticky offset. They were four literal
+   * `calc(56px + env(...))` expressions, which is four places for the number to
+   * drift — and a drift of one pixel is enough to put the last row of keys
+   * under the bar, which is exactly what happened.
+   *
+   * 56px is the Material 3 small navigation bar's item height; the 1px is the
+   * border-top, which is inside the bar's painted box.
+   */
+  --nav-h: calc(57px + env(safe-area-inset-bottom, 0px));
+
+  /*
    * Fonts — three faces, three jobs, and the display face is no longer a serif.
    *
    * It was Instrument Serif: a high-contrast Latin serif chosen for the
@@ -808,7 +824,8 @@ select.control {
  *
  * Material 3 and iOS both specify 3–5 destinations, and both say the rest
  * belong behind a "more" affordance. Sixteen items at 390px would be 24px each,
- * under the 44px touch floor; five gives 78px. The reasoning is in `nav.mjs`.
+ * under the 44px touch floor; five gives 78px. The reasoning is in
+ * `nav-order.mjs`.
  */
 .mobile-nav {
   position: fixed;
@@ -905,7 +922,7 @@ select.control {
   box-shadow: var(--shadow-3);
   animation: sheet-in var(--dur-move-m) var(--ease-out);
   /* Clear the bar itself, so the last row of the grid is not under it. */
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--nav-h);
 }
 
 .nav-sheet-head {
@@ -962,6 +979,326 @@ select.control {
 .nav-sheet-item[aria-current="page"] {
   color: var(--accent);
   background: var(--accent-soft);
+}
+
+/* The editor's entry point, at the foot of the sheet. Separated by a rule for
+   the same reason the rail's toggle is: it is the one control in the sheet that
+   is not a destination. */
+.nav-sheet-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 48px;
+  margin: 0 var(--s4) var(--s4);
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+}
+
+.nav-sheet-edit:hover { color: var(--text); }
+
+/*
+ * The keypad on the convert tab's calculator panel.
+ *
+ * Only rendered on a coarse pointer — see `ConvertTab.jsx` — so everything here
+ * is a phone or a tablet. It reuses `.calc-keypad` from the drawer wholesale;
+ * what this adds is the surrounding block.
+ *
+ * `position: sticky; bottom: 0` rather than `fixed`: the card is the scroll
+ * container, and a fixed pad would sit over the history panel below the card —
+ * a keypad that follows the user out of the calculator is not a keypad.
+ *
+ * ## The bottom offset is the phone bar's height, and it has to be
+ *
+ * Measured on the shipped layout at 390×844: `=` sat at 792–836px and the
+ * fixed bottom bar began at 787, so the last row of keys was underneath it.
+ * The bar is fixed to the viewport, outside the card entirely, so the scroll
+ * container has no idea it exists — offsetting the sticky pad by the bar's own
+ * height is what puts the pad above it. `--nav-h` carries that height for every
+ * rule that needs it.
+ */
+.calc-panel-keypad {
+  position: sticky;
+  bottom: var(--nav-h);
+  z-index: 1;
+  /* The pad sits over the card's own content as it scrolls, so its background
+     has to be opaque — the result sliding up behind a translucent keypad would
+     put two numbers in the same place. `--surface` rather than `--surface-2`
+     because the keys themselves are `--surface-2`. */
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+/*
+ * On a phone the keys are 44px, the same floor the drawer uses.
+ *
+ * The drawer's own rule is inside a media query that also re-arranges the
+ * keypad for the drawer's landscape layout; this pad is never in that layout,
+ * so it states the floor itself rather than depending on a rule that a future
+ * edit to the drawer's media query could move out from under it.
+ */
+.calc-panel-keypad .calc-key { min-height: 44px; }
+
+/* The toggle that hides the function rows, in the page-switch row. Pushed to
+   the right so it does not read as a third page. */
+.calc-page.is-toggle {
+  margin-left: auto;
+  color: var(--text-dim);
+}
+
+/* The way back to the function rows, below the pad. Full width and 44px so it
+   is a target rather than a link. */
+.calc-fn-show {
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--s1);
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+}
+
+.calc-fn-show:hover { color: var(--text); border-color: var(--accent); }
+
+/* ==========================================================================
+   The navigation editor
+   ========================================================================== */
+
+/*
+ * Taller than the sheet, and it has to be.
+ *
+ * The sheet lists eleven destinations and scrolls; the editor lists twenty and
+ * each row carries a grip, an icon and a name. A 70dvh cap would leave about
+ * four rows visible, which is not enough to drag anything anywhere useful — the
+ * destination is usually off screen.
+ */
+.nav-editor {
+  max-height: 88dvh;
+  /* The list is the scroll region, not the sheet, so the header and the size
+     control stay put while the rows move under them. */
+  overflow: hidden;
+}
+
+/*
+ * On a desktop the editor is a dialog, not a bottom sheet.
+ *
+ * The sheet shape is the phone's, and the rail's edit button is only reachable
+ * on a desktop — the rail is hidden below 940px. A full-width panel anchored to
+ * the bottom of a 1440px window puts the list 1400px from the button that
+ * opened it and leaves the rows as thin bars across an empty field. Centred and
+ * capped, the list reads as a list.
+ *
+ * The same breakpoint the rail uses, so the two shapes meet exactly where the
+ * navigation changes.
+ */
+@media (min-width: 941px) {
+  /* The editor's own scrim class, so this rule does not also recentre the
+     phone's "more" sheet — that one is a sheet at every width. */
+  .nav-editor-scrim {
+    align-items: center;
+    justify-content: center;
+    padding: var(--s6);
+  }
+
+  .nav-editor {
+    width: min(560px, 100%);
+    max-height: min(720px, calc(100dvh - var(--s10)));
+    border-radius: var(--r-lg);
+    /* No bottom-bar clearance: there is no bottom bar above 940px, and the
+       sheet's `padding-bottom` would leave 57px of dead space in the dialog. */
+    padding-bottom: 0;
+    /* The scrim already fades; the panel rises into place. A dialog that
+       appears from the bottom edge would read as a sheet, which is the shape
+       this rule exists to move away from. */
+    animation: editor-in var(--dur-fx-m) var(--ease-out);
+  }
+}
+
+@keyframes editor-in {
+  from { opacity: 0; transform: translate3d(0, -8px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.nav-editor-hint,
+.nav-editor-note {
+  margin: 0;
+  padding: var(--s2) var(--s5) 0;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+}
+
+.nav-editor-size {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5) 0;
+}
+
+.nav-editor-size-label {
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.nav-editor-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.nav-editor-size-value {
+  min-width: 3.5ch;
+  text-align: center;
+  font-family: var(--font-num);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  margin: var(--s4) 0 0;
+  padding: 0 var(--s4) var(--s4);
+  list-style: none;
+  overflow-y: auto;
+  /* The list is the scroll container, so it needs a height rather than a
+     max-height — a flex child with only a ceiling collapses to its content and
+     the scroll never engages. `min-height: 0` is what lets it shrink below the
+     content height in the first place. */
+  flex: 1;
+  min-height: 0;
+}
+
+.nav-editor-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  /* The row is a drag target, so it meets the same 44px floor as every other
+     control. */
+  min-height: 48px;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text-mid);
+  font-size: var(--t-sm);
+  /*
+   * `touch-action: none` is required for the pointer drag to work on a touch
+   * screen: without it the browser claims the vertical gesture for scrolling
+   * and the drag never receives a move event. Set on the row rather than on the
+   * list so a scroll that starts in the gap between rows still scrolls.
+   */
+  touch-action: none;
+}
+
+/*
+ * The boundary between the bar and More.
+ *
+ * A top border on the first item that is not in the bar, so it moves with the
+ * size rather than being anchored to a fixed position. A border rather than a
+ * pseudo-element: the rule spans the row, and the list's own gap already
+ * separates it from the row above, so there is nothing to position.
+ */
+.nav-editor-item.is-boundary {
+  margin-top: var(--s3);
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* In the bar: the number badge is the slot, and the row is marked as chosen. */
+.nav-editor-item.is-in-bar {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+/*
+ * The dragged row and the rows sliding around it.
+ *
+ * No transition here: the transform is rewritten every frame by the drag loop,
+ * and a transition would make each write chase the last one — the row would
+ * lag behind the pointer instead of tracking it.
+ */
+.nav-editor-item.is-dragging {
+  background: var(--surface-3);
+  box-shadow: var(--shadow-2);
+  transition: none;
+}
+
+/* Where a drop would land. A rule rather than a filled row: the row itself is
+   moving, so filling it would show the destination twice. */
+.nav-editor-item.is-target {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+.nav-editor-item.is-held {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.nav-editor-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px square, the touch floor, and the whole grip is the drag handle rather
+     than the row — a row-wide handle would make the name unselectable and the
+     tap-to-select gesture impossible. */
+  width: 44px;
+  height: 44px;
+  margin-left: calc(-1 * var(--s2));
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: grab;
+  touch-action: none;
+}
+
+.nav-editor-grip:active { cursor: grabbing; }
+.nav-editor-grip:hover { color: var(--text); }
+
+.nav-editor-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.nav-editor-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nav-editor-slot {
+  min-width: 2ch;
+  text-align: right;
+  color: var(--text-dim);
+  font-family: var(--font-num);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s5);
+  border-top: 1px solid var(--border);
+}
+
+.nav-editor-done {
+  color: var(--text-dim);
+  font-size: var(--t-xs);
 }
 
 /* ==========================================================================
@@ -1139,8 +1476,7 @@ select.control {
    * the footer does not sit flush against the bar.
    */
   .app {
-    padding: var(--s6) var(--s4)
-             calc(56px + env(safe-area-inset-bottom, 0px) + var(--s6));
+    padding: var(--s6) var(--s4) calc(var(--nav-h) + var(--s6));
   }
 }
 
@@ -2900,7 +3236,7 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   border-radius: var(--r-md);
   background: var(--surface-2);
   color: var(--text);
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: var(--t-sm);
   font-variant-numeric: tabular-nums;
   line-height: 1.7;
@@ -4155,6 +4491,10 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   /* Arriving is the whole point of the animation, so it keeps a transition —
      but a fade, not a slide. */
   .install-prompt { animation: value-fade-soft 220ms ease both !important; }
+
+  /* The editor arrives with an 8px drop. Under reduced motion the arrival still
+     has to read as one, so it keeps the fade and loses the translate. */
+  .nav-editor { animation: value-fade-soft var(--dur-fx-m) ease both !important; }
 }
 
 /* ==========================================================================

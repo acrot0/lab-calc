@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
-import { isPrimary, primaryTabs, secondaryTabs } from '../nav.mjs';
+import { useNavOrder } from '../NavOrderContext.jsx';
 
 /**
  * The phone's navigation: a bottom bar of five, and a sheet for the rest.
@@ -19,7 +19,7 @@ import { isPrimary, primaryTabs, secondaryTabs } from '../nav.mjs';
  * Both platform guidelines specify 3–5 destinations. At 390px, sixteen items
  * would be 24px each, under the 44px touch floor; five gives 78px each. The
  * other eleven live in the sheet, which is what the guidelines say to do with
- * them. See `nav.mjs`.
+ * them. See `nav-order.mjs`.
  *
  * ## Why the sheet is a sheet and not a menu
  *
@@ -34,8 +34,9 @@ import { isPrimary, primaryTabs, secondaryTabs } from '../nav.mjs';
  * the viewport, for the same reason: a JS breakpoint misses a resize, and this
  * app is installed as a PWA where a rotate is a resize. CSS decides.
  */
-export default function MobileNav({ tabs, current, onSelect }) {
+export default function MobileNav({ tabs, current, onSelect, onEditNav }) {
   const { t } = useI18n();
+  const { order, size } = useNavOrder();
 
   /*
    * The nav's label for a tab: a short name where one exists, the tab's own
@@ -53,12 +54,21 @@ export default function MobileNav({ tabs, current, onSelect }) {
   const [open, setOpen] = useState(false);
   const sheetRef = useRef(null);
 
-  const primary = primaryTabs(tabs);
-  const secondary = secondaryTabs(tabs);
-  // The sheet's button is highlighted when the current tab is one of the eleven
-  // inside it — otherwise selecting a tab from the sheet would leave the bar
-  // looking like nothing is selected.
-  const currentIsSecondary = !isPrimary(current);
+  /*
+   * The bar is the head of the user's order; the sheet is the rest.
+   *
+   * Resolved through a map so a stale id is skipped rather than rendering an
+   * undefined icon. `order` already covers every tab — the provider reconciles
+   * it against the live list — so nothing can be missing from both.
+   */
+  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+  const resolved = order.map((id) => byId.get(id)).filter(Boolean);
+  const primary = resolved.slice(0, size);
+  const secondary = resolved.slice(size);
+  // The sheet's button is highlighted when the current tab is inside it —
+  // otherwise selecting a tab from the sheet would leave the bar looking like
+  // nothing is selected.
+  const currentIsSecondary = !primary.some((tab) => tab.id === current);
 
   // Escape closes the sheet, which is what every overlay in this app does.
   useEffect(() => {
@@ -117,6 +127,24 @@ export default function MobileNav({ tabs, current, onSelect }) {
                 </button>
               ))}
             </div>
+
+            {/*
+              The edit entry point.
+
+              At the foot of the sheet, after every destination, because the
+              sheet is where a user goes to find something that is not in the
+              bar — and "I want this one in the bar" is the next thought after
+              finding it. It closes the sheet first so the editor is not stacked
+              on top of it.
+            */}
+            <button
+              type="button"
+              className="nav-sheet-edit"
+              onClick={() => { setOpen(false); onEditNav?.(); }}
+            >
+              <Icons.drag size={ICON_SIZE.control} aria-hidden="true" />
+              <span>{t('app.editNav')}</span>
+            </button>
           </div>
         </div>
       )}

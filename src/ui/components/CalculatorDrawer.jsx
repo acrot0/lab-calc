@@ -11,10 +11,9 @@ import { canFill, currentFieldLabel, fillField, onFieldChange } from '../field-b
 import {
   clampPosition, defaultPosition, dragTo, isDragHandle, keyboardInset,
 } from '../float-window.mjs';
-import {
-  DIGIT_KEYS, FN_PAGES, MEMORY_KEYS, UNIT_KEYS,
-} from './calculator-keys.mjs';
+import { UNIT_KEYS } from './calculator-keys.mjs';
 import { ACTIONS, asQuantity } from './calculator-actions.mjs';
+import CalculatorKeypad from './CalculatorKeypad.jsx';
 import UnitConverter from './UnitConverter.jsx';
 
 /** Where the window was last left, so it reopens where the user put it. */
@@ -80,9 +79,6 @@ export default function CalculatorDrawer({ open, onClose, store }) {
   // ago — without its name the button cannot say where the value will land.
   const [fillTarget, setFillTarget] = useState(null);
   const [filled, setFilled] = useState(false);
-  // Which function page the keypad shows. An index rather than a boolean, so a
-  // third page would be a change to the data and not to this component.
-  const [fnPage, setFnPage] = useState(0);
   // Which of the window's two panels is showing: the calculator or the unit
   // converter. See the note on `.calc-tabs`.
   const [panel, setPanel] = useState('calc');
@@ -429,40 +425,26 @@ export default function CalculatorDrawer({ open, onClose, store }) {
     formatNumber: (v) => Number(v.toPrecision(12)).toString(),
   }), [result, last, memory, evaluateNow]);
 
+  /*
+   * What a key does when pressed.
+   *
+   * The focus handling is separate from the insertion, because the keypad is
+   * shared: the drawer wants focus returned to its entry, and the panel on the
+   * convert tab wants the same. Handing it in as `onFocus` rather than having
+   * the keypad reach for a ref means the shared component holds no opinion
+   * about which surface it is in.
+   */
   const press = useCallback((k) => {
     if (k.action) {
       ACTIONS[k.action]?.(actionCtx);
-      // The entry keeps focus so a hardware keyboard can carry on typing after
-      // an on-screen key is pressed, which is how a hybrid device is used.
-      inputRef.current?.focus();
       return;
     }
     setSrc((s) => s + k.insert);
-    inputRef.current?.focus();
   }, [actionCtx]);
 
-  /*
-   * One key, drawn the same way on every row.
-   *
-   * The zones differ only in which class they carry — the keys mean the same
-   * things — so they share this rather than each carrying its own copy that
-   * could drift in styling or in how a key with no `insert` is handled.
-   */
-  const renderKey = useCallback((k) => (
-    <button
-      key={k.label}
-      type="button"
-      className={`calc-key is-${k.zone}${k.span ? ' is-wide' : ''}`}
-      // A spanning key is a single property rather than a rule per width, so it
-      // is inline. `gridColumn` is the one place the layout is data.
-      style={k.span ? { gridColumn: `span ${k.span}` } : undefined}
-      title={k.title ? t(`convert.calcKey_${k.title}`) : undefined}
-      aria-label={k.title ? t(`convert.calcKey_${k.title}`) : k.label}
-      onClick={() => press(k)}
-    >
-      {k.label}
-    </button>
-  ), [t, press]);
+  // The entry keeps focus so a hardware keyboard can carry on typing after an
+  // on-screen key is pressed, which is how a hybrid device is used.
+  const focusEntry = useCallback(() => inputRef.current?.focus(), []);
 
   // Escape closes, which is what every overlay in this app does.
   useEffect(() => {
@@ -691,69 +673,13 @@ export default function CalculatorDrawer({ open, onClose, store }) {
           </div>
 
           {/*
-            The page switch.
+            The keypad, shared with the calculator panel on the convert tab.
 
-            A two-segment control rather than a toggle, because there are two
-            pages and a toggle can only say "the other one" — with the page
-            count written on each segment, the user can see where they are
-            without pressing anything. It sits above the keypad rather than
-            among the keys so it is never mistaken for a key that inserts
-            something; every other button here types a character.
+            It owns its own function-page state, so the drawer no longer holds
+            `fnPage` — two surfaces rendering the same pad from one source is
+            the point, and a page held in each caller is how they drift.
           */}
-          <div className="calc-pages" role="group" aria-label={t('convert.calcMore')}>
-            {FN_PAGES.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                className={`calc-page${fnPage === i ? ' is-on' : ''}`}
-                aria-pressed={fnPage === i}
-                onClick={() => setFnPage(i)}
-              >
-                <Icons.calc size={ICON_SIZE.inline} aria-hidden="true" />
-                {t(`convert.calcPage${i + 1}`)}
-              </button>
-            ))}
-          </div>
-
-          {/*
-            The keypad is split in two: the rows that can scroll, and `=`.
-
-            On a phone held upright everything fits and the split is invisible —
-            `.calc-rows` is an ordinary block. Held sideways there is 150px for
-            220px of keys, so the rows scroll and `=` stays put below them. The
-            alternative was putting `=` behind the scroll, and it is the key a
-            thumb finds by position at the bottom of the pad; the other was
-            shrinking the keys below 44px, which is the one thing the touch work
-            exists to prevent.
-          */}
-          <div className="calc-keypad" role="group" aria-label={t('convert.calcKeypad')}>
-            <div className="calc-rows">
-              {/* Only the function rows swap. The memory row and the digits
-                  stay put, so a user on either page can still type a number,
-                  recall the answer and clear the entry. */}
-              {FN_PAGES[fnPage].map((row, ri) => (
-                <div className="calc-row" key={`fn-${ri}`}>
-                  {row.map(renderKey)}
-                </div>
-              ))}
-              {MEMORY_KEYS.map((row, ri) => (
-                <div className="calc-row is-memory" key={`mem-${ri}`}>
-                  {row.map(renderKey)}
-                </div>
-              ))}
-              {DIGIT_KEYS.slice(0, -1).map((row, ri) => (
-                <div className="calc-row" key={`dig-${ri}`}>
-                  {row.map(renderKey)}
-                </div>
-              ))}
-            </div>
-            {/* The last row of `DIGIT_KEYS` is the `=` row and only that key —
-                see the table. Taken by slice rather than written here so the
-                key stays in `calculator-keys.mjs` with the rest. */}
-            <div className="calc-row is-equals">
-              {DIGIT_KEYS[DIGIT_KEYS.length - 1].map(renderKey)}
-            </div>
-          </div>
+          <CalculatorKeypad onKey={press} onFocus={focusEntry} idPrefix="drawer" />
 
           {/*
             The recent expressions, behind a disclosure.

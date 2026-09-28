@@ -3,6 +3,7 @@ import {
   DIGIT_KEYS, FN_PAGES, MEMORY_KEYS, UNIT_KEYS, ZONE, allKeys,
 } from '../src/ui/components/calculator-keys.mjs';
 import { isExpressionFragment, evaluate } from '../src/calc/expression.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The keypad has two function pages that swap while the memory row and the
@@ -138,5 +139,62 @@ describe('calculator keypad units', () => {
     for (const u of UNIT_KEYS) {
       expect(() => evaluate(`1 ${u}`), `1 ${u} does not parse`).not.toThrow();
     }
+  });
+});
+
+/*
+ * The keypad is one component, rendered by two surfaces.
+ *
+ * It used to be markup inside `CalculatorDrawer`, and the calculator panel on
+ * the convert tab had none at all — so on a phone that panel was a bare text
+ * field that raised the system keyboard over the result the user was trying to
+ * read. The fix was to extract the pad, not to write a second one: two pads
+ * would be two places for a key to be missing and two answers to drift apart.
+ *
+ * These read the source rather than render, because what is being guarded is
+ * the arrangement of files. A render test would pass just as happily with a
+ * duplicated pad, which is the thing to prevent.
+ */
+describe('the shared keypad component', () => {
+  const read = (p) => readFileSync(p, 'utf8');
+
+  it('should be the only place that renders the key tables', () => {
+    // The tables are imported by the component and by the tests. A component
+    // that imports `DIGIT_KEYS` and renders keys has started building its own.
+    const src = read('src/ui/components/CalculatorKeypad.jsx');
+    for (const table of ['DIGIT_KEYS', 'FN_PAGES', 'MEMORY_KEYS']) {
+      expect(src, `CalculatorKeypad should render ${table}`).toContain(table);
+    }
+    for (const other of ['src/ui/components/CalculatorDrawer.jsx', 'src/ui/tabs/ConvertTab.jsx']) {
+      const body = read(other);
+      for (const table of ['DIGIT_KEYS', 'FN_PAGES', 'MEMORY_KEYS']) {
+        expect(body, `${other} renders ${table} itself`).not.toContain(table);
+      }
+      expect(body, `${other} should render the shared keypad`).toContain('CalculatorKeypad');
+    }
+  });
+
+  it('should keep the entry read-only wherever the keypad is the only input', () => {
+    /*
+     * The panel's entry is `readOnly` on a coarse pointer, which is what stops
+     * the system keyboard appearing. Losing it is a one-word regression that
+     * no test would otherwise notice — the keypad still works, and the
+     * keyboard that covers the result comes back silently.
+     */
+    const body = read('src/ui/tabs/ConvertTab.jsx');
+    expect(body).toMatch(/readOnly=\{useKeypad\}/);
+    expect(body).toMatch(/inputMode=\{useKeypad \? 'none' : 'text'\}/);
+  });
+
+  it('should keep the digits reachable when the function rows are collapsed', () => {
+    // The panel starts collapsed to fit the entry and the result on screen at
+    // 390×844. If the collapse also hid the digits, the panel would be a
+    // display with no input.
+    const src = read('src/ui/components/CalculatorKeypad.jsx');
+    const rows = src.slice(src.indexOf('calc-rows'), src.indexOf('is-equals'));
+    expect(rows).toContain('MEMORY_KEYS');
+    expect(rows).toContain('DIGIT_KEYS');
+    // Only the function rows are behind the flag.
+    expect(rows).toMatch(/fnOpen && FN_PAGES/);
   });
 });

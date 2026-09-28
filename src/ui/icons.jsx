@@ -32,6 +32,8 @@ import { MagnifyingGlass } from '@phosphor-icons/react/dist/csr/MagnifyingGlass'
 import { Trash } from '@phosphor-icons/react/dist/csr/Trash';
 import { Tag } from '@phosphor-icons/react/dist/csr/Tag';
 import { Plus } from '@phosphor-icons/react/dist/csr/Plus';
+import { Minus } from '@phosphor-icons/react/dist/csr/Minus';
+import { DotsSixVertical } from '@phosphor-icons/react/dist/csr/DotsSixVertical';
 import { FolderSimple } from '@phosphor-icons/react/dist/csr/FolderSimple';
 import { ArrowCounterClockwise } from '@phosphor-icons/react/dist/csr/ArrowCounterClockwise';
 import { ArrowsOutSimple } from '@phosphor-icons/react/dist/csr/ArrowsOutSimple';
@@ -238,6 +240,13 @@ export const Icons = {
   // Adding a record field. A plus rather than a tag: the tag says "metadata",
   // and the action a user takes on the field list is "add one of these".
   add: styled(Plus, 'add'),
+  // The nav editor's stepper. A minus to pair with `add` above; the same glyph
+  // would be wrong, because one adds a field and the other takes a slot away.
+  subtract: styled(Minus, 'subtract'),
+  // The nav editor's drag handle. The two columns of dots are the grab
+  // affordance every platform uses for a reorderable list, and unlike an arrow
+  // they do not imply a direction — the item can go either way.
+  drag: styled(DotsSixVertical, 'drag'),
   group: styled(FolderSimple, 'group'),
   download: styled(DownloadSimple, 'download'),
   csv: styled(FileXls, 'csv'),

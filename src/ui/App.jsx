@@ -22,6 +22,8 @@ import HistoryPanel from './components/HistoryPanel.jsx';
 import NoticeModal from './components/NoticeModal.jsx';
 import NavRail from './components/NavRail.jsx';
 import MobileNav from './components/MobileNav.jsx';
+import NavEditor from './components/NavEditor.jsx';
+import { NavOrderProvider } from './NavOrderContext.jsx';
 import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
@@ -165,6 +167,9 @@ export default function App() {
   // its own outside-click and Escape handling; it just no longer owns whether
   // it is open.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Lifted for the same reason as `settingsOpen`: two navigations can open it,
+  // and the overlay has to outlive whichever one was clicked.
+  const [navEditorOpen, setNavEditorOpen] = useState(false);
   const store = useMemo(() => resolveStore(), []);
 
   /*
@@ -493,6 +498,15 @@ export default function App() {
   }, [scenario]);
 
   return (
+    /*
+      The tab order wraps the whole app rather than sitting inside the two
+      navigations, because three things read it — the phone bar, the desktop
+      rail, and the editor — and the editor has to outlive whichever navigation
+      opened it. Nesting it here rather than in `main.jsx` keeps `TAB_IDS` local:
+      the provider needs the live tab list, and the tab list is defined in this
+      file.
+    */
+    <NavOrderProvider allIds={TAB_IDS} store={store}>
     <div className="app">
       <header className="topbar">
         <div className="brand">
@@ -549,7 +563,7 @@ export default function App() {
           JavaScript would mean measuring the viewport in React, which is how a
           resize gets missed — and this app is installed as a PWA, where a
           rotate is a resize. */}
-      <MobileNav tabs={TABS} current={tab} onSelect={goTo} />
+      <MobileNav tabs={TABS} current={tab} onSelect={goTo} onEditNav={() => setNavEditorOpen(true)} />
 
       {/* The rail and the content share a row so the rail can sit beside the
           table on a wide screen. The grid column stays 56px even while the rail
@@ -557,7 +571,7 @@ export default function App() {
           pushing it sideways — a layout that shifts under the pointer is worse
           than one that overlays. */}
       <div className="shell">
-        <NavRail tabs={TABS} current={tab} onSelect={goTo} />
+        <NavRail tabs={TABS} current={tab} onSelect={goTo} onEditNav={() => setNavEditorOpen(true)} />
 
         {/* The tab panel is the page's main content; the topbar and footer are
             chrome around it. Without this landmark a screen reader can only jump
@@ -613,6 +627,11 @@ export default function App() {
       />
 
       <CalculatorDrawer open={calcOpen} onClose={() => setCalcOpen(false)} store={store} />
+
+      {navEditorOpen && (
+        <NavEditor tabs={TABS} onClose={() => setNavEditorOpen(false)} />
+      )}
     </div>
+    </NavOrderProvider>
   );
 }

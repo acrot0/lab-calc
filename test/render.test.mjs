@@ -166,11 +166,12 @@ describe('app shell', () => {
     // counted out rather than making the totals disagree by one.
     const items = [...html.matchAll(/class="rail-item"/g)].length
       + [...html.matchAll(/class="rail-item rail-toggle"/g)].length;
-    const { PRIMARY_TABS } = await import('../src/ui/nav.mjs');
+    const { BAR_SIZE } = await import('../src/ui/nav-order.mjs');
     const bar = [...html.matchAll(/class="mobile-nav-item/g)].length;
-    expect(items, 'rail items').toBeGreaterThan(PRIMARY_TABS.length);
-    // The phone bar is five destinations plus the "more" button.
-    expect(bar, 'bottom bar items').toBe(PRIMARY_TABS.length + 1);
+    expect(items, 'rail items').toBeGreaterThan(BAR_SIZE);
+    // The phone bar is the default number of destinations plus the "more"
+    // button. No stored preference exists in a fresh render, so it is BAR_SIZE.
+    expect(bar, 'bottom bar items').toBe(BAR_SIZE + 1);
   });
 
   it('should name every destination in the rail', async () => {

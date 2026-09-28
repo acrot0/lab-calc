@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { DIMENSIONS, convert, sharedDimension } from '../../calc/units.mjs';
 import { evaluate } from '../../calc/expression.mjs';
 import { Result, Err } from '../components/Fields.jsx';
@@ -6,6 +6,8 @@ import { ArtBalance } from '../components/Illustrations.jsx';
 import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { errorMessage } from '../errors.mjs';
+import { ACTIONS } from '../components/calculator-actions.mjs';
+import CalculatorKeypad from '../components/CalculatorKeypad.jsx';
 import Card from '../components/Card.jsx';
 import UnitConverter, { DIMENSIONS_SHOWN } from '../components/UnitConverter.jsx';
 
@@ -54,10 +56,23 @@ export default function ConvertTab() {
 /**
  * The expression calculator, on the tab.
  *
- * A field and an example row rather than a keypad: this screen has a hardware
- * keyboard in front of it, and a keypad on a desktop is a slower way to type.
- * The keypad is in the drawer, which is the surface a phone uses — see
- * `CalculatorDrawer.jsx`.
+ * ## Two input surfaces, chosen by pointer type
+ *
+ * On a fine pointer this is a field and an example row. A desktop has a
+ * hardware keyboard in front of it, and an on-screen keypad is a slower way to
+ * type on one.
+ *
+ * On a coarse pointer it is the field *plus* a keypad. The field goes read-only
+ * and the keypad becomes the way in — the previous behaviour was a bare text
+ * field, so tapping it raised the system keyboard over the bottom half of the
+ * screen, covering the result the user tapped it to see. The keypad is the same
+ * component the drawer renders; see `CalculatorKeypad.jsx`.
+ *
+ * `(pointer: coarse)` rather than a width breakpoint, because the question is
+ * not how wide the screen is: a tablet has a coarse pointer at 1024px and a
+ * narrow desktop window has a fine one at 500px.
+ *
+ * ## The arrow form
  *
  * `25 C -> K` is accepted as a special form because it is the one conversion
  * the expression syntax cannot express: temperature does not compose, so it is
@@ -66,6 +81,48 @@ export default function ConvertTab() {
 function Calculator() {
   const { t } = useI18n();
   const [src, setSrc] = useState('');
+  const inputRef = useRef(null);
+
+  /*
+   * Whether this is a device whose only keyboard is on its screen.
+   *
+   * Read once, at mount, rather than on every render: the pointer type does not
+   * change while the page is open, and a `matchMedia` call in render would run
+   * on every keystroke.
+   *
+   * `(pointer: coarse)` rather than a width breakpoint, because the question is
+   * not how wide the screen is — a 1024px tablet has a coarse pointer and a
+   * 500px desktop window has a fine one. The drawer uses the same query for the
+   * same reason.
+   */
+  const [touch] = useState(
+    () => globalThis.matchMedia?.('(pointer: coarse)')?.matches === true,
+  );
+
+  /*
+   * On a touch device the entry is read-only and the keypad below is the way in.
+   *
+   * This is the whole fix for the reported problem: tapping the field raised the
+   * system keyboard over the bottom half of the screen — including the result,
+   * which is the thing the user tapped it to see. A `readOnly` field is not
+   * focusable-by-tap for text entry, so no keyboard appears, and the custom
+   * keypad is the only input. It is not `disabled`: the value stays selectable
+   * and copyable, and the examples below still fill it.
+   *
+   * Left writable on a fine pointer, where the hardware keyboard is faster than
+   * any on-screen one and the field is the right control.
+   */
+  const useKeypad = touch;
+
+  /*
+   * Session state for the keypad's actions.
+   *
+   * `ans` and the memory live on this panel rather than in the drawer: they are
+   * state for the surface the user is on, and a memory that survived switching
+   * tabs would recall a number the user cannot see anywhere.
+   */
+  const [memory, setMemory] = useState(null);
+  const [last, setLast] = useState(null);
 
   const result = useMemo(() => {
     if (src.trim() === '') return null;
@@ -113,19 +170,62 @@ function Calculator() {
       : result.dimension)
     : null;
 
+  /*
+   * The keypad's action context.
+   *
+   * The same shape the drawer builds, because the actions are the same ones —
+   * `ACTIONS` is a shared registry, and a second implementation of `clear` here
+   * would be a second place for it to be wrong.
+   *
+   * Declared after `result` because `equals` reads it: `=` is what moves the
+   * result into `ans`, which is what makes a chained calculation work without
+   * retyping — `5 g / 250 mL`, `=`, then `ans * 2`.
+   */
+  const actionCtx = useMemo(() => ({
+    setSrc,
+    setMemory,
+    result,
+    last,
+    memory,
+    formatNumber: (n) => fmt(n, 10),
+    commit: () => {
+      if (result && !result.error && result.value !== null) setLast(result.value);
+    },
+  }), [result, last, memory]);
+
+  const pressKey = useCallback((k) => {
+    if (k.action) {
+      ACTIONS[k.action]?.(actionCtx);
+      return;
+    }
+    setSrc((s) => s + k.insert);
+  }, [actionCtx]);
+
+  // Focus returns to the entry after a key press so a hybrid device — a tablet
+  // with a keyboard case — can carry on typing on the hardware one.
+  const focusEntry = useCallback(() => inputRef.current?.focus(), []);
+
   return (
     <>
       <div className="field is-wide">
         <label htmlFor="calc-src">{t('convert.calcLabel')}</label>
         <input
           id="calc-src"
+          ref={inputRef}
           type="text"
-          inputMode="text"
+          // `none` rather than `text` on a touch device: it is the hint that
+          // suppresses the software keyboard on most browsers. `readOnly` below
+          // is the guarantee — a read-only field cannot raise one at all — and
+          // this is the belt to that pair of braces, covering the browsers that
+          // ignore readOnly for focus.
+          inputMode={useKeypad ? 'none' : 'text'}
+          readOnly={useKeypad}
           autoComplete="off"
           spellCheck="false"
           value={src}
           placeholder={t('convert.calcPlaceholder')}
           onChange={(e) => setSrc(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') pressKey({ action: 'equals' }); }}
         />
         <div className="hint">{t('convert.calcHint')}</div>
       </div>
@@ -145,6 +245,22 @@ function Calculator() {
           ))}
         </div>
       </div>
+
+      {/*
+        The keypad, on the surfaces that have no other keyboard.
+
+        Above the result rather than below it, and that ordering is the fix for
+        the second half of the complaint — the panel being "very large". With
+        the entry no longer raising a system keyboard, the result stays on
+        screen while the user types; putting the keypad under the result would
+        push the number the user is watching off the bottom as the expression
+        grows.
+      */}
+      {useKeypad && (
+        <div className="calc-panel-keypad">
+          <CalculatorKeypad onKey={pressKey} onFocus={focusEntry} idPrefix="panel" collapsible />
+        </div>
+      )}
 
       {result?.error && <Err>{result.error}</Err>}
 

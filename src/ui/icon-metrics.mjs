@@ -106,6 +106,17 @@ export const ICON_INK = {
    * open for another reason.
    */
   add: { x: 32, y: 32, w: 192, h: 192 },
+  /*
+   * The nav editor's stepper and drag handle.
+   *
+   * Measured with `node tools/measure-icon-ink.mjs DotsSixVertical Minus`. Both
+   * are much smaller than the grid — `Minus` is a 16-unit bar in a 256 grid —
+   * so without the correction the minus would render as a hairline next to the
+   * plus above it, which is the exact "several sets" failure the table exists
+   * to prevent.
+   */
+  subtract: { x: 40, y: 120, w: 184, h: 16 },
+  drag: { x: 92, y: 60, w: 72, h: 124 },
   group: { x: 24, y: 48, w: 208, h: 168 },
   search: { x: 23.8, y: 23.8, w: 208.2, h: 208.2 },
   analytical: { x: 24.0, y: 40.0, w: 208.0, h: 176.0 },
