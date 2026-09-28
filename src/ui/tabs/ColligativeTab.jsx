@@ -210,7 +210,7 @@ export default function ColligativeTab({ onRecord, restored }) {
         <Result value={fmt(shown.atm, 4)} unit="atm"
           note={t('colligative.osmoticNote', { osmolarity: fmtSci(shown.osmolarity, 4), tempK: fmt(shown.tempK, 2) })}
           rows={[
-            [t('colligative.kPa'), `${fmt(shown.kPa, 3)} kPa`],
+            [t('colligative.kPa'), `${fmt(shown.kPa, 2)} kPa`],
             [t('colligative.osmolarity'), `${fmtSci(shown.osmolarity, 4)} osmol/L`],
           ]}
           worked={worked} workedLabel={t('common.worked')} />

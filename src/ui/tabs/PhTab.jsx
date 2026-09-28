@@ -340,7 +340,7 @@ export default function PhTab({ onRecord, restored, theme = 'dark' }) {
       <Warn>{t('ph.warning')}</Warn>
 
       <Result
-        value={shown ? fmt(shown.ph, 2) : null}
+        value={shown ? fmt(shown.ph, 3) : null}
         unit="pH"
         note={shown ? t('ph.note', {
           kind: shown.kind === 'acid' ? t('ph.weakAcid') : t('ph.weakBase'),
@@ -363,7 +363,7 @@ export default function PhTab({ onRecord, restored, theme = 'dark' }) {
           value={fmt(real.ph, 3)}
           unit="pH"
           note={t('ph.realNote', {
-            ideal: fmt(real.idealPh, 2),
+            ideal: fmt(real.idealPh, 3),
             gamma: fmt(real.gammaH, 3),
           })}
           rows={[

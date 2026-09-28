@@ -399,7 +399,7 @@ export default function ReagentTab({ onRecord, restored }) {
 
       {shown?.mode === 'volume' && (
         <>
-          <Result value={fmt(shown.volumeMl, 2)} unit="mL"
+          <Result value={fmt(shown.volumeMl, 3)} unit="mL"
             note={t('reagent.volumeNote', { molarity: targetM, volume: targetV })}
             unc={uncOpen && budget ? {
               ...fmtMeasured(budget.delivered.value, budget.delivered.unc, { unit: ' mL' }),
@@ -445,7 +445,7 @@ export default function ReagentTab({ onRecord, restored }) {
       )}
 
       {shown?.mode === 'normality' && (
-        <Result value={fmt(shown.normality, 3)} unit="N"
+        <Result value={fmt(shown.normality, 4)} unit="N"
           note={t('reagent.normalityNote', { n: nEq })}
           worked={worked} workedLabel={t('common.worked')}
           rows={[

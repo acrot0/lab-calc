@@ -243,7 +243,7 @@ export default function BufferTab({ onRecord, restored, theme = 'dark' }) {
           value={fmt(real.ph, 3)}
           unit="pH"
           note={t('buffer.realNote', {
-            ideal: fmt(real.idealPh, 2),
+            ideal: fmt(real.idealPh, 3),
             temp: fmt(real.tempC, 0),
           })}
           rows={[

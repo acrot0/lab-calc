@@ -226,7 +226,7 @@ export default function PercentTab({ onRecord, restored }) {
 
       {mode === 'prepare' ? (
         <Result
-          value={shown ? fmtSci(shown.massG, 3) : null}
+          value={shown ? fmtSci(shown.massG, 4) : null}
           unit={t('percent.unit')}
           note={shown ? t('percent.notePrepare', { volume: shown.volumeMl, molarity: fmtSci(shown.molarity, 4) }) : null}
           rows={shown ? [
@@ -243,9 +243,9 @@ export default function PercentTab({ onRecord, restored }) {
         />
       ) : (
         <Result
-          value={shown ? fmt(shown.percent, 3) : null}
+          value={shown ? fmt(shown.percent, 4) : null}
           unit={t('percent.unitPercent')}
-          note={shown ? t('percent.notePercent', { percent: fmt(shown.percent, 3), formula }) : null}
+          note={shown ? t('percent.notePercent', { percent: fmt(shown.percent, 4), formula }) : null}
           rows={shown ? [
             [t('percent.unitPercent'), `${fmt(shown.percent, 4)} %`],
             [t('common.concentration'), `${shown.molarity} mol/L`],

@@ -149,9 +149,9 @@ export default function DiluteTab({ onRecord, restored }) {
       <button className="primary" onClick={run}>{t('common.calc')}</button>
       {err && <Err>{err}</Err>}
       <Result
-        value={out ? fmt(out.stockVolumeMl, 2) : null}
+        value={out ? fmt(out.stockVolumeMl, 3) : null}
         unit={t('dilute.unit')}
-        note={out ? t('dilute.note', { diluent: fmt(out.diluentVolumeMl, 2), volume: fmt(n(volume), 1) }) : null}
+        note={out ? t('dilute.note', { diluent: fmt(out.diluentVolumeMl, 3), volume: fmt(n(volume), 1) }) : null}
         rows={out ? [
           [t('dilute.stockVolume'), `${fmt(out.stockVolumeMl, 3)} mL`],
           [t('dilute.diluentVolume'), `${fmt(out.diluentVolumeMl, 3)} mL`],

@@ -431,7 +431,7 @@ export default function SpectroTab({ onRecord, restored, theme = 'dark' }) {
 
       {shown?.mode === 'absorbance' && (
         <>
-          <Result value={fmt(shown.absorbance, 4)} unit="AU"
+          <Result value={fmt(shown.absorbance, 5)} unit="AU"
             note={t('spectro.absNote')}
             rows={[[t('spectro.absorbance'), fmt(shown.absorbance, 5)]]}
             unc={uncOpen && budget ? {

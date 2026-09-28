@@ -550,9 +550,9 @@ export default function CurveTab({ onRecord, restored, theme = 'dark' }) {
         <div className="result">
           <CurveChart points={out.points} eqVolumes={out.eqVolumes} theme={theme} />
           <Result
-            value={fmt(out.first.volumeMl, 2)}
+            value={fmt(out.first.volumeMl, 3)}
             unit={t('curve.equivalenceUnit')}
-            note={t('curve.equivalenceNote', { ph: fmt(out.first.ph, 2) })}
+            note={t('curve.equivalenceNote', { ph: fmt(out.first.ph, 3) })}
             unc={uncOpen && budget ? {
               ...fmtMeasured(budget.volume.value, budget.volume.unc, { unit: ' mL' }),
               detail: `${t('unc.uncRelative')} ${fmtSci(budget.relative * 100, 3)}%`,

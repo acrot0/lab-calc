@@ -22,13 +22,13 @@ search, replay and export.
 | **Themes** | 10 (Catppuccin, Rosé Pine, Gruvbox, Solarized) + follow-system + custom accent, radius, density and motion |
 | **Export** | Excel (.xlsx) · CSV · Markdown · PDF report · JSON backup (re-importable) |
 | **Licence** | MIT |
-| **Status** | v1.0.0 · 2481 tests passing / 122 files · all three platforms green in CI |
+| **Status** | v1.0.0 · 2485 tests passing / 123 files · all three platforms green in CI |
 
 ```bash
 npm install
 npm run dev      # dev server
 npm run build    # build to dist/, plain static files, hostable anywhere
-npm test         # 2481 tests
+npm test         # 2485 tests
 npm run verify   # import integrity + icon metrics + licences + authorship + 20 smoke checks against known answers
 ```
 
