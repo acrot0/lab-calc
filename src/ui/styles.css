@@ -1838,18 +1838,27 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   }
 
   /*
-   * The result number: a value that changed is information, so it fades in
-   * rather than popping. Slower than the pop it replaces, because a fade has
-   * no motion to carry the eye and needs to be legible on its own.
+   * The result panel itself, and the pieces inside it.
+   *
+   * The panel's `rise` is a 4px translate plus a fade; under reduced motion it
+   * keeps the fade and drops the translate, which is what the comment above
+   * already claimed this rule was doing. Left unlisted it would have been
+   * collapsed to an instant appearance, and the panel — the one element whose
+   * arrival is the whole point of pressing the button — would have been the
+   * only thing on screen that did not announce itself.
    */
+  .result,
   .result-main {
     animation: value-fade-soft 260ms ease both !important;
   }
 
   .result-grid strong,
+  .result-note,
   .worked,
   .msg,
   .history-item,
+  .export-menu,
+  .export-preview,
   .expr-value {
     animation: value-fade-soft 220ms ease both !important;
   }

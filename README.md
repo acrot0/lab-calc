@@ -20,13 +20,13 @@
 | **主题** | 10 套（含 Catppuccin、Rosé Pine、Gruvbox、Solarized）+ 跟随系统 + 自定义强调色/圆角/密度/动效 |
 | **导出** | Excel（.xlsx）· CSV · Markdown · PDF 报告 · JSON 备份（可再导入）|
 | **许可** | MIT |
-| **状态** | v1.0.0 · 测试 2415 通过 / 120 文件 · 三平台 CI 全绿 |
+| **状态** | v1.0.0 · 测试 2434 通过 / 120 文件 · 三平台 CI 全绿 |
 
 ```bash
 npm install
 npm run dev      # 开发服务器
 npm run build    # 构建到 dist/，纯静态，可直接托管
-npm test         # 2415 个测试
+npm test         # 2434 个测试
 npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项计算对已知答案的冒烟检查
 ```
 

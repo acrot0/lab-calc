@@ -87,6 +87,169 @@ export function wrapText(text, maxChars) {
   return lines;
 }
 
+/*
+ * The width model, and what it is actually modelling.
+ *
+ * `wrapText` counts characters — a CJK glyph as two, everything else as one —
+ * because it was written to keep a *heading* from running off the card, where
+ * wrapping one character early costs nothing and a ragged right edge is the
+ * only failure. Reused for truncation it is not good enough: a column budget is
+ * a width, and "one column" has to mean a real number of units, or the
+ * arithmetic that derives the budgets is decoration.
+ *
+ * Measured with `getComputedTextLength` at the row font, per class, as a
+ * fraction of the font size:
+ *
+ *   digits    0.588 em      uppercase  0.668 em avg, 1.02 em for `W`
+ *   lowercase 0.541 em      punctuation 0.444 em avg, 0.90 em for `%`
+ *   CJK       1.000 em      × ³ M      0.60 em
+ *
+ * Scaling is linear — 17px and 25px gave identical fractions — so one table
+ * serves every size. The 650 weight is 5.5% wider than regular, measured across
+ * all classes.
+ *
+ * A column is `0.60 em` at the row font — one `EM_COL`, which is a hair above
+ * the measured digit advance (0.588) and so carries a small margin on the case
+ * a card actually contains. That is the choice that matters: a card's values
+ * are numbers and units, and the alphabet average (`abcdefg…`, 0.541 em from
+ * `lower`'s own spread) under-reserved a run of digits by ~9%. Uppercase stays
+ * modelled optimistically: a card whose rows are long runs of capitals does not
+ * exist, and reserving `W`'s 1.02 em for every column would truncate every real
+ * card to buy protection against a case that does not occur.
+ */
+const EM_COL = 0.60;
+const EM_BOLD = 1.055;
+const EM_WIDE = 1.0;
+
+/**
+ * How many columns a character occupies: one for Latin and its usual
+ * punctuation, `1/0.6` for CJK — a glyph that renders at a full em.
+ *
+ * Exported because the tests reason in columns and the builder reasons in units,
+ * and both have to agree about a Chinese glyph. `wrapText`'s flat 2 is a
+ * different, coarser convention that stays where it is: a heading one character
+ * short is not a defect.
+ */
+export function columnsOf(ch) {
+  return ch.charCodeAt(0) > 0x2e7f ? EM_WIDE / EM_COL : 1;
+}
+
+/** How wide a string renders, in the columns `truncateTo` budgets. */
+export function textColumns(text) {
+  let w = 0;
+  for (const ch of String(text ?? '')) w += columnsOf(ch);
+  return w;
+}
+
+/**
+ * Trim a string to fit `maxCols` columns, marking that it was cut.
+ *
+ * An ellipsis rather than a silent chop: a value that has been shortened must
+ * say so, because the alternative is a card showing `58.4400` when the answer
+ * was `58.4400123` — a number that is wrong in the way this whole project
+ * exists to avoid.
+ *
+ * The budget bounds the text, and the ellipsis is *added* on top of it rather
+ * than taken out of it: a reader who sees the marker must be able to trust that
+ * everything before it is a prefix of the real value, and a marker that pushed
+ * the last character out would quietly make that false. That is why every
+ * caller below gives up a column of slack first.
+ */
+export function truncateTo(text, maxCols) {
+  const s = String(text ?? '');
+  if (!(maxCols > 0)) return '';
+  let width = 0;
+  let out = '';
+  for (const ch of s) {
+    const w = columnsOf(ch);
+    if (width + w > maxCols) return `${out}…`;
+    out += ch;
+    width += w;
+  }
+  return s;
+}
+
+const ROW_FONT = 25;
+const UNIT_FONT = 38;
+const VALUE_FONT = 96;
+const ROW_ADVANCE = ROW_FONT * EM_COL;
+const UNIT_ADVANCE = UNIT_FONT * EM_COL;
+/* Measured bold digits: 0.617 em, i.e. 0.588 × 1.055. */
+const VALUE_ADVANCE = VALUE_FONT * EM_COL * EM_BOLD;
+/** The gap between the headline and its unit. */
+const UNIT_GAP = 16;
+const COL_GAP = 520;
+const RIGHT_EDGE = CARD.width - CARD.pad;
+const COL_LEFT = CARD.pad + 48;
+
+/** Columns that fit between two x positions. */
+const colsBetween = (from, to) => Math.floor((to - from) / ROW_ADVANCE);
+
+/*
+ * The two row cells share one budget: the narrower of the two columns, less the
+ * ellipsis's own column.
+ *
+ *   column 1:  632 − 112 = 520 units → 37 columns
+ *   column 2:  1136 − 632 = 504 units → 36 columns
+ */
+const ROW_COLS = Math.min(colsBetween(COL_LEFT, COL_LEFT + COL_GAP), colsBetween(COL_LEFT + COL_GAP, RIGHT_EDGE)) - 1;
+
+/*
+ * The headline's budget is not the headline alone.
+ *
+ * The unit is drawn *after* the value, so the two share one line and the value
+ * must leave room for it. Budgeting the value the full panel width — which is
+ * what the first version did — put the number and its unit on top of each
+ * other: a 17-character value reached 112 + 17·56 = 1064, the unit started 16
+ * units later, and `mol/L` at 38px is another 104, so the line ended at 1184
+ * against a panel edge of 1136.
+ *
+ * Reserving that unconditionally would cost the headline three characters on
+ * every card that has no unit, which is most of them, so it is a function of
+ * whether there is one. Both budgets then give up two columns: one for the
+ * ellipsis, and one because the headline can be a digit run at a bold weight —
+ * the case the model is most optimistic about.
+ */
+const UNIT_COLS = 8;
+const valueCols = (hasUnit) => {
+  const reserved = hasUnit ? UNIT_GAP + UNIT_COLS * UNIT_ADVANCE : 0;
+  return Math.max(4, Math.floor((RIGHT_EDGE - COL_LEFT - reserved) / VALUE_ADVANCE) - 2);
+};
+const VALUE_COLS = valueCols(false);
+
+/**
+ * The measured geometry, exported.
+ *
+ * Tests that check "does this fit" need the same numbers the builder uses. The
+ * alternative — repeating `520` and `13.75` in the test file — is a second
+ * source of truth for the layout, and the earlier version of this code drifted
+ * exactly that way: the comment said one column budget, the constant said
+ * another, and one test asserted a third.
+ */
+export const COLUMNS = Object.freeze({
+  row: ROW_COLS,
+  value: VALUE_COLS,
+  /** The headline budget when a unit shares the line — always the smaller. */
+  valueWithUnit: valueCols(true),
+  unit: UNIT_COLS,
+  /** The x each of the two row cells starts at. */
+  x: Object.freeze([COL_LEFT, COL_LEFT + COL_GAP]),
+  left: COL_LEFT,
+  right: RIGHT_EDGE,
+  advance: ROW_ADVANCE,
+  valueAdvance: VALUE_ADVANCE,
+  unitAdvance: UNIT_ADVANCE,
+  unitGap: UNIT_GAP,
+  valueFontPx: VALUE_FONT,
+  unitFontPx: UNIT_FONT,
+  rowFontPx: ROW_FONT,
+});
+
+/** How wide a string renders, in user units. */
+export function textWidth(text, advance = ROW_ADVANCE) {
+  return textColumns(text) * advance;
+}
+
 /**
  * The card as a standalone SVG document.
  *
@@ -142,13 +305,29 @@ export function shareCardSvg(card) {
    * get seen.
    */
   const valueY = Math.round(height * 0.52);
-  out.push(`<text x="${pad + 48}" y="${valueY}" font-family="${font}" font-size="96" font-weight="650" fill="${c.accent}" dominant-baseline="middle">${escapeXml(value)}</text>`);
+  /*
+   * The value is truncated, not wrapped.
+   *
+   * A headline that wrapped to two lines would push the rows off the bottom,
+   * and a value long enough to need this is one that will not fit at any size —
+   * the card is for a number read at a glance, where an ellipsis says plainly
+   * that there was more, and an overflowed glyph says nothing at all.
+   */
+  const shownValue = truncateTo(value, valueCols(Boolean(unit)));
+  out.push(`<text x="${COL_LEFT}" y="${valueY}" font-family="${font}" font-size="${COLUMNS.valueFontPx}" font-weight="650" fill="${c.accent}" dominant-baseline="middle">${escapeXml(shownValue)}</text>`);
   if (unit) {
-    // Positioned after the value by character count rather than by measuring:
-    // the builder is pure, and a unit that starts a little early or late is not
-    // a defect anyone notices.
-    const advance = String(value).length * 56;
-    out.push(`<text x="${pad + 48 + advance + 16}" y="${valueY + 24}" font-family="${font}" font-size="38" fill="${c.dim}" dominant-baseline="middle">${escapeXml(unit)}</text>`);
+    /*
+     * The unit follows the value on the same line, so it is placed by
+     * `textWidth` at the headline's own advance — the same function the column
+     * budgets use, so the three cannot disagree.
+     *
+     * This was `shownValue.length * 56`, which counts a CJK character as one
+     * where the renderer draws it as two: a Chinese unit would have drawn 56
+     * units inside the number it labels, and a Chinese value would have drawn
+     * it under the last glyph.
+     */
+    const advance = textWidth(shownValue, VALUE_ADVANCE);
+    out.push(`<text x="${COL_LEFT + advance + UNIT_GAP}" y="${valueY + 24}" font-family="${font}" font-size="${UNIT_FONT}" fill="${c.dim}" dominant-baseline="middle">${escapeXml(truncateTo(unit, UNIT_COLS))}</text>`);
   }
 
   /*
@@ -171,12 +350,18 @@ export function shareCardSvg(card) {
   const rowLines = Math.ceil(shown.length / 2);
   let ry = footerY - FOOTER_H - (rowLines - 1) * ROW_H;
 
+  /*
+   * Both cells are truncated to their column, with the measured geometry rather
+   * than a repeated literal — before this, a real value like `2.055×10³ mol/L`
+   * or a long formula ran past the panel edge, and a 60-character one reached
+   * 1688 against a limit of 1136.
+   */
   for (let i = 0; i < shown.length; i += 2) {
     for (let j = 0; j < 2 && i + j < shown.length; j++) {
       const [k, v] = shown[i + j] ?? [];
-      const x = pad + 48 + j * 520;
-      out.push(`<text x="${x}" y="${ry}" font-family="${font}" font-size="17" fill="${c.dim}">${escapeXml(k)}</text>`);
-      out.push(`<text x="${x}" y="${ry + 28}" font-family="${font}" font-size="25" fill="${c.text}">${escapeXml(v)}</text>`);
+      const x = COLUMNS.x[j];
+      out.push(`<text x="${x}" y="${ry}" font-family="${font}" font-size="17" fill="${c.dim}">${escapeXml(truncateTo(k, ROW_COLS))}</text>`);
+      out.push(`<text x="${x}" y="${ry + 28}" font-family="${font}" font-size="${ROW_FONT}" fill="${c.text}">${escapeXml(truncateTo(v, ROW_COLS))}</text>`);
     }
     ry += ROW_H;
   }

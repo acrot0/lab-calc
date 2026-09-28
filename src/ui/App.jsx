@@ -340,7 +340,17 @@ export default function App() {
    * what the template in force is — and a template with no defaults produces
    * no `meta` at all, which is the shape every record had before this existed.
    */
-  const fieldDefaults = defaultsOf(fields);
+  /*
+   * Memoised on the field list, not called inline.
+   *
+   * `defaultsOf` builds a fresh object every call, so calling it in the render
+   * body gave `record` a new identity on every render — and `record` is passed
+   * as a prop to the active tab, so every state change anywhere in the app
+   * re-rendered the whole tab and invalidated any `useCallback` inside it that
+   * depended on the handler. `fields` is the only input, and it changes when
+   * the template does, which is exactly when the defaults should be rebuilt.
+   */
+  const fieldDefaults = useMemo(() => defaultsOf(fields), [fields]);
   const record = useCallback((entry) => setEntries((prev) => {
     const seeded = Object.keys(fieldDefaults).length > 0
       ? { ...entry, meta: { ...fieldDefaults, ...(entry?.meta ?? {}) } }

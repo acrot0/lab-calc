@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   shareCardSvg, shareCardFilename, wrapText, escapeXml, CARD,
-  lowestRowY, footerY,
+  lowestRowY, footerY, truncateTo, COLUMNS, textWidth, textColumns, columnsOf,
 } from '../src/ui/share-card.mjs';
 
 /*
@@ -201,6 +201,40 @@ describe('shareCardSvg', () => {
     expect(svg).toContain('教育用途，不用于临床');
   });
 
+  /*
+   * The second layout defect, also found by measuring rather than by reading.
+   *
+   * Row values had no width limit at all, and the second column starts 520
+   * units along with the panel ending at 1072 — so a 60-character value reached
+   * 1688. Real values reach that: `2.055×10³ mol/L`, a long formula, a
+   * conditional constant with its units.
+   */
+  it('should truncate a row value that would run past the panel', () => {
+    const long = 'x'.repeat(80);
+    const svg = shareCardSvg({ ...card, rows: [['k', long]] });
+    expect(svg).not.toContain(long);
+    expect(svg).toContain('…');
+  });
+
+  it('should truncate a row label too', () => {
+    const svg = shareCardSvg({ ...card, rows: [['标'.repeat(40), 'v']] });
+    expect(svg).toContain('…');
+  });
+
+  it('should truncate a headline value that would run past the panel', () => {
+    const svg = shareCardSvg({ ...card, value: '1234567890123456789012345' });
+    expect(svg).toContain('…');
+  });
+
+  it('should leave a value that fits untouched', () => {
+    // A card that truncates something which fits has lost information for
+    // nothing, which is the failure in the other direction.
+    const svg = shareCardSvg({ ...card, value: '14.61', rows: [['摩尔质量', '58.44 g/mol']] });
+    expect(svg).toContain('14.61');
+    expect(svg).toContain('58.44 g/mol');
+    expect(svg).not.toContain('…');
+  });
+
   it('should produce balanced tags', () => {
     // An unclosed tag renders as nothing at all in a browser, which is the
     // failure this catches — the card would silently be blank.
@@ -209,6 +243,132 @@ describe('shareCardSvg', () => {
     const closes = (svg.match(/<\/text>/g) ?? []).length;
     expect(opens).toBe(closes);
     expect(opens).toBeGreaterThan(0);
+  });
+});
+
+describe('truncateTo', () => {
+  it('should leave a string that fits alone', () => {
+    expect(truncateTo('short', 20)).toBe('short');
+  });
+
+  it('should mark a string it had to cut', () => {
+    expect(truncateTo('a'.repeat(30), 10)).toBe(`${'a'.repeat(10)}…`);
+  });
+
+  it('should fit the content inside the budget', () => {
+    // The budget bounds the *text*; the ellipsis is appended after it, so a
+    // truncated string renders one column wider than the budget. That is the
+    // contract the column constants rely on — they each give up a column of
+    // slack so the marker itself still lands inside the panel.
+    for (const n of [2, 5, 10, 35]) {
+      const cut = truncateTo('x'.repeat(100), n);
+      expect(cut).toBe(`${'x'.repeat(n)}…`);
+      expect(textColumns(cut.slice(0, -1))).toBeLessThanOrEqual(n);
+      expect(textColumns(cut)).toBeLessThanOrEqual(n + 1);
+    }
+  });
+
+  it('should count a CJK character as its rendered width, not two columns', () => {
+    /*
+     * A Chinese glyph renders at one em; a column is 0.6 em. So it is 1.67
+     * columns, not `wrapText`'s flat 2 — and the difference is not academic.
+     * Budgets derived under the flat-2 rule come out about a sixth too small
+     * for Chinese content, which truncates a card that would have fit.
+     */
+    expect(textColumns('配')).toBeCloseTo(1 / 0.6, 6);
+    // Ten columns therefore hold six glyphs, not five.
+    expect(truncateTo('配'.repeat(10), 10)).toBe('配配配配配配…');
+  });
+
+  it('should spend the whole budget rather than leave it short', () => {
+    // Off-by-one in the other direction costs content on every card: given room
+    // for 35 characters it must use all 35, not 34.
+    expect(truncateTo('x'.repeat(100), 35)).toBe(`${'x'.repeat(35)}…`);
+  });
+
+  it('should return nothing for a non-positive budget', () => {
+    expect(truncateTo('abc', 1)).toBe('a…');
+    expect(truncateTo('abc', 0)).toBe('');
+    expect(truncateTo('abc', -5)).toBe('');
+  });
+
+  it('should survive a null input', () => {
+    expect(truncateTo(null, 10)).toBe('');
+  });
+});
+
+/*
+ * The layout, asserted against the geometry rather than against the strings.
+ *
+ * Every one of these was a real overflow found by measuring a render: the first
+ * truncation pass used literals copied into the test, so the test and the
+ * builder could drift apart and both look right. Now the builder exports the
+ * numbers it used and these check the arithmetic on top of them.
+ */
+describe('share card geometry', () => {
+  /** Every `<text>` in a card, with its x and the width it will render. */
+  function lines(svg, fontPx) {
+    const out = [];
+    const re = new RegExp(`<text x="([\\d.]+)"[^>]*font-size="${fontPx}"[^>]*>([^<]*)</text>`, 'g');
+    for (const m of svg.matchAll(re)) {
+      out.push({ x: Number(m[1]), text: m[2], width: textWidth(m[2]) });
+    }
+    return out;
+  }
+
+  it('should keep the row columns inside the panel', () => {
+    // A value has to fit the narrower column, the ellipsis included: the marker
+    // is appended after the budget is spent, so the budget has a column of
+    // slack built in and the assertion is the real edge.
+    for (const j of [0, 1]) {
+      const worst = COLUMNS.x[j] + COLUMNS.row * COLUMNS.advance;
+      expect(worst, `row column ${j} overflows`).toBeLessThanOrEqual(COLUMNS.right);
+    }
+  });
+
+  it('should keep a truncated row inside its column, ellipsis included', () => {
+    const svg = shareCardSvg({ ...card, rows: [['k'.repeat(90), 'v'.repeat(90)]] });
+    for (const line of lines(svg, COLUMNS.rowFontPx)) {
+      expect(line.text.endsWith('…'), 'the fixture should have been truncated').toBe(true);
+      expect(line.x + line.width, `"${line.text}" overflows`).toBeLessThanOrEqual(COLUMNS.right);
+    }
+  });
+
+  it('should keep a truncated headline and its unit on one line', () => {
+    /*
+     * The defect this exists for: the headline was budgeted the full panel
+     * width, so a long value and its unit were drawn on top of each other —
+     * 1184 rendered against an edge at 1136. Both halves are checked, because
+     * truncating only the value would leave the unit past the edge.
+     */
+    const svg = shareCardSvg({ ...card, value: '9'.repeat(40), unit: 'mol/L' });
+    for (const line of lines(svg, COLUMNS.valueFontPx).concat(lines(svg, COLUMNS.unitFontPx))) {
+      expect(line.x + line.width, `"${line.text}" overflows`).toBeLessThanOrEqual(COLUMNS.right);
+    }
+  });
+
+  it('should give the headline more room when no unit shares the line', () => {
+    // Reserving unit space unconditionally would cost three characters on every
+    // card that has no unit, which is most of them.
+    expect(COLUMNS.value).toBeGreaterThan(COLUMNS.valueWithUnit);
+  });
+
+  it('should never truncate a headline that fits', () => {
+    const svg = shareCardSvg({ ...card, value: '1.47', unit: 'g' });
+    expect(svg).toContain('>1.47<');
+    expect(svg).not.toContain('…');
+  });
+
+  it('should place a CJK value and unit without overlapping', () => {
+    // `String.length` counts a CJK character as one where the renderer draws it
+    // as two, so a unit placed by `length` lands inside the number it labels.
+    // The gap between the two `<text>` elements is what proves the placement
+    // used the rendered width.
+    const svg = shareCardSvg({ ...card, value: '十四点六一', unit: '克' });
+    const value = lines(svg, COLUMNS.valueFontPx)[0];
+    const unit = lines(svg, COLUMNS.unitFontPx)[0];
+    const drawnWidth = value.text.length * COLUMNS.valueAdvance; // one unit per char, by length
+    expect(unit.x).toBeGreaterThanOrEqual(value.x + drawnWidth);
   });
 });
 
