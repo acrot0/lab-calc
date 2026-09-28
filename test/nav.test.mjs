@@ -114,3 +114,57 @@ describe('rail touch targets', () => {
     expect(body).toMatch(/flex-shrink:\s*0/);
   });
 });
+
+/*
+ * The history header on a phone, read out of the stylesheet.
+ *
+ * Measured on the shipped build at 390px: `.history-head` is a `nowrap` flex
+ * row with 271px for a heading and three action buttons that need about 301.
+ * Every child carries the default `flex-shrink: 1`, so rather than overflowing
+ * they all shrank — and since the labels wrap by default, the result was not a
+ * clipped row but 「计算记录」 stacked as 计算记/录, 「导出」 as 导/出, and a
+ * 65px 「全部清除」 broken after 全部清. The heading measured 84px wide and two
+ * lines tall; each button 58px tall.
+ *
+ * Two declarations are needed and neither is sufficient alone: wrapping the
+ * header moves the buttons to their own line, and `nowrap` on the labels stops
+ * a two-character word from being split once they are there.
+ */
+describe('phone history header', () => {
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+
+  /** The body of the `@media (max-width: 700px)` block that holds the fix. */
+  const phoneBlock = () => {
+    const start = css.indexOf('@media (max-width: 700px)');
+    expect(start, 'no max-width: 700px block').toBeGreaterThanOrEqual(0);
+    let depth = 0;
+    for (let i = css.indexOf('{', start); i < css.length; i += 1) {
+      if (css[i] === '{') depth += 1;
+      else if (css[i] === '}') {
+        depth -= 1;
+        if (depth === 0) return css.slice(start, i);
+      }
+    }
+    return css.slice(start);
+  };
+
+  it('should let the header wrap instead of shrinking its children', () => {
+    expect(phoneBlock()).toMatch(/\.history-head\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
+
+  it('should keep the heading and the action labels on one line', () => {
+    // A two-character label like 导出 has no space to break at, so without
+    // this it breaks between the characters rather than overflowing.
+    const block = phoneBlock();
+    expect(block).toMatch(/\.history-head h2[\s\S]{0,200}?white-space:\s*nowrap/);
+    expect(block).toMatch(/\.head-actions[\s\S]{0,200}?white-space:\s*nowrap/);
+  });
+
+  it('should not rely on nowrap alone', () => {
+    // `nowrap` without the wrap leaves the three buttons on a line that is
+    // still too narrow, so they overflow the panel instead of breaking.
+    const block = phoneBlock();
+    expect(block).toMatch(/flex-wrap:\s*wrap/);
+    expect(block).toMatch(/white-space:\s*nowrap/);
+  });
+});

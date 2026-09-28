@@ -4583,6 +4583,32 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     grid-template-columns: 1fr;
     gap: var(--s2);
   }
+
+  /*
+   * The history header on a phone.
+   *
+   * `.history-head` is a `nowrap` flex row, and at 390px it has 271px for a
+   * heading and three action buttons that need about 301. Every child has the
+   * default `flex-shrink: 1`, so instead of overflowing they all shrank — and
+   * because the labels wrap by default, the result was not a clipped row but
+   * 「计算记录」 over two lines as 计算记/录, 「导出」 as 导/出, and a 65px
+   * 「全部清除」 that broke after 全部清. Measured on the shipped build.
+   *
+   * Wrapping the header lets the buttons move to their own line, and
+   * `nowrap` on the labels stops a button from breaking a two-character word
+   * in half once it is there. Both are needed: wrapping alone still left the
+   * buttons on a line too narrow for the three of them.
+   */
+  .history-head {
+    flex-wrap: wrap;
+    row-gap: var(--s3);
+  }
+
+  .history-head h2,
+  .head-actions .link-btn,
+  .head-actions .icon-btn {
+    white-space: nowrap;
+  }
 }
 
 /* ==========================================================================
