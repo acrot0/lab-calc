@@ -228,7 +228,7 @@ Seven tabs report a result with a ± and the contribution breakdown: weighing, d
 
 **Buffer range is flagged.** Henderson–Hasselbalch happily computes a pH for a 1000:1 ratio, but that buffer has essentially no capacity. The arithmetic is fine and the buffer is useless — so it warns.
 
-**The headline result is not monospaced.** Tried and dropped: in a monospace face the decimal point is a faint dot and `14.61` reads as `14 61`. Misreading a decimal point in a lab is a substantive problem, not an aesthetic one. It uses Inter's tabular figures instead, which align in columns while keeping the point legible.
+**The headline result is not monospaced.** Tried and dropped: in a monospace face the decimal point is a faint dot and `14.61` reads as `14 61`. Misreading a decimal point in a lab is a substantive problem, not an aesthetic one. It uses Geist's tabular figures instead, which align in columns while keeping the point legible.
 
 **Anything without a lower bound uses `fmtSci`.** `fmt` keeps a fixed number of decimals, which is right for bounded quantities (molar mass, radius, percentage, temperature, R²). But **mass, amount of substance and concentration have no lower bound** — 1 mL of a 1 µM solution needs 5.844×10⁻⁸ g, which `fmt` renders as `0`, and `0` reads as "nothing" rather than "very little". So the two classes are separated: unbounded values go through `fmtSci` (switching to mantissa×10ⁿ outside 1e-3 to 1e5), bounded ones stay on `fmt`. `fmtSci` agrees with `fmt` on ordinary values, so the substitution is invisible except where it was wrong before. `test/ui-strings.test.mjs` scans for the pattern; where one field name is bounded in one place and unbounded in another, the call site carries a `Bounded:` comment recording the judgement rather than the scan being loosened.
 
@@ -266,7 +266,7 @@ On a phone the calculator is a bottom sheet, with touch targets ≥44px, and the
 npm install
 npm run dev      # dev server
 npm run build    # build to dist/, plain static files, hostable anywhere
-npm test         # 2514 tests
+npm test         # 2525 tests
 npm run verify   # import integrity + icon metrics + licences + authorship + 20 smoke checks against known answers
 ```
 
@@ -277,7 +277,7 @@ npm run verify   # import integrity + icon metrics + licences + authorship + 20 
 | **Themes** | 10 (Catppuccin, Rosé Pine, Gruvbox, Solarized) + follow-system + custom accent, radius, density and motion |
 | **Export** | Excel (.xlsx) · CSV · Markdown · PDF report · JSON backup (re-importable) |
 | **Licence** | MIT |
-| **Status** | v1.1.0 · 2514 tests passing / 124 files · all three platforms green in CI |
+| **Status** | v1.1.0 · 2525 tests passing / 125 files · all three platforms green in CI |
 
 ## Structure
 
@@ -335,10 +335,13 @@ Three deliberate separations:
 | Purpose | Source | Licence |
 |---|---|---|
 | Interface icons | [Phosphor Icons](https://phosphoricons.com) | MIT |
-| Typeface | [Inter](https://rsms.me/inter/) | OFL-1.1 |
+| Interface typeface | [Geist](https://vercel.com/font) (prose and headings) | OFL-1.1 |
+| Numerals | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (values, tabular figures) | OFL-1.1 |
 | Application icon | Generated programmatically by `scripts/make-icons.mjs` | MIT |
 
 All are usable commercially. The application icon is drawn by a script (`npm run icons`) rather than depending on external image assets, so its colours match the interface CSS variables exactly and it is reproducible text rather than an opaque binary.
+
+Two typefaces, both named by CSS variables. **There is no serif display face**: Instrument Serif was tried and dropped because it has no CJK coverage, so two of the three headings fell back to a system Song face in Chinese — a Latin serif sitting beside a Chinese system serif in one heading row is the thing that reads as "the font is wrong" without anyone being able to say why. On Geist the Chinese and Latin headings come from one family.
 
 ## Licence
 
