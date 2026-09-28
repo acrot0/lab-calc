@@ -1002,6 +1002,7 @@ select.control {
 }
 
 .nav-sheet-edit:hover { color: var(--text); }
+.nav-sheet-edit:active { background: var(--surface-2); }
 
 /*
  * The keypad on the convert tab's calculator panel.
@@ -1068,6 +1069,7 @@ select.control {
 }
 
 .calc-fn-show:hover { color: var(--text); border-color: var(--accent); }
+.calc-fn-show:active { background: var(--surface-2); }
 
 /* ==========================================================================
    The navigation editor
@@ -1214,6 +1216,9 @@ select.control {
    * list so a scroll that starts in the gap between rows still scrolls.
    */
   touch-action: none;
+  /* Colour only. The row's `transform` belongs to the drag — a transition on it
+     would make every frame of a drag chase the previous one. */
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 
 /*
@@ -1277,10 +1282,13 @@ select.control {
   color: var(--text-dim);
   cursor: grab;
   touch-action: none;
+  /* Colour and background only: the grip is the drag handle, and a transform
+     here would fight the drag's own translate. */
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 
-.nav-editor-grip:active { cursor: grabbing; }
-.nav-editor-grip:hover { color: var(--text); }
+.nav-editor-grip:hover { color: var(--text); background: var(--surface-3); }
+.nav-editor-grip:active { cursor: grabbing; background: var(--accent-soft); }
 
 .nav-editor-icon {
   display: flex;
