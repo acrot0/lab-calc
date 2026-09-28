@@ -54,6 +54,46 @@ describe('escapeCsvField', () => {
   it('should stringify numbers', () => {
     expect(escapeCsvField(14.61)).toBe('14.61');
   });
+
+  it('should neutralise a value a spreadsheet would run as a formula', () => {
+    /*
+     * A record's metadata is free text and reaches the CSV verbatim. Excel and
+     * Sheets evaluate a cell that begins with `=`, `+`, `-` or `@`, so an
+     * operator named `=1+1` — or a purpose copied out of a hostile file —
+     * executes on open. The leading quote is what Excel itself writes for a
+     * text cell, and both it and LibreOffice strip it on display.
+     */
+    expect(escapeCsvField('=1+1')).toBe("'=1+1");
+    expect(escapeCsvField('+cmd|calc')).toBe("'+cmd|calc");
+    expect(escapeCsvField('@SUM(A1)')).toBe("'@SUM(A1)");
+    expect(escapeCsvField('-2+3')).toBe("'-2+3");
+  });
+
+  it('should neutralise a formula hidden behind a leading tab', () => {
+    // Excel strips whitespace before deciding, so `\t=1+1` still executes.
+    expect(escapeCsvField('\t=1+1')).toBe("'\t=1+1");
+  });
+
+  it('should put the neutralising quote inside the CSV quotes', () => {
+    // The other order would emit `'` outside the quotes, so the field would
+    // start with a literal quote character rather than the text.
+    expect(escapeCsvField('=1,2')).toBe(`"'=1,2"`);
+  });
+
+  it('should accept prefixing a negative number as the cost of the guard', () => {
+    /*
+     * A deliberate tradeoff, pinned so it is a decision rather than a
+     * surprise. `-` is a real formula lead — `-2+3` evaluates to 1 — so it
+     * cannot be exempted by shape without reopening the hole for every
+     * expression. The cost is a text cell reading `-14.61` gaining a leading
+     * quote, which Excel and LibreOffice hide on display.
+     *
+     * The calculated numbers are not affected: `flatten` writes them as
+     * `质量 (g)=-14.61`, so the cell begins with the label, not the sign.
+     */
+    expect(escapeCsvField(-14.61)).toBe("'-14.61");
+    expect(escapeCsvField('质量 (g)=-14.61')).toBe('质量 (g)=-14.61');
+  });
 });
 
 describe('toCsv', () => {

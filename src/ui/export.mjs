@@ -106,15 +106,49 @@ function kindName(kind, locale = 'zh') {
 }
 
 /**
+ * A leading character a spreadsheet would read as the start of a formula.
+ *
+ * Excel, LibreOffice and Google Sheets all evaluate a cell beginning with one
+ * of these, and `=`, `+`, `-` and `@` are the documented set. `\t` and `\r` are
+ * in the list because Excel strips them before deciding, so `\t=1+1` executes.
+ */
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+/**
+ * Neutralise a cell a spreadsheet would execute.
+ *
+ * A record's metadata is free text — an operator name, a sample number, a
+ * purpose — and it reaches this file verbatim. A value like `=1+1` or
+ * `@SUM(A1)` is not a number to Excel: it is a formula, and it runs when the
+ * file is opened. `+cmd|'/c calc'!A0` is the classic form of this, and it
+ * needs no macro and no warning dialog.
+ *
+ * The prefix is a single quote, which is what Excel itself writes when a user
+ * types a leading `=` into a text cell, and which both Excel and LibreOffice
+ * strip on display. The cell still reads as the text the user typed; it is no
+ * longer evaluated. The Markdown export needs no such guard — a table cell is
+ * not executable — and the xlsx writes `inlineStr` cells, which are strings by
+ * construction rather than by content.
+ */
+function neutraliseFormula(s) {
+  return FORMULA_LEAD.test(s) ? `'${s}` : s;
+}
+
+/**
  * RFC 4180 field escaping.
  *
  * A value containing a comma, quote or newline must be quoted, and internal
  * quotes doubled. Skipping this shifts every subsequent column, which is the
  * classic way an exported CSV silently corrupts data.
+ *
+ * Formula neutralisation happens first and the quoting second, so the added
+ * quote ends up inside the quoted field where it belongs. Doing it the other
+ * way round would put the `'` outside the quotes and produce a field that
+ * starts with a literal quote character.
  */
 export function escapeCsvField(value) {
   if (value === null || value === undefined) return '';
-  const s = String(value);
+  const s = neutraliseFormula(String(value));
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
