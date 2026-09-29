@@ -2773,6 +2773,27 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .export-preview-table tr:last-child td { border-bottom: none; }
 
+/*
+ * The JSON backup's confirmation: counts and a size, not a table.
+ *
+ * A list rather than a table because there is nothing tabular to show — the
+ * file is one archive, and a row per record would be the table preview this
+ * deliberately is not. The `.hint` line inside carries the one sentence that
+ * matters more than the numbers: the file can be restored.
+ */
+.export-preview-facts {
+  list-style: none;
+  margin: var(--s2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--t-sm);
+  color: var(--text-mid);
+}
+
+.export-preview-facts .hint { margin: 0; }
+
 .export-preview-actions {
   display: flex;
   align-items: center;

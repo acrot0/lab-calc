@@ -1042,6 +1042,15 @@ export const zh = {
     previewMore: '另有 {n} 条未在此显示',
     previewConfirm: '确认导出',
     previewCancel: '取消',
+    /*
+     * JSON 备份的确认界面。刻意只给数字与体量，不给行——它是唯一能还原历史、
+     * 也是唯一连已删记录一起带走的导出，而它的形态不是表格，抽三行出来看
+     * 会让读的人以为它「很小」。
+     */
+    bundleLive: '{n} 条在用记录',
+    bundleDeleted: '{n} 条已删除记录（一并带走，可恢复）',
+    bundleSize: '文件约 {size}',
+    bundleRestorable: '这个文件可以在「导入」里还原，换设备也靠它。',
   },
   reaction: {
     mode: '计算类型',

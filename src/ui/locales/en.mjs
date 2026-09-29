@@ -1048,6 +1048,16 @@ export const en = {
     previewMore: '{n} more not shown',
     previewConfirm: 'Download',
     previewCancel: 'Cancel',
+    /*
+     * The JSON backup's confirmation. Counts and a size, deliberately no rows —
+     * it is the only export that can restore a history and the only one that
+     * carries deleted records too, and its shape is not tabular. Showing three
+     * rows of a complete archive would read as "this file is small".
+     */
+    bundleLive: '{n} records in use',
+    bundleDeleted: '{n} deleted records (included, restorable)',
+    bundleSize: 'About {size}',
+    bundleRestorable: 'This file restores through Import, and it is how you move to another device.',
   },
   reaction: {
     mode: 'Calculation',

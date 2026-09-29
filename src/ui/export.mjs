@@ -506,6 +506,66 @@ function cell(v) {
   return String(v);
 }
 
+/**
+ * What the JSON backup would contain — as counts, not as rows.
+ *
+ * ## Why this is not the table preview
+ *
+ * The other formats go through `exportPreview` and show their first few rows.
+ * The bundle is excluded from that on purpose, and the reason was already
+ * written down before this function existed: it is the whole archive, deleted
+ * records included, and its shape is not tabular. A three-row preview of a file
+ * whose point is being **complete** misrepresents it — the reader sees three
+ * rows, infers "small", and the file is neither.
+ *
+ * But a screen with no confirmation at all was the other extreme: the bundle is
+ * the only export that can restore a history, and the only one that carries
+ * what was deleted, and it fired straight from the menu with nothing said.
+ *
+ * So this reports the properties that actually distinguish it — how many
+ * records, how many of them deleted, and how large the file will be. Counts and
+ * a size, no rows. That is enough to answer "is this the file I want", which is
+ * what a preview is for, without pretending a complete archive is a table.
+ *
+ * The numbers come from `toBundle` itself, by measuring the string it produces
+ * rather than estimating, so the size shown is the size written.
+ */
+export function bundlePreview(entries, now = new Date()) {
+  const all = entries ?? [];
+  const json = toBundle(all, now);
+  return {
+    format: 'json',
+    total: all.length,
+    deleted: all.filter((e) => e && e.deletedAt).length,
+    live: all.filter((e) => e && !e.deletedAt).length,
+    bytes: new TextEncoder().encode(json).length,
+    filename: exportFilename('json'),
+  };
+}
+
+/**
+ * A byte count a person can read: `12.4 KB`, not `12698`.
+ *
+ * Binary units, because that is what every file manager on every platform the
+ * app runs on shows — a size in the confirmation that disagreed with the size
+ * in the file manager would look like a bug in the app.
+ *
+ * One decimal below 100 units and none above: `9.7 MB` is a useful precision
+ * and `972.4 MB` is not, and the threshold is where the extra digit stops
+ * carrying information. Bytes are shown whole, because a fraction of a byte is
+ * not a thing.
+ */
+export function formatBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n < 0) return '';
+  if (n < 1024) return `${Math.round(n)} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = n / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) { value /= 1024; i += 1; }
+  return `${value < 100 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
+}
+
 function toXlsxRows(entries, locale = 'zh') {
   const fields = usedMetaFields(entries);
   const rows = [[...columnsFor(locale), ...metaLabels(fields, locale)]];
