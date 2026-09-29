@@ -350,9 +350,9 @@ function markdownNotes(entries, locale = 'zh', fields = null) {
    */
   const L = zh
     ? { use: '用途限制', limits: '已校正的与未建模的', unc: '不确定度', verify: '核对结果',
-        software: '软件', records: '记录条数', fields: '记录字段' }
+        storage: '记录存放', software: '软件', records: '记录条数', fields: '记录字段' }
     : { use: 'Intended use', limits: 'Corrected and not modelled', unc: 'Uncertainty', verify: 'Verify results',
-        software: 'Software', records: 'Records', fields: 'Record fields' };
+        storage: 'Where the records live', software: 'Software', records: 'Records', fields: 'Record fields' };
   const section = (heading, p) => [`### ${heading}`, '', `**${zh ? p.titleZh : p.titleEn}**`, '', zh ? p.zh : p.en, ''];
 
   return [
@@ -363,6 +363,7 @@ function markdownNotes(entries, locale = 'zh', fields = null) {
     ...section(L.limits, limits),
     ...section(L.unc, DISCLAIMER_POINTS.find((p) => p.titleEn === 'Results carry an uncertainty')),
     ...section(L.verify, verify),
+    ...section(L.storage, DISCLAIMER_POINTS.find((p) => p.titleEn === 'Records are stored locally — back them up')),
     `- ${L.software}: Lab Calc${version ? ` ${version}` : ''}`,
     `- ${L.records}: ${entries?.length ?? 0}`,
     /*
@@ -724,6 +725,16 @@ export function toXlsxNotes(locale, count, detail = {}) {
     [],
     [L.verify, ''],
     ...point(verify),
+    [],
+    /*
+     * Last, and it is the only section that is about the user's own data
+     * rather than about the arithmetic. The four above say what the numbers
+     * mean; this one says the file itself may be the last copy — which is the
+     * fact a reader opening it six months later most needs and the one no
+     * heading above can carry.
+     */
+    [L.storage, ''],
+    ...point(DISCLAIMER_POINTS.find((p) => p.titleEn === 'Records are stored locally — back them up')),
   ];
 }
 

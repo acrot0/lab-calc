@@ -10,6 +10,7 @@ import {
   loadGroups, saveGroups, createGroup, renameGroup, removeGroup, setGroupNote, assignGroup,
 } from './groups.mjs';
 import { mergeEntries, downloadBundle } from './export.mjs';
+import { PERSIST_UNKNOWN, requestPersistence, shouldRequest } from './durability.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
 import { useTheme } from './ThemeContext.jsx';
@@ -332,6 +333,15 @@ export default function App() {
    * for a condition that does not.
    */
   const [saveFailed, setSaveFailed] = useState(false);
+  /*
+   * What the browser said when asked to make this origin's storage persistent.
+   *
+   * Not rendered anywhere on its own — see `durability.mjs` for why a
+   * "protected / not protected" row would be a promise the app cannot keep. It
+   * is read by the banner's wording, where a refusal is one more reason to say
+   * the problem is the browser's rather than a passing hiccup.
+   */
+  const [persistence, setPersistence] = useState(PERSIST_UNKNOWN);
   useEffect(() => {
     setEntries(loadHistory(store));
     setGroups(loadGroups(store));
@@ -341,6 +351,22 @@ export default function App() {
     if (!hydrated) return;
     setSaveFailed(!saveHistory(store, entries));
   }, [store, entries, hydrated]);
+  /*
+   * Ask for persistent storage once, after the first write has landed.
+   *
+   * After, not before: Chromium's heuristics weigh engagement and stored bytes,
+   * and a fresh origin asking on behalf of nothing is asking to be refused.
+   * Once, not every time: the grant is per-origin and outlives the session.
+   */
+  useEffect(() => {
+    if (!hydrated || saveFailed) return;
+    if (!shouldRequest(persistence)) return;
+    let cancelled = false;
+    requestPersistence().then((result) => {
+      if (!cancelled) setPersistence(result);
+    });
+    return () => { cancelled = true; };
+  }, [hydrated, saveFailed, persistence]);
   useEffect(() => {
     if (!hydrated) return;
     saveGroups(store, groups);

@@ -103,7 +103,14 @@ export const zh = {
   install: {
     action: '安装到本机',
     title: '安装 Lab Calc',
-    lead: '装到桌面或主屏幕后可以离线使用，实验室没网也不影响。',
+    /*
+     * 两个理由，第二个在 iOS 上才是关键。
+     *
+     * 「离线可用」是真理由，但在手机上是次要的。主要的那个是：WebKit 的
+     * ITP 会在 7 天无交互后清除全部可脚本写入的存储——记录也在内——而
+     * 主屏幕上的 Web App 不受这条限制。原来只讲离线，等于说了次要的那半。
+     */
+    lead: '装到桌面或主屏幕后可以离线使用，iOS 上还能保住你的记录 —— Safari 超过 7 天不打开会清掉网页数据，装到主屏幕的不受此限。',
     // The Chromium path: we hold the browser's own install event, so this
     // button opens the real dialog rather than explaining how to find it.
     prompt: '立即安装',

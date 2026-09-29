@@ -106,7 +106,16 @@ export const en = {
   install: {
     action: 'Install app',
     title: 'Install Lab Calc',
-    lead: 'Installed, it works offline — which is what a basement bench needs.',
+    /*
+     * Two reasons, and the second is the one that matters on iOS.
+     *
+     * Offline is the reason the app gives for installing, and it is real but
+     * secondary on a phone. The primary one is that WebKit's ITP deletes all
+     * script-writable storage — the history with it — after seven days without
+     * user interaction, and a web app on the home screen is exempt from that.
+     * Leading with "works offline" was telling users the smaller half.
+     */
+    lead: 'Installed, it works offline — and on iOS it also keeps your records. Safari clears web data after 7 days without a visit; an app on the home screen is exempt.',
     prompt: 'Install now',
     iosSteps: 'In Safari, tap Share, then "Add to Home Screen".',
     iosStepsChrome: 'Open this in Safari — Chrome on iOS cannot add to the Home Screen.',
