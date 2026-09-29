@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   describe as describeStats, dixon, dixonCritical, fTest, grubbs,
-  meanConfidenceInterval, rsd, tQuantile, tTest,
+  linearFit, meanConfidenceInterval, rsd, tQuantile, tTest,
 } from '../src/calc/stats.mjs';
 
 /*
@@ -324,5 +324,89 @@ describe('tTest', () => {
     const r = tTest([5, 5, 5], [6, 6, 6]);
     expect(r.significant).toBe(true);
     expect(r.difference).toBeCloseTo(-1, 12);
+  });
+});
+
+/*
+ * The shared least-squares fit.
+ *
+ * This was two identical implementations — one in `reagent.mjs` for a
+ * calibration curve, one in `physical.mjs` for a Kohlrausch extrapolation —
+ * each covered only by its own caller's tests. Extracting it put the arithmetic
+ * in one place; these test it directly, so a change is checked against the
+ * numbers rather than against two callers that happen to agree.
+ *
+ * The values are hand-computed, not read off the implementation. A test that
+ * asserts what the code already produces cannot tell a correct fit from a
+ * consistently wrong one.
+ */
+describe('linearFit', () => {
+  it('should recover the slope and intercept of an exact line', () => {
+    // y = 2x + 1.
+    const fit = linearFit([0, 1, 2], [1, 3, 5]);
+    expect(fit.slope).toBeCloseTo(2, 12);
+    expect(fit.intercept).toBeCloseTo(1, 12);
+    expect(fit.r2).toBeCloseTo(1, 12);
+    for (const r of fit.residuals) expect(r).toBeCloseTo(0, 12);
+  });
+
+  it('should fit a line through a negative-slope set', () => {
+    // y = -3x + 10.
+    const fit = linearFit([1, 2, 3, 4], [7, 4, 1, -2]);
+    expect(fit.slope).toBeCloseTo(-3, 12);
+    expect(fit.intercept).toBeCloseTo(10, 12);
+    expect(fit.r2).toBeCloseTo(1, 12);
+  });
+
+  it('should give residuals that sum to zero', () => {
+    // A property of least squares with an intercept term, and the one an
+    // implementation with a sign error would break while still fitting well.
+    const fit = linearFit([0, 1, 2, 3], [0, 1, 4, 3]);
+    const sum = fit.residuals.reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(0, 12);
+  });
+
+  it('should keep residuals in the same order as the input', () => {
+    // A residual plot pairs each value with its x, so a reordered array would
+    // attribute an outlier to the wrong point.
+    const fit = linearFit([0, 1, 2, 3], [0, 1, 4, 3]);
+    expect(fit.residuals).toHaveLength(4);
+    // The third point sits above the trend, so its residual is positive.
+    expect(fit.residuals[2]).toBeGreaterThan(0);
+  });
+
+  it('should report the sums a caller needs for the slope uncertainty', () => {
+    // `reagent.mjs` uses these rather than recomputing them — a second
+    // derivation of the same arithmetic is what the extraction removed.
+    const xs = [1, 2, 3, 4];
+    const ys = [2, 4, 5, 8];
+    const fit = linearFit(xs, ys);
+    const meanX = xs.reduce((a, b) => a + b, 0) / xs.length;
+    const meanY = ys.reduce((a, b) => a + b, 0) / ys.length;
+    const sxx = xs.reduce((a, x) => a + (x - meanX) ** 2, 0);
+    const ssRes = ys.reduce((a, y, i) => a + (y - (fit.slope * xs[i] + fit.intercept)) ** 2, 0);
+    expect(fit.sxx).toBeCloseTo(sxx, 12);
+    expect(fit.ssRes).toBeCloseTo(ssRes, 12);
+    expect(meanY).toBeGreaterThan(0);
+  });
+
+  it('should fail rather than divide by zero when every x is the same', () => {
+    // A vertical line has no slope. Returning one would be a number the caller
+    // cannot tell from a real fit.
+    expect(() => linearFit([1, 1, 1], [1, 2, 3])).toThrow();
+    try {
+      linearFit([1, 1, 1], [1, 2, 3]);
+    } catch (e) {
+      expect(e.code).toBe('curveNoXVariance');
+    }
+  });
+
+  it('should report R² = 0 when y does not vary', () => {
+    // The ratio is 0/0. Calling it 1 would say the line explains everything,
+    // which is generous for a fit that explains nothing.
+    const fit = linearFit([0, 1, 2], [5, 5, 5]);
+    expect(fit.r2).toBe(0);
+    expect(fit.slope).toBeCloseTo(0, 12);
+    expect(fit.intercept).toBeCloseTo(5, 12);
   });
 });

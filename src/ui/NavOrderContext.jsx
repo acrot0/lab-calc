@@ -2,7 +2,7 @@ import React, {
   createContext, useCallback, useContext, useMemo, useRef, useState,
 } from 'react';
 import {
-  BAR_SIZE, barTabs, clampBar, clearNav, loadNav, moveItem, saveNav, resolveStore,
+  clampBar, clearNav, loadNav, moveItem, saveNav, resolveStore,
 } from './nav-order.mjs';
 
 const Ctx = createContext(null);
@@ -94,11 +94,15 @@ export function NavOrderProvider({ allIds, children, store: storeProp }) {
     setState(loadNav(store, allIds));
   }, [store, allIds]);
 
+  /*
+   * `order` and `size` are the stored state; the split is the caller's to make,
+   * through `resolveTabs`. Publishing a pre-split `bar`/`more` here would mean
+   * the context had to know which component was asking — the rail wants every
+   * tab, the phone wants five and the rest.
+   */
   const value = useMemo(() => ({
     order,
     size,
-    bar: barTabs(order, size),
-    more: order.slice(size),
     setOrder,
     move,
     setSize,
@@ -114,4 +118,3 @@ export function useNavOrder() {
   return v;
 }
 
-export { BAR_SIZE };

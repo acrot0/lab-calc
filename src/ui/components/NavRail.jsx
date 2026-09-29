@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import { useNavOrder } from '../NavOrderContext.jsx';
+import { resolveTabs } from '../nav-order.mjs';
 
 /**
  * The desktop navigation rail.
@@ -38,13 +39,10 @@ export default function NavRail({ tabs, current, onSelect, onEditNav }) {
    * The rail follows the same order the phone bar does.
    *
    * Not a separate preference: the two are the same list seen at different
-   * widths, and a user who arranges one expects the other to agree. Resolved
-   * through a map so a stale id is skipped rather than rendering an undefined
-   * icon — the provider reconciles, but this is the last boundary before the
-   * render and costs one Map.
+   * widths, and a user who arranges one expects the other to agree. The rail
+   * shows every tab, so it takes `all` rather than the bar/more split.
    */
-  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
-  const ordered = order.map((id) => byId.get(id)).filter(Boolean);
+  const { all: ordered } = resolveTabs(tabs, order);
 
   return (
     <nav className={`rail${open ? ' is-open' : ''}`} aria-label={t('app.navRailLabel')}>

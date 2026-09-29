@@ -389,3 +389,76 @@ export function tTest(xs1, xs2, { alpha = 0.05 } = {}) {
     n2: b.n,
   };
 }
+
+/**
+ * Ordinary least squares on two plain arrays.
+ *
+ * ## Why this is here rather than in each caller
+ *
+ * It was written twice — once in `reagent.mjs` for a calibration curve and once
+ * in `physical.mjs` for a Kohlrausch extrapolation — and the two were line-for-
+ * line the same arithmetic. Two copies of a numerical routine is two chances to
+ * get it wrong and two places to fix it: a change to a more stable formulation
+ * would have to be found and applied in both, and a test covering one would
+ * stay green while the other drifted.
+ *
+ * ## What it returns
+ *
+ * Everything a caller needs to judge the fit, not just the line: the slope and
+ * intercept to use, R² to report, and the residuals so a caller can test
+ * whether they are scattered or curved. `physical.mjs` uses the residuals for a
+ * runs test; `reagent.mjs` uses them for a residual plot and the standard error.
+ *
+ * ## The degenerate case
+ *
+ * All x equal means the slope is undefined, not zero — the line is vertical.
+ * That is a caller error (a standard curve with one concentration, say) rather
+ * than a data property, so it fails rather than returning a number that would
+ * be silently wrong.
+ *
+ * ## R² when y does not vary
+ *
+ * A perfectly flat set of y values has no variance to explain, so the ratio is
+ * 0/0. Reporting 1 would say the line explains everything, which is generous
+ * for a fit that explains nothing; this returns 0.
+ */
+export function linearFit(xs, ys) {
+  const n = xs.length;
+  const meanX = xs.reduce((a, b) => a + b, 0) / n;
+  const meanY = ys.reduce((a, b) => a + b, 0) / n;
+
+  let sxx = 0;
+  let sxy = 0;
+  for (let i = 0; i < n; i += 1) {
+    sxx += (xs[i] - meanX) ** 2;
+    sxy += (xs[i] - meanX) * (ys[i] - meanY);
+  }
+  if (sxx === 0) fail('curveNoXVariance', {});
+
+  const slope = sxy / sxx;
+  const intercept = meanY - slope * meanX;
+
+  let ssTot = 0;
+  let ssRes = 0;
+  for (let i = 0; i < n; i += 1) {
+    ssTot += (ys[i] - meanY) ** 2;
+    ssRes += (ys[i] - (slope * xs[i] + intercept)) ** 2;
+  }
+
+  return {
+    slope,
+    intercept,
+    r2: ssTot === 0 ? 0 : 1 - ssRes / ssTot,
+    residuals: xs.map((x, i) => ys[i] - (slope * x + intercept)),
+    /*
+     * The two sums a caller needs to put an uncertainty on the fit.
+     *
+     * Returned rather than left to be recomputed: `sxx` is the denominator of
+     * the slope's standard error and `ssRes` is its numerator, and a caller
+     * deriving them again from the same arrays is a second implementation of
+     * the same arithmetic — which is what this function exists to stop.
+     */
+    sxx,
+    ssRes,
+  };
+}

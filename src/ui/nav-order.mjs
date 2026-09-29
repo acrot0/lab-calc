@@ -176,17 +176,26 @@ export function clampBar(n) {
   return clamp(Math.trunc(n), MIN_BAR, BAR_SIZE);
 }
 
-/** The tabs the phone bar shows: the head of the order. */
-export function barTabs(order, size = BAR_SIZE) {
-  return order.slice(0, clampBar(size));
-}
-
-/** Everything else, in order — the "more" panel's contents. */
-export function moreTabs(order, size = BAR_SIZE) {
-  return order.slice(clampBar(size));
-}
-
-/** Whether the tab at `index` is one the bar shows. */
-export function isInBar(index, size = BAR_SIZE) {
-  return index < clampBar(size);
+/**
+ * The order resolved to tab entries, and split at the bar size.
+ *
+ * Three components need this and they all need it the same way — the phone bar
+ * and the more sheet, the desktop rail, and the editor's row list. Each of them
+ * resolving it separately was three copies of the same two lines, which is
+ * three places for the "skip an id that no longer names a tab" rule to be
+ * forgotten in.
+ *
+ * `tabs` is the live tab list, `order` the stored ids. An id with no tab is
+ * dropped rather than producing an undefined icon — `loadNav` already
+ * reconciles, but this is the last boundary before a render and a stale id
+ * reaching `tab.icon` would blank the page.
+ *
+ * Returns `bar` and `more` split at `size`, and `all` for the rail and the
+ * editor, which show every tab.
+ */
+export function resolveTabs(tabs, order, size = BAR_SIZE) {
+  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+  const all = order.map((id) => byId.get(id)).filter(Boolean);
+  const cut = clampBar(size);
+  return { all, bar: all.slice(0, cut), more: all.slice(cut) };
 }

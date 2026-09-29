@@ -16,6 +16,7 @@
  */
 import { molarMass } from './solution.mjs';
 import { fail, requirePositive, requireNonNegative, requireFinite } from './errors.mjs';
+import { linearFit } from './stats.mjs';
 
 /**
  * Molarity of a concentrated reagent from its weight percentage and density.
@@ -211,29 +212,9 @@ export function standardCurve(points) {
   for (const v of [...xs, ...ys]) requireFinite(v, 'point');
 
   const n = points.length;
-  const meanX = xs.reduce((a, b) => a + b, 0) / n;
-  const meanY = ys.reduce((a, b) => a + b, 0) / n;
-
-  let sxx = 0;
-  let sxy = 0;
-  for (let i = 0; i < n; i++) {
-    sxx += (xs[i] - meanX) ** 2;
-    sxy += (xs[i] - meanX) * (ys[i] - meanY);
-  }
-  if (sxx === 0) fail('curveNoXVariance', {});
-
-  const slope = sxy / sxx;
-  const intercept = meanY - slope * meanX;
-
-  let ssTot = 0;
-  let ssRes = 0;
-  for (let i = 0; i < n; i++) {
-    ssTot += (ys[i] - meanY) ** 2;
-    ssRes += (ys[i] - (slope * xs[i] + intercept)) ** 2;
-  }
-  // A perfectly flat set of standards has no variance to explain; calling that
-  // R² = 1 would be generous, so report 0.
-  const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
+  // The line itself is `stats.mjs`'s — the same arithmetic a Kohlrausch
+  // extrapolation needs, and previously written out twice.
+  const { slope, intercept, r2, residuals, sxx, ssRes } = linearFit(xs, ys);
 
   /*
    * Residuals, and the standard error of the fit.
@@ -252,8 +233,6 @@ export function standardCurve(points) {
    * absorbance, for a Beer's law curve — and is the honest answer to "how far
    * off is a single reading".
    */
-  const residuals = xs.map((x, i) => ys[i] - (slope * xs[i] + intercept));
-
   // Two degrees of freedom are spent on the slope and the intercept; with n = 3
   // that leaves one, which is the fewest that gives a meaningful spread.
   const dof = n - 2;

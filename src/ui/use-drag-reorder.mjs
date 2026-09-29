@@ -99,29 +99,24 @@ export function useDragReorder(items, onReorder) {
    * vertical editor and a horizontal phone bar, and the two have different
    * geometry.
    *
-   * ## Why `offsetTop`, not `getBoundingClientRect`
+   * ## `offsetTop`, not `getBoundingClientRect`
    *
-   * The pitch is measured while rows are displaced by `transform`, and
-   * `getBoundingClientRect` reports the *transformed* position. Measuring the
-   * gap that way meant the pitch changed as the drag moved: at rest the two
-   * rows are 52px apart, but mid-drag the dragged row had been translated, so
-   * the difference between its rect and the next row's was a different number
-   * every frame. The slot then disagreed with itself between the frame that
-   * chose the target and the frame that painted it, and rows landed on top of
-   * each other.
+   * `getBoundingClientRect` reports the *transformed* position, and the rows
+   * carry a transform for the whole of a drag — so measuring the pitch that way
+   * gave a different number every frame, and the slot disagreed with itself
+   * between the frame that chose the target and the frame that painted it.
+   * Measured mid-drag: `getBoundingClientRect` said 0, `offsetTop` said 52.
    *
    * `offsetTop` is the layout position, before transforms, so the pitch is the
-   * same number on every frame of a drag as it is at rest.
+   * same on every frame as it is at rest.
    *
-   * ## Why the second row
+   * ## The second row, not the first row's size
    *
-   * The pitch is the row plus the gap between rows, and only a measurement
-   * between two rows includes the gap. Using the row height alone was the other
-   * half of the overlap: at 48px rows with a 4px gap, a drag of 1.5 slots moved
-   * the dragged row by the raw 78px while its neighbours moved by 2 × 48px.
-   *
-   * `offsetHeight` for the single-row case, where there is no second row to
-   * measure against and the row's own size is the best available answer.
+   * The pitch is the row *plus the gap*, and only a measurement between two
+   * rows includes the gap. Using the row height alone moved the dragged row by
+   * the raw pointer distance while its neighbours moved by whole row heights —
+   * the other half of the overlap. `offsetHeight` covers the single-row case,
+   * where there is no second row to measure against.
    */
   const geometry = useCallback(() => {
     const list = listRef.current;
@@ -165,40 +160,21 @@ export function useDragReorder(items, onReorder) {
       if (i === g.origin) {
         /*
          * The dragged row follows the pointer exactly — not its snapped slot.
-         *
          * It has to be the raw travel, because the rows it displaces move in
-         * whole slots and the two have to agree about where the slots are. An
-         * earlier version displaced this row by `snapped + (travel - snapped)`,
-         * which is algebraically the same number written as if it were doing
-         * something clever; it is not, and the arithmetic only obscured that
-         * the row tracks the finger.
+         * whole slots and the two must agree about where the slots are.
          *
-         * Translated only — no scale. It used to carry `scale3d(1.02, …)` to
-         * lift it off the rows underneath, and that was half of the overlap
-         * that made rows pile up: a 48px row at 1.02 is 49px, so it grew 3px
-         * past its own bounds at each end and covered the row below by 6px.
-         * Measured with the pointer 10px into a drag — before any neighbour had
-         * moved — the dragged row's bottom was 389 and the next row's top was
-         * 383.
-         *
+         * Translated only, never scaled. A `scale3d(1.02, …)` here made a 48px
+         * row 49px, so it grew past its own bounds at each end and covered the
+         * row below — one of the two causes of the rows overlapping mid-drag.
          * The separation is the background and shadow on `.is-dragging`, which
          * cost nothing and do not change the row's size.
-         */
-        /*
-         * Three components, written out — not a pre-joined `"0, 80px"` string
-         * spliced into the middle of a four-argument template.
          *
-         * That splice is what broke this: `translate3d` takes exactly three
-         * lengths, and the joined form produced `translate3d(0, 80px, 0, 0)`.
-         * An invalid value is not an error — the browser silently drops the
-         * declaration, `style.transform` reads back empty, and the dragged row
-         * never moves while the rows around it do. The row under the finger
-         * stays put and its neighbour slides into the same place, which is the
-         * overlap.
-         *
-         * Spelled out, a miscount is visible in the source. `translate3d` is
-         * used rather than `translate` because the drag runs on the compositor
-         * and a 2D transform can be rasterised on a low-end device.
+         * The three components are written out rather than spliced from a
+         * pre-joined `"0, 80px"` fragment. That splice produced
+         * `translate3d(0, 80px, 0, 0)` — one argument too many, and an invalid
+         * value is not an error: the browser drops the whole declaration and
+         * `style.transform` reads back empty, so the row under the finger never
+         * moved while its neighbours did.
          */
         node.style.transform = vertical
           ? `translate3d(0, ${travel}px, 0)`

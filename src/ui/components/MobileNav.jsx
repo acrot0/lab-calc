@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import { useNavOrder } from '../NavOrderContext.jsx';
+import { resolveTabs } from '../nav-order.mjs';
 
 /**
  * The phone's navigation: a bottom bar of five, and a sheet for the rest.
@@ -57,14 +58,11 @@ export default function MobileNav({ tabs, current, onSelect, onEditNav }) {
   /*
    * The bar is the head of the user's order; the sheet is the rest.
    *
-   * Resolved through a map so a stale id is skipped rather than rendering an
-   * undefined icon. `order` already covers every tab — the provider reconciles
-   * it against the live list — so nothing can be missing from both.
+   * `resolveTabs` drops any id that no longer names a tab, so nothing can
+   * render an undefined icon — and every tab lands in exactly one of the two,
+   * because the provider reconciled the order against the live list.
    */
-  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
-  const resolved = order.map((id) => byId.get(id)).filter(Boolean);
-  const primary = resolved.slice(0, size);
-  const secondary = resolved.slice(size);
+  const { bar: primary, more: secondary } = resolveTabs(tabs, order, size);
   // The sheet's button is highlighted when the current tab is inside it —
   // otherwise selecting a tab from the sheet would leave the bar looking like
   // nothing is selected.

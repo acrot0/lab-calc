@@ -3,7 +3,7 @@ import {
   BAR_SIZE, MIN_BAR, NAV_STORAGE_KEY,
   memoryStore, resolveStore,
   reconcile, loadNav, saveNav,
-  moveItem, clampBar, barTabs, moreTabs, isInBar,
+  moveItem, clampBar, resolveTabs,
 } from '../src/ui/nav-order.mjs';
 
 const ALL = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -95,36 +95,54 @@ describe('clampBar', () => {
   });
 });
 
-describe('barTabs and moreTabs', () => {
-  it('should split the order at the bar size', () => {
-    expect(barTabs(ALL)).toEqual(ALL.slice(0, BAR_SIZE));
-    expect(moreTabs(ALL)).toEqual(ALL.slice(BAR_SIZE));
+describe('resolveTabs', () => {
+  /** Stand-in tab entries, shaped like the ones App.jsx builds. */
+  const TABS = ALL.map((id) => ({ id, icon: () => null }));
+  const ids = (list) => list.map((t) => t.id);
+
+  it('should resolve the order to tab entries', () => {
+    expect(ids(resolveTabs(TABS, ALL).all)).toEqual(ALL);
+  });
+
+  it('should split at the bar size', () => {
+    const { bar, more } = resolveTabs(TABS, ALL);
+    expect(ids(bar)).toEqual(ALL.slice(0, BAR_SIZE));
+    expect(ids(more)).toEqual(ALL.slice(BAR_SIZE));
   });
 
   it('should respect an explicit size', () => {
-    expect(barTabs(ALL, 3)).toEqual(['a', 'b', 'c']);
-    expect(moreTabs(ALL, 3)).toEqual(['d', 'e', 'f', 'g']);
+    const { bar, more } = resolveTabs(TABS, ALL, 3);
+    expect(ids(bar)).toEqual(['a', 'b', 'c']);
+    expect(ids(more)).toEqual(['d', 'e', 'f', 'g']);
   });
 
   it('should clamp an out-of-range size rather than honour it', () => {
     // The M3/HIG ceiling is the point of this module; a caller passing 12 must
     // not get a twelve-item bar.
-    expect(barTabs(ALL, 12)).toHaveLength(BAR_SIZE);
-    expect(barTabs(ALL, 0)).toHaveLength(MIN_BAR);
+    expect(resolveTabs(TABS, ALL, 12).bar).toHaveLength(BAR_SIZE);
+    expect(resolveTabs(TABS, ALL, 0).bar).toHaveLength(MIN_BAR);
   });
 
   it('should partition the order with nothing lost or shared', () => {
-    const joined = [...barTabs(ALL, 4), ...moreTabs(ALL, 4)];
-    expect(joined).toEqual(ALL);
+    for (let size = MIN_BAR; size <= BAR_SIZE; size += 1) {
+      const { all, bar, more } = resolveTabs(TABS, ALL, size);
+      expect(ids(bar).length + ids(more).length, `size ${size}`).toBe(all.length);
+      expect(ids([...bar, ...more]), `size ${size}`).toEqual(ALL);
+    }
   });
-});
 
-describe('isInBar', () => {
-  it('should report membership against the current size', () => {
-    expect(isInBar(4)).toBe(true);
-    expect(isInBar(5)).toBe(false);
-    expect(isInBar(4, 3)).toBe(false);
-    expect(isInBar(2, 3)).toBe(true);
+  it('should drop an id that no longer names a tab', () => {
+    // The last boundary before a render: `tab.icon` on undefined blanks the
+    // page rather than showing a shorter list.
+    const { all } = resolveTabs(TABS, ['a', 'gone', 'b']);
+    expect(ids(all)).toEqual(['a', 'b']);
+  });
+
+  it('should return every list empty when no order is stored', () => {
+    const { all, bar, more } = resolveTabs(TABS, []);
+    expect(all).toEqual([]);
+    expect(bar).toEqual([]);
+    expect(more).toEqual([]);
   });
 });
 
@@ -135,8 +153,11 @@ describe('isInBar', () => {
  * destinations in a bottom bar. That is not a default to be overridden — it is
  * the reason the bar is usable at all, since beyond five the targets drop under
  * the 44px a thumb can hit. Every path into the size goes through `clampBar`,
- * so asserting it there covers the editor, a stored value and a hand-edited
- * one alike.
+ * so asserting it there covers the editor, a stored value and a hand-edited one
+ * alike.
+ *
+ * The "no tab unreachable" half of that rule is asserted in `resolveTabs`'
+ * partition test above, which is where the split actually happens.
  */
 describe('the 3–5 rule', () => {
   it('should hold for every size the editor can produce', () => {
@@ -144,21 +165,6 @@ describe('the 3–5 rule', () => {
       const size = clampBar(n);
       expect(size, `clampBar(${n})`).toBeGreaterThanOrEqual(MIN_BAR);
       expect(size, `clampBar(${n})`).toBeLessThanOrEqual(BAR_SIZE);
-    }
-  });
-
-  it('should leave no tab unreachable', () => {
-    // The invariant the whole design rests on: every tab is either in the bar
-    // or in More, never both and never neither. A user who reorders must not be
-    // able to lose a function.
-    for (let size = MIN_BAR; size <= BAR_SIZE; size += 1) {
-      const bar = new Set(barTabs(ALL, size));
-      const more = new Set(moreTabs(ALL, size));
-      for (const id of ALL) {
-        expect(bar.has(id) || more.has(id), `${id} unreachable at size ${size}`).toBe(true);
-        expect(bar.has(id) && more.has(id), `${id} in both at size ${size}`).toBe(false);
-      }
-      expect(bar.size + more.size, `size ${size}`).toBe(ALL.length);
     }
   });
 });

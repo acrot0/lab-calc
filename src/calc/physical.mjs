@@ -38,6 +38,7 @@
  */
 import { fail, requirePositive, requireNonNegative, requireFinite } from './errors.mjs';
 import { tQuantile } from './distributions.mjs';
+import { linearFit } from './stats.mjs';
 
 /** The gas constant, J/(mol·K). */
 export const R_GAS = 8.314462618;
@@ -596,41 +597,6 @@ function normalizeComponent(comp, name) {
     meltingC: comp.meltingC,
     fusionKJ: comp.fusionKJ,
     fusionJ: comp.fusionKJ * 1000,
-  };
-}
-
-/**
- * Ordinary least squares on two plain arrays.
- *
- * Local rather than imported from `reagent.mjs`, which fits `{x, y}` point
- * objects and returns a different shape. Two small fits is below the threshold
- * where a shared abstraction pays for itself, and the alternative — reshaping
- * every caller's data into one convention — would be more code than this.
- */
-function linearFit(xs, ys) {
-  const n = xs.length;
-  const meanX = xs.reduce((a, b) => a + b, 0) / n;
-  const meanY = ys.reduce((a, b) => a + b, 0) / n;
-  let sxx = 0;
-  let sxy = 0;
-  for (let i = 0; i < n; i++) {
-    sxx += (xs[i] - meanX) ** 2;
-    sxy += (xs[i] - meanX) * (ys[i] - meanY);
-  }
-  if (sxx === 0) fail('curveNoXVariance', {});
-  const slope = sxy / sxx;
-  const intercept = meanY - slope * meanX;
-  let ssTot = 0;
-  let ssRes = 0;
-  for (let i = 0; i < n; i++) {
-    ssTot += (ys[i] - meanY) ** 2;
-    ssRes += (ys[i] - (slope * xs[i] + intercept)) ** 2;
-  }
-  return {
-    slope,
-    intercept,
-    r2: ssTot === 0 ? 0 : 1 - ssRes / ssTot,
-    residuals: xs.map((x, i) => ys[i] - (slope * x + intercept)),
   };
 }
 
