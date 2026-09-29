@@ -26,12 +26,27 @@ import { saveFile, SAVE_FAILED, SAVE_VIA_SHARE } from '../src/ui/save-file.mjs';
 function installDom() {
   const clicks = [];
   const revokes = [];
-  const original = {
-    createObjectURL: globalThis.URL?.createObjectURL,
-    document: globalThis.document,
-    setTimeout: globalThis.setTimeout,
+  /*
+   * Snapshot the property descriptors and put them back verbatim.
+   *
+   * The first version restored by spreading `globalThis.URL` and setting
+   * `revokeObjectURL: undefined`. Two things were wrong with it, and only the
+   * second was visible on this machine. `undefined` is not the same as absent —
+   * it left the global shadowed by a non-function. And `saveFile` schedules its
+   * revoke through `setTimeout`, so with the *real* timer restored the callback
+   * fired after teardown, against the shadowed global: an unhandled
+   * `TypeError` reported by CI on all three platforms while all 2,686 tests
+   * passed. Local runs never saw it because the stub's own `setTimeout` fired
+   * the callback synchronously, inside the test.
+   */
+  const saved = new Map(
+    ['URL', 'document', 'setTimeout'].map((k) => [k, Object.getOwnPropertyDescriptor(globalThis, k)]),
+  );
+  globalThis.URL = {
+    ...globalThis.URL,
+    createObjectURL: () => 'blob:stub',
+    revokeObjectURL: (u) => revokes.push(u),
   };
-  globalThis.URL = { ...globalThis.URL, createObjectURL: () => 'blob:stub', revokeObjectURL: (u) => revokes.push(u) };
   globalThis.document = {
     createElement: () => ({
       click() { clicks.push(this.download); },
@@ -41,14 +56,16 @@ function installDom() {
     }),
     body: { appendChild() {}, removeChild() {} },
   };
+  // Synchronous, so the revoke callback runs inside the test that scheduled it.
   globalThis.setTimeout = (fn) => { fn(); return 0; };
   return {
     clicks,
     revokes,
     restore: () => {
-      globalThis.URL = { ...globalThis.URL, createObjectURL: original.createObjectURL, revokeObjectURL: undefined };
-      globalThis.document = original.document;
-      globalThis.setTimeout = original.setTimeout;
+      for (const [k, desc] of saved) {
+        if (desc) Object.defineProperty(globalThis, k, desc);
+        else delete globalThis[k];
+      }
       delete globalThis.Capacitor;
     },
   };

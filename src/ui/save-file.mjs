@@ -162,8 +162,23 @@ function downloadInBrowser(blob, filename, win = globalThis) {
    * has been dispatched but the fetch behind it has not started. This was
    * already the behaviour at two of the five call sites, with a comment saying
    * why; the other three revoked immediately and got away with it.
+   *
+   * ## Why the body is guarded
+   *
+   * The callback runs on a later task, which means it is outside every try in
+   * this module: anything it throws is an unhandled error rather than a
+   * `SAVE_FAILED`. `revokeObjectURL` is universally available in the browsers
+   * this ships to, so this is not a known failure — it is the shape the code
+   * has to have. A timer that can raise is a timer that reports a problem at a
+   * moment the caller cannot attribute to anything.
    */
-  win.setTimeout(() => win.URL.revokeObjectURL(url), 0);
+  win.setTimeout(() => {
+    try {
+      win.URL?.revokeObjectURL?.(url);
+    } catch {
+      // A leaked object URL is reclaimed when the document is unloaded.
+    }
+  }, 0);
 }
 
 /**
