@@ -96,6 +96,7 @@ npm run package:desktop
 - [ ] `npm test` 全绿（**先跑这个**；`npm run verify` 不检查测试失败，见第 4 节）
 - [ ] `npm run verify` 全绿（含作者署名检查：只允许 `acrot0`，无任何 AI 署名）
 - [ ] `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 三处版本一致
+- [ ] 两个 lock 文件（`package-lock.json`、`src-tauri/Cargo.lock`）也是新版本（见第 4 节）
 - [ ] `node -e "import('./src/ui/version.mjs').then(m=>console.log(m.androidVersionCode('X.Y.Z')))"` 能算出整数且大于上一版
 
 ### 人工核对
@@ -123,18 +124,34 @@ npm run package:desktop
 
 ## 4. 版本号怎么改
 
-**四处**，改漏一处就会出现版本不一致：
+**六处**，分两类。
+
+### 必须改的三处（改漏了会出真问题）
 
 | 文件 | 字段 | 漏了会怎样 |
 |---|---|---|
 | `package.json` | `version` | 发布 tag 与文档里的版本号错位 |
 | `src-tauri/tauri.conf.json` | `version` | 桌面端关于页显示旧版本 |
 | `src-tauri/Cargo.toml` | `version` | **更新通道失效**：安装包按 Cargo.toml 构建，更新检查拿二进制自己的版本比对，用户在新版上仍被提示「已是最新」 |
-| Android | **不改**——从 `package.json` 推导 | — |
 
-`Cargo.toml` 这一行是本表原先漏掉的第四处（2026-09-28 v1.1.0 发版时被
+`Cargo.toml` 这一行是本表原先漏掉的第三处（2026-09-28 v1.1.0 发版时被
 CI 的 `test/update-channel.test.mjs` 拦下）。漏掉它不会有任何本地症状：
 构建成功、安装包产出、发布照常，只有更新检查静默失效。
+
+### 跟着改的三处（不改不影响功能，但不改这句话就不成立）
+
+| 文件 | 何时会改 |
+|---|---|
+| `package-lock.json` | 跑 `npm install --package-lock-only` 自动同步 |
+| `src-tauri/Cargo.lock` | 下一次 cargo 构建时自动同步 |
+| Android | **永远不改**——从 `package.json` 推导 |
+
+两个 lock 文件不影响构建产物，所以漏掉它们不会有任何症状。它们漂移的
+代价是**核查失效**：一个想确认「版本都改了吗」的人会看到 lock 里写着
+两个版本之前的数字，然后要么花时间查它是否有意义，要么学会忽略版本检查。
+v1.2.0 发版时两个都停在 1.0.0，落后两版。
+
+### 顺序
 
 改完**必须跑 `npm test`**——`npm run verify` 不够。`check-doc-numbers`
 会用 `--reporter=json` 跑一遍套件，但它只读取报告里的测试**计数**，
