@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import { useNavOrder } from '../NavOrderContext.jsx';
-import { BAR_SIZE, MIN_BAR } from '../nav-order.mjs';
+import { BAR_SIZE, MIN_BAR, resolveTabs } from '../nav-order.mjs';
 import { useDragReorder } from '../use-drag-reorder.mjs';
 
 /**
@@ -36,15 +36,14 @@ export default function NavEditor({ tabs, onClose }) {
   const [announce, setAnnounce] = useState('');
   const [resetDone, setResetDone] = useState(false);
 
-  // The order as ids resolved to tab entries, so the list renders icons and
-  // labels without the caller having to pass a lookup.
-  const byId = useMemo(() => new Map(tabs.map((tab) => [tab.id, tab])), [tabs]);
-  const items = useMemo(
-    () => order.map((id) => byId.get(id)).filter(Boolean),
-    [order, byId],
-  );
+  // The order as tab entries, so the list renders icons and labels without the
+  // caller having to pass a lookup. The editor shows every tab, so it takes
+  // `all` rather than the bar/more split.
+  const items = useMemo(() => resolveTabs(tabs, order).all, [tabs, order]);
 
-  const { listRef, dragIndex, target, held, handlers } = useDragReorder(order, move);
+  const {
+    listRef, dragIndex, target, held, listHandlers, dragHandle, keyHandler,
+  } = useDragReorder(order, move);
 
   /*
    * Announce the move, not the state.
@@ -138,7 +137,7 @@ export default function NavEditor({ tabs, onClose }) {
         </div>
         <p className="nav-editor-note">{t('app.navBarSizeNote')}</p>
 
-        <ul className="nav-editor-list" ref={listRef} {...handlers}>
+        <ul className="nav-editor-list" ref={listRef} {...listHandlers}>
           {items.map((tab, i) => {
             const Icon = tab.icon;
             const inBar = i < size;
@@ -169,8 +168,8 @@ export default function NavEditor({ tabs, onClose }) {
                   type="button"
                   className="nav-editor-grip"
                   aria-label={t('app.navDragHandle')}
-                  onPointerDown={handlers.onPointerDown(i)}
-                  onKeyDown={handlers.onKeyDown(i)}
+                  onPointerDown={dragHandle(i)}
+                  onKeyDown={keyHandler(i)}
                 >
                   <Icons.drag size={ICON_SIZE.control} aria-hidden="true" />
                 </button>

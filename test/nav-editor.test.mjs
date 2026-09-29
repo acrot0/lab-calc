@@ -285,8 +285,154 @@ describe('the editor’s touch-action', () => {
     // scrolling again.
     const src = readFileSync('src/ui/components/NavEditor.jsx', 'utf8');
     const grip = src.slice(src.indexOf('nav-editor-grip'), src.indexOf('nav-editor-grip') + 400);
-    expect(grip, 'the grip should start the drag').toMatch(/onPointerDown=\{handlers\.onPointerDown/);
+    expect(grip, 'the grip should start the drag').toMatch(/onPointerDown=\{dragHandle\(i\)\}/);
     const li = src.slice(src.indexOf('data-reorder-item'), src.indexOf('data-reorder-item') + 900);
     expect(li, 'the row should not start a drag').not.toMatch(/onPointerDown=/);
+  });
+
+  it('should not pass a row factory to the list element', () => {
+    /*
+     * The bug that made rows pile up on each other: `handlers` held both the
+     * list's own listeners and the per-row factories, and `<ul {...handlers}>`
+     * spread the factory itself as `onPointerDown`. React called it with the
+     * event, so `index` became a PointerEvent, `origin` matched no row, and the
+     * dragged row was never transformed while its neighbours were.
+     *
+     * The two kinds are now separate names, and this asserts the split holds.
+     */
+    const editor = readFileSync('src/ui/components/NavEditor.jsx', 'utf8');
+    expect(editor).toMatch(/<ul[^>]*\{\.\.\.listHandlers\}/);
+    expect(editor, 'the list must not receive the row factories').not.toMatch(/<ul[^>]*\{\.\.\.handlers\}/);
+  });
+});
+
+/*
+ * The drag's geometry.
+ *
+ * jsdom has no layout, so a synthesised drag here would be testing the mock —
+ * the browser check for this lives in the commit message. What *is* testable
+ * without layout is the two rules the overlap violated.
+ */
+describe('the drag slot', () => {
+  const src = readFileSync('src/ui/use-drag-reorder.mjs', 'utf8');
+
+  it('should measure the pitch from layout, not from the rendered rect', () => {
+    /*
+     * The pitch is the row plus the gap, and it has to be read from `offsetTop`
+     * — the layout position. `getBoundingClientRect` reports the *transformed*
+     * position, and the rows are transformed for the whole of a drag, so the
+     * measurement changed from frame to frame. Measured mid-drag on a 48px row
+     * with a 4px gap: `getBoundingClientRect` gave a pitch of 0 while
+     * `offsetTop` gave 52.
+     */
+    expect(src, 'the pitch must come from offsetTop').toMatch(/\.offsetTop - .*\.offsetTop|\.offsetLeft - .*\.offsetLeft/);
+    const geometry = src.slice(src.indexOf('const geometry'), src.indexOf('const paint'));
+    expect(geometry, 'geometry must not measure a rendered rect').not.toMatch(/getBoundingClientRect/);
+  });
+
+  it('should move the dragged row by the pointer travel, not by a snapped distance', () => {
+    // It must be the raw travel: the displaced rows move in whole slots, and
+    // the dragged row has to stay consistent with them. Writing it as
+    // `snapped + (travel - snapped)` is the same number with the reasoning
+    // obscured — that version was in this file and read as though it aligned
+    // the row to a slot when it did not.
+    const branch = src.slice(src.indexOf('if (i === g.origin)'), src.indexOf('const between'));
+    expect(branch).toMatch(/\$\{travel\}px/);
+  });
+
+  it('should not leave an unused measurement behind', () => {
+    // `lead` was computed and never read — dead code that made the geometry
+    // look like it knew something it did not.
+    expect(src, 'geometry should return only what it is used for').not.toMatch(/\blead\b/);
+  });
+});
+
+/*
+ * When the drag's cached row references are released.
+ *
+ * `nodesRef` holds the only references to the rows a drag displaced, and the
+ * layout effect needs them to take the transforms back off. Clearing it in
+ * `pointerup` — before the effect runs — left every displaced row permanently
+ * offset by one slot, so a completed drag left the list visibly wrong: rows
+ * shifted up with a gap where the dragged one used to be.
+ *
+ * The order is the whole point, and it is invisible in a rendered assertion.
+ */
+describe('the drag’s cleanup order', () => {
+  const src = readFileSync('src/ui/use-drag-reorder.mjs', 'utf8');
+
+  /** The settle effect's body — the `useLayoutEffect` call, not the import. */
+  const settle = () => {
+    const at = src.indexOf('useLayoutEffect(() =>');
+    expect(at, 'the settle effect is missing').toBeGreaterThanOrEqual(0);
+    return src.slice(at, src.indexOf('}, [items, clearShifts])', at) + 25);
+  };
+
+  it('should keep the row references until the settle effect has used them', () => {
+    const up = src.slice(src.indexOf('const onPointerUp'), src.indexOf('/* ------------------------------------------------------------ keyboard'));
+    // The commit branch must not clear the ref; only the no-move branch may,
+    // because nothing was displaced and there is nothing to settle.
+    const at = up.indexOf('pendingDrop.current = true');
+    expect(at, 'the commit branch is missing').toBeGreaterThanOrEqual(0);
+    // Up to the `else` that starts the no-move branch. The `if` above it is a
+    // single statement with no braces, so the anchor is the `else` line itself.
+    const elseAt = up.indexOf('\n    else {', at);
+    expect(elseAt, 'the no-move branch is missing').toBeGreaterThan(at);
+    const commitBranch = up.slice(at, elseAt);
+    expect(commitBranch, 'the commit branch must not clear nodesRef').not.toMatch(/nodesRef\.current = \[\]/);
+  });
+
+  it('should clear the row references in the settle effect', () => {
+    expect(settle()).toMatch(/nodesRef\.current = \[\]/);
+  });
+
+  it('should clear them after the transforms, not before', () => {
+    // `clearShifts` iterates `nodesRef`; clearing first would leave it with
+    // nothing to iterate and the transforms would stay.
+    const effect = settle();
+    const clearAt = effect.indexOf('clearShifts');
+    const wipeAt = effect.indexOf('nodesRef.current = []');
+    expect(clearAt).toBeGreaterThanOrEqual(0);
+    expect(wipeAt).toBeGreaterThan(clearAt);
+  });
+});
+
+/*
+ * Every transform the drag writes must be valid CSS.
+ *
+ * An invalid value is not an error — the browser drops the declaration and
+ * `style.transform` reads back empty. That is how a real bug hid: the dragged
+ * row was written as `translate3d(0, 80px, 0, 0)`, because a pre-joined
+ * `"0, 80px"` was spliced into a template that added two more components.
+ * `translate3d` takes exactly three lengths, so the whole declaration was
+ * discarded and the row under the finger never moved while the rows around it
+ * did — they piled into the same place.
+ *
+ * The failure is silent in every other kind of test: nothing throws, the code
+ * path runs, and only the rendered pixels are wrong.
+ */
+describe('the transforms the drag writes', () => {
+  const src = readFileSync('src/ui/use-drag-reorder.mjs', 'utf8');
+
+  it('should write three components, never a pre-joined pair plus more', () => {
+    // The shape to prevent: a template that interpolates a comma-containing
+    // fragment and then adds components of its own. Comments are stripped
+    // first — the code's own note quotes the bad value as an example, and a
+    // guard that fires on its own documentation is one people delete.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const templates = [...code.matchAll(/`translate3d\(([^`]*)\)`/g)].map((m) => m[1]);
+    expect(templates.length, 'no translate3d templates found').toBeGreaterThan(0);
+    for (const t of templates) {
+      // Three components means exactly two commas, once each interpolation
+      // counts as one component.
+      const parts = t.split(',').length;
+      expect(parts, `translate3d(${t}) has ${parts} components, not 3`).toBe(3);
+    }
+  });
+
+  it('should not build a transform from a fragment that already has a comma', () => {
+    // `offset` held `"0, 80px"`. Any variable interpolated into a translate
+    // must be a single component.
+    expect(src, 'a pre-joined offset fragment is back').not.toMatch(/const offset = vertical \? `0, \$\{/);
   });
 });

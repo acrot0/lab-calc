@@ -93,22 +93,47 @@ export function useDragReorder(items, onReorder) {
   }, []);
 
   /**
-   * The list's axis and the size of one slot.
+   * The list's axis, and the pitch between two rows.
    *
-   * Read from the first item rather than from a constant: the same hook drives
-   * a vertical editor and a horizontal phone bar, and the two have different
-   * geometry. Reading it from the DOM means the hook does not have to know
-   * which one it is on.
+   * Read from the DOM rather than from a constant: the same hook drives a
+   * vertical editor and a horizontal phone bar, and the two have different
+   * geometry.
+   *
+   * ## Why `offsetTop`, not `getBoundingClientRect`
+   *
+   * The pitch is measured while rows are displaced by `transform`, and
+   * `getBoundingClientRect` reports the *transformed* position. Measuring the
+   * gap that way meant the pitch changed as the drag moved: at rest the two
+   * rows are 52px apart, but mid-drag the dragged row had been translated, so
+   * the difference between its rect and the next row's was a different number
+   * every frame. The slot then disagreed with itself between the frame that
+   * chose the target and the frame that painted it, and rows landed on top of
+   * each other.
+   *
+   * `offsetTop` is the layout position, before transforms, so the pitch is the
+   * same number on every frame of a drag as it is at rest.
+   *
+   * ## Why the second row
+   *
+   * The pitch is the row plus the gap between rows, and only a measurement
+   * between two rows includes the gap. Using the row height alone was the other
+   * half of the overlap: at 48px rows with a 4px gap, a drag of 1.5 slots moved
+   * the dragged row by the raw 78px while its neighbours moved by 2 × 48px.
+   *
+   * `offsetHeight` for the single-row case, where there is no second row to
+   * measure against and the row's own size is the best available answer.
    */
   const geometry = useCallback(() => {
     const list = listRef.current;
-    const first = list?.querySelector('[data-reorder-item]');
-    if (!list || !first) return null;
+    const items = list ? [...list.querySelectorAll('[data-reorder-item]')] : [];
+    if (!list || items.length === 0) return null;
     const vertical = getComputedStyle(list).flexDirection.startsWith('column');
-    const rect = first.getBoundingClientRect();
-    const slot = vertical ? rect.height : rect.width;
-    const lead = vertical ? list.getBoundingClientRect().top : list.getBoundingClientRect().left;
-    return { vertical, slot, lead };
+    const first = items[0];
+    const second = items[1];
+    const slot = second
+      ? (vertical ? second.offsetTop - first.offsetTop : second.offsetLeft - first.offsetLeft)
+      : (vertical ? first.offsetHeight : first.offsetWidth);
+    return { vertical, slot };
   }, []);
 
   /**
@@ -124,22 +149,60 @@ export function useDragReorder(items, onReorder) {
     const nodes = nodesRef.current.length ? nodesRef.current : collect();
     const { vertical, slot } = geo;
 
-    // Which slot the dragged item would occupy: how far the pointer has
-    // travelled, in slots, rounded. Rounding is what gives the swap its
-    // hysteresis — the item changes slot at the halfway point of a neighbour
-    // rather than flickering between two as the pointer jitters on a boundary.
+    /*
+     * How far the pointer has travelled, and which slot that lands on.
+     *
+     * `Math.round` is the hysteresis: the item changes slot at the halfway
+     * point of a neighbour rather than flickering between two as the pointer
+     * jitters on a boundary.
+     */
     const travel = vertical ? g.y - g.startY : g.x - g.startX;
-    const next = clamp(g.origin + Math.round(travel / slot), 0, items.length - 1);
+    const slots = Math.round(travel / slot);
+    const next = clamp(g.origin + slots, 0, items.length - 1);
 
     for (let i = 0; i < nodes.length; i += 1) {
       const node = nodes[i];
       if (i === g.origin) {
-        // The dragged item tracks the pointer exactly, unrounded, so it stays
-        // under the finger. Its slot is `next`; its position is the pointer.
-        // The slight enlargement is what separates it from the items sliding
-        // underneath — a shadow would need a repaint, a transform does not.
-        const offset = vertical ? `0, ${travel}px` : `${travel}px, 0`;
-        node.style.transform = `translate3d(${offset}, 0) scale3d(1.02, 1.02, 1)`;
+        /*
+         * The dragged row follows the pointer exactly — not its snapped slot.
+         *
+         * It has to be the raw travel, because the rows it displaces move in
+         * whole slots and the two have to agree about where the slots are. An
+         * earlier version displaced this row by `snapped + (travel - snapped)`,
+         * which is algebraically the same number written as if it were doing
+         * something clever; it is not, and the arithmetic only obscured that
+         * the row tracks the finger.
+         *
+         * Translated only — no scale. It used to carry `scale3d(1.02, …)` to
+         * lift it off the rows underneath, and that was half of the overlap
+         * that made rows pile up: a 48px row at 1.02 is 49px, so it grew 3px
+         * past its own bounds at each end and covered the row below by 6px.
+         * Measured with the pointer 10px into a drag — before any neighbour had
+         * moved — the dragged row's bottom was 389 and the next row's top was
+         * 383.
+         *
+         * The separation is the background and shadow on `.is-dragging`, which
+         * cost nothing and do not change the row's size.
+         */
+        /*
+         * Three components, written out — not a pre-joined `"0, 80px"` string
+         * spliced into the middle of a four-argument template.
+         *
+         * That splice is what broke this: `translate3d` takes exactly three
+         * lengths, and the joined form produced `translate3d(0, 80px, 0, 0)`.
+         * An invalid value is not an error — the browser silently drops the
+         * declaration, `style.transform` reads back empty, and the dragged row
+         * never moves while the rows around it do. The row under the finger
+         * stays put and its neighbour slides into the same place, which is the
+         * overlap.
+         *
+         * Spelled out, a miscount is visible in the source. `translate3d` is
+         * used rather than `translate` because the drag runs on the compositor
+         * and a 2D transform can be rasterised on a low-end device.
+         */
+        node.style.transform = vertical
+          ? `translate3d(0, ${travel}px, 0)`
+          : `translate3d(${travel}px, 0, 0)`;
         continue;
       }
       // Everyone between the origin and the destination moves one slot toward
@@ -149,9 +212,10 @@ export function useDragReorder(items, onReorder) {
         ? i > g.origin && i <= next // dragged down
         : i >= next && i < g.origin; // dragged up
       const shift = between ? (g.origin < next ? -slot : slot) : 0;
-      node.style.transform = shift
-        ? (vertical ? `translate3d(0, ${shift}px, 0)` : `translate3d(${shift}px, 0, 0)`)
-        : '';
+      // Three components spelled out, for the same reason as the dragged row's.
+      if (!shift) node.style.transform = '';
+      else if (vertical) node.style.transform = `translate3d(0, ${shift}px, 0)`;
+      else node.style.transform = `translate3d(${shift}px, 0, 0)`;
     }
     return next;
   }, [collect, geometry, items.length]);
@@ -253,11 +317,19 @@ export function useDragReorder(items, onReorder) {
      * only thing left to do is drop the transforms — and dropping a transform
      * that is already correct is invisible. Clearing them first would show one
      * frame of the item back in its old slot before React moved it.
+     *
+     * `nodesRef` is *not* cleared here. It holds the only references to the
+     * displaced rows, and the layout effect needs them to take the transforms
+     * off — clearing it first left every neighbour permanently offset by one
+     * slot, which is what made a dropped drag leave the list visibly wrong.
+     * The effect clears it once it has finished with it.
      */
     pendingDrop.current = true;
     if (g.to != null && g.to !== g.origin) onReorder(g.origin, g.to);
-    else clearShifts(false);
-    nodesRef.current = [];
+    else {
+      clearShifts(false);
+      nodesRef.current = [];
+    }
     setDragIndex(null);
     setTarget(null);
   }, [clearShifts, onReorder]);
@@ -316,6 +388,9 @@ export function useDragReorder(items, onReorder) {
     if (!pendingDrop.current) return;
     pendingDrop.current = false;
     clearShifts(false);
+    // Only now: these are the references `clearShifts` just used, and the
+    // gesture that produced them is over.
+    nodesRef.current = [];
   }, [items, clearShifts]);
 
   /* ------------------------------------------------------------- cleanup -- */
@@ -342,13 +417,34 @@ export function useDragReorder(items, onReorder) {
     held: heldIndex,
     /** Reduced motion, so the caller can skip its own animations too. */
     reducedMotion: prefersReducedMotion(),
-    handlers: {
-      onPointerDown,
+
+    /*
+     * The list's own handlers: movement and release only.
+     *
+     * These are spread onto the list element, so they take the event directly.
+     * The two that need to know *which row* are factories instead — see
+     * `rowHandlers` — and mixing the two kinds in one object was a real bug:
+     * `<ul {...handlers}>` passed the factory itself as the listener, React
+     * called it with the event, and `index` became a PointerEvent. `origin` was
+     * then an object that matched no row, so the dragged row was never
+     * transformed while its neighbours were — the rows piled up on each other.
+     */
+    listHandlers: {
       onPointerMove,
       onPointerUp,
       onPointerCancel: onPointerUp,
-      onKeyDown,
     },
+
+    /**
+     * The per-row handlers, as factories.
+     *
+     * `dragHandle(i)` goes on row `i`'s grip — the only element a pointer drag
+     * may start from, which is what lets the row itself keep its
+     * `touch-action: auto` and the list stay scrollable. `keyHandler(i)` goes on
+     * the same grip for the keyboard reorder.
+     */
+    dragHandle: onPointerDown,
+    keyHandler: onKeyDown,
   };
 }
 
