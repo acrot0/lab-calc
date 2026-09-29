@@ -2878,6 +2878,20 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .save-failed-export:hover { filter: brightness(1.08); }
 .save-failed-export:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
 
+/*
+ * The export failed, and the banner above it is the reason it mattered.
+ *
+ * Its own line rather than a toast: the user is already reading this banner,
+ * and a message that appears elsewhere and vanishes would leave the button
+ * looking like it simply does not work.
+ */
+.save-failed-note {
+  flex-basis: 100%;
+  padding-left: 32px;
+  font-size: var(--t-sm);
+  color: var(--err);
+}
+
 
 .search > svg {
   position: absolute;

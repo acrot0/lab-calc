@@ -10,6 +10,7 @@ import {
   loadGroups, saveGroups, createGroup, renameGroup, removeGroup, setGroupNote, assignGroup,
 } from './groups.mjs';
 import { mergeEntries, downloadBundle } from './export.mjs';
+import { SAVE_FAILED } from './save-file.mjs';
 import { PERSIST_UNKNOWN, requestPersistence, shouldRequest } from './durability.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
@@ -334,6 +335,15 @@ export default function App() {
    */
   const [saveFailed, setSaveFailed] = useState(false);
   /*
+   * Whether the banner's own export button failed.
+   *
+   * Separate from `saveFailed`, because the two are different facts and the
+   * second one is only reachable from the first: the history is not being
+   * saved, *and* the escape hatch did not open. Worth its own line, since a
+   * user in that state has no in-app route left and needs to know it.
+   */
+  const [exportFailed, setExportFailed] = useState(false);
+  /*
    * What the browser said when asked to make this origin's storage persistent.
    *
    * Not rendered anywhere on its own — see `durability.mjs` for why a
@@ -622,9 +632,26 @@ export default function App() {
             <strong>{t('history.saveFailedTitle')}</strong>
             <span>{t('history.saveFailedBody')}</span>
           </div>
-          <button type="button" className="save-failed-export" onClick={() => downloadBundle(entries)}>
+          <button
+            type="button"
+            className="save-failed-export"
+            onClick={async () => {
+              /*
+               * The result is read here as well as in the history panel.
+               *
+               * This button is the way out of a storage failure, and on Android
+               * it goes through the share sheet — a route that can report
+               * `SAVE_FAILED`. Firing and forgetting would leave a user who
+               * just learned their writes are failing with a button that
+               * appears to do nothing, which is the same silence one layer up.
+               */
+              const result = await downloadBundle(entries);
+              setExportFailed(result === SAVE_FAILED);
+            }}
+          >
             {t('history.saveFailedExport')}
           </button>
+          {exportFailed && <span className="save-failed-note">{t('history.exportFailed')}</span>}
         </div>
       )}
 

@@ -5,9 +5,9 @@ import { filterHistory, visibleEntries, replayInputs } from '../history.mjs';
 import { filterByGroup, groupCounts, ungroupedCount, ALL_GROUPS } from '../groups.mjs';
 import GroupPicker from './GroupPicker.jsx';
 import {
-  downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
-  detailColumns, exportPreview,
+  downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle, detailColumns, exportPreview,
 } from '../export.mjs';
+import { SAVE_FAILED, SAVE_VIA_SHARE } from '../save-file.mjs';
 import EntryMeta from './EntryMeta.jsx';
 import ColumnPicker from './ColumnPicker.jsx';
 import { useI18n } from '../LocaleContext.jsx';
@@ -189,27 +189,49 @@ export default function HistoryPanel({
     });
   }
 
-  // Export what is currently visible, not the whole history.
-  function doExport(format) {
+  /*
+   * Export what is currently visible, not the whole history.
+   *
+   * ## Why every branch is now awaited
+   *
+   * On Android there is no download at all — the WebView ignores `<a download>`
+   * and Capacitor sets no `DownloadListener` — so the old fire-and-forget calls
+   * produced no file and no error. `saveFile` goes through the share sheet
+   * there and reports what happened; a caller that ignores the report is back
+   * to the silent behaviour this replaced.
+   *
+   * The .xlsx case additionally waits on a lazily-imported writer, which is
+   * where the fetch can fail — worth telling the user about rather than
+   * swallowing, which was already the behaviour here.
+   */
+  async function doExport(format) {
     setMenuOpen(false);
     const rows = exportRows;
-    if (format === 'csv') downloadCsv(rows, locale);
+    let result = SAVE_VIA_SHARE;
+    if (format === 'csv') result = await downloadCsv(rows, locale);
     // The backup is the archive, deleted records included. Excluding them
     // would make "export a backup, then delete the app data" lose the very
     // records the audit trail exists to keep.
-    else if (format === 'json') downloadBundle(allEntries ?? entries);
+    else if (format === 'json') result = await downloadBundle(allEntries ?? entries);
     else if (format === 'xlsx' || format === 'xlsxData') {
-      // Async because the .xlsx writer is fetched on demand — see the note on
-      // `downloadXlsx`. A failure here is a fetch that did not arrive, which is
-      // worth telling the user rather than swallowing.
-      //
       // Two menu items, one call: the views are the same sheet written two
       // ways, and the only thing the menu decides is which. Record is listed
       // first because it is the one that fits on screen — see `xlsxPlan`.
       const view = format === 'xlsxData' ? 'data' : 'record';
-      downloadXlsx(rows, { locale, view, columns: columns ?? undefined })
-        .catch(() => setNotice({ kind: 'err', text: t('history.exportFailed') }));
-    } else downloadMarkdown(rows, locale);
+      try {
+        result = await downloadXlsx(rows, { locale, view, columns: columns ?? undefined });
+      } catch {
+        result = SAVE_FAILED;
+      }
+    } else result = await downloadMarkdown(rows, locale);
+
+    if (result === SAVE_FAILED) {
+      setNotice({ kind: 'err', text: t('history.exportFailed') });
+    } else if (result === SAVE_VIA_SHARE) {
+      // The sheet has opened; whether the user keeps the file is theirs to
+      // decide. Saying "saved" would be a claim this code cannot make.
+      setNotice({ kind: 'ok', text: t('history.exportShare') });
+    }
   }
 
   /*

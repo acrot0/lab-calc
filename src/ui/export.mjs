@@ -15,6 +15,7 @@ import { fieldLabel } from './field-labels.mjs';
 import { getTemplate, fieldOf as templateField, labelOf } from './field-template.mjs';
 import { proceduresFor } from './procedure.mjs';
 import { DISCLAIMER_POINTS } from './disclaimer.mjs';
+import { saveFile } from './save-file.mjs';
 import { zh } from './locales/zh.mjs';
 import { en } from './locales/en.mjs';
 
@@ -609,23 +610,15 @@ export function exportFilename(format, now = new Date()) {
 export const UTF8_BOM = '﻿';
 
 /**
- * Trigger a download in the browser.
+ * Hand an export to the platform's save route.
  *
- * Kept out of the pure functions above so they stay testable, and wrapped in a
- * guard because it touches DOM APIs that do not exist in Node.
+ * This used to be the browser download, written out here. It moved to
+ * `save-file.mjs` when the same three lines turned out to be in five places and
+ * to be wrong in all five on Android — see that module for the measurements.
+ * All this does now is name the file and the content type.
  */
 function downloadFile(content, filename, mime = 'text/plain;charset=utf-8') {
-  if (typeof document === 'undefined') return false;
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  return true;
+  return saveFile(content, filename, mime);
 }
 
 /** Download CSV with the BOM Excel needs to read Chinese correctly. */
@@ -640,7 +633,6 @@ export function downloadMarkdown(entries, locale = 'zh') {
 export function downloadBundle(entries) {
   return downloadFile(toBundle(entries), exportFilename('json'), 'application/json;charset=utf-8');
 }
-
 /**
  * The notes sheet, as rows.
  *

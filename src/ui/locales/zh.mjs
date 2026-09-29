@@ -88,6 +88,7 @@ export const zh = {
     customImportErr_newerVersion: '这个主题来自更新版本的程序，请先升级再导入。',
     customImportErr_empty: '这个主题里没有任何自定义项。',
     customImportOtherPalette: '（这个主题是为「{palette}」调的，当前配色可能显示效果不同）',
+    customImportErr_saveFailed: '主题文件没能保存，请重试。',
     densityNote: '「紧凑 / 标准 / 宽松」同时调整间距与字号。',
     shortcuts: '键盘快捷键',
     scCalc: '打开 / 关闭计算器',
@@ -1030,6 +1031,12 @@ export const zh = {
     restoreAll: '全部恢复',
     restored: '已恢复 {n} 条记录。',
     exportFailed: "导出失败，请重试。",
+    /*
+     * 手机上导出走系统分享，而不是浏览器下载 —— 安卓 WebView 没有下载通道。
+     * 措辞刻意不说「已保存」：分享面板弹出即返回，用户是否真存下来，
+     * 这行代码无从得知。
+     */
+    exportShare: "已生成文件，请在分享面板中选择保存位置。",
     previewTitle: '导出预览',
     previewCount: '共 {n} 条记录',
     previewMore: '另有 {n} 条未在此显示',

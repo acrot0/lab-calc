@@ -7,6 +7,7 @@ import {
   overridesToJson, overridesFromJson, describeOverrides,
 } from '../custom-theme.mjs';
 import { PALETTES } from '../palettes.mjs';
+import { saveFile, SAVE_FAILED } from '../save-file.mjs';
 
 /*
  * The customisation panel.
@@ -88,15 +89,10 @@ export default function CustomisePanel() {
 
   const desc = describeOverrides(overrides, locale);
 
-  function doExport() {
+  async function doExport() {
     const json = overridesToJson(overrides, { palette: resolved });
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `lab-calc-theme-${resolved}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const result = await saveFile(json, `lab-calc-theme-${resolved}.json`, 'application/json');
+    if (result === SAVE_FAILED) setNotice({ kind: 'err', text: t('app.customImportErr_saveFailed') });
   }
 
   async function doImport(file) {

@@ -93,6 +93,7 @@ export const en = {
     customImportErr_newerVersion: 'That theme comes from a newer version - please update first.',
     customImportErr_empty: 'That theme has no customisations in it.',
     customImportOtherPalette: '(That theme was tuned for {palette}; it may look different on the current one.)',
+    customImportErr_saveFailed: 'The theme file could not be saved. Try again.',
     densityNote: 'Compact, Standard and Spacious change the spacing and the type size together.',
     shortcuts: 'Keyboard shortcuts',
     scCalc: 'Open or close the calculator',
@@ -1035,6 +1036,13 @@ export const en = {
     restoreAll: 'Restore all',
     restored: 'Restored {n} entries.',
     exportFailed: "Export failed. Try again.",
+    /*
+     * On a phone the export goes through the system share sheet rather than a
+     * browser download — an Android WebView has no download path. The wording
+     * avoids "saved" deliberately: the sheet returning means it opened, not
+     * that the user kept the file, and nothing here can tell the difference.
+     */
+    exportShare: "File ready — choose where to save it in the share sheet.",
     previewTitle: 'Export preview',
     previewCount: '{n} records',
     previewMore: '{n} more not shown',
