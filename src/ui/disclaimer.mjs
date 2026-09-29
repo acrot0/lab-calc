@@ -80,6 +80,31 @@ export const DISCLAIMER_POINTS = [
     zh: '七个页签的结果带 ± 与不确定度预算（称量配制、稀释、分光光度、滴定曲线、生物、百分比配制、浓试剂）。它只涵盖仪器本身：玻璃器皿允差（ISO 1042 / ASTM E288、ISO 648 / ASTM E969）、天平分度值与线性、光度计准确度、比色皿光程。手法、试剂纯度、吸湿性、样品本身的稀释或称量都不在内——真实的不确定度通常比这个大。',
     en: 'Seven tabs report a ± and a budget: weighing, dilution, spectrophotometry, titration curve, molecular biology, percent solutions, concentrated reagents. It covers the instruments only — glassware tolerances (ISO 1042 / ASTM E288, ISO 648 / ASTM E969), balance readability and linearity, photometer accuracy, cuvette path length. Operator technique, reagent purity, hygroscopicity, and any dilution or weighing that produced the sample are not in it, so the real uncertainty is usually larger.',
   },
+  {
+    /*
+     * Where the records live, and when they stop living there.
+     *
+     * This is the one disclaimer that is not about the arithmetic. The app's
+     * promise is 「每次计算自动留存」 — and it is kept in `localStorage`, which
+     * the browser may clear for reasons that have nothing to do with this app:
+     * a full disk, a privacy sweep, "clear browsing data".
+     *
+     * The iOS line is the specific one. WebKit's ITP deletes **all**
+     * script-writable storage — localStorage, IndexedDB, service worker and
+     * cache — after seven days without user interaction, and
+     * `navigator.storage.persist()` does **not** exempt it; WebKit rejected the
+     * change that would have made it. A web app added to the home screen is
+     * exempt, which is why the sentence ends by pointing at the install.
+     *
+     * Written as a fact about storage rather than as a warning, because that is
+     * what it is: the fix is a habit (export a backup), not a defect the user
+     * can do anything else about.
+     */
+    titleZh: '记录存在本机，请自行备份',
+    titleEn: 'Records are stored locally — back them up',
+    zh: '所有记录存在这台设备上，不上传任何服务器。清理浏览器数据、使用无痕模式或磁盘空间不足时，浏览器可能清除它们，本应用无法阻止。请定期用「导出 → JSON 备份」存一份到别处。iOS 上另有系统限制：超过 7 天不打开，系统会自动清除网页数据 —— 请先把本应用添加到主屏幕再使用。',
+    en: 'Everything is stored on this device; nothing is uploaded. Clearing browsing data, using a private window, or running out of disk space can make the browser erase it, and this app cannot prevent that. Export a JSON backup to somewhere else from time to time. On iOS there is a further limit: after seven days without opening the app, the system clears web data — add the app to your home screen before you rely on it.',
+  },
 ];
 
 function readFlag(store) {

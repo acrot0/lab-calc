@@ -17,6 +17,7 @@ import {
 } from '../src/ui/export.mjs';
 import { zh } from '../src/ui/locales/zh.mjs';
 import { en } from '../src/ui/locales/en.mjs';
+import { SAVE_FAILED } from '../src/ui/save-file.mjs';
 
 const entry = (over = {}) => ({
   id: 'a1',
@@ -195,11 +196,25 @@ describe('UTF8_BOM', () => {
 });
 
 describe('download helpers', () => {
-  it('should no-op without a DOM rather than throwing', () => {
-    // These run in CI under Node, where document does not exist.
-    expect(() => downloadCsv([entry()])).not.toThrow();
-    expect(() => downloadMarkdown([entry()])).not.toThrow();
-    expect(downloadCsv([entry()])).toBe(false);
+  it('should no-op without a DOM rather than throwing', async () => {
+    /*
+     * These run in CI under Node, where `document` does not exist. The helpers
+     * became async when Android turned out to have no download path at all —
+     * `save-file.mjs` has that measurement — so the contract is now "resolves
+     * to a result", not "returns a boolean".
+     *
+     * The result has to be reported rather than swallowed: silence is exactly
+     * what made the Android case invisible for as long as it was.
+     */
+    await expect(downloadCsv([entry()])).resolves.toBe(SAVE_FAILED);
+    await expect(downloadMarkdown([entry()])).resolves.toBe(SAVE_FAILED);
+  });
+
+  it('should report a failure instead of rejecting', async () => {
+    // A rejected promise from an export path would surface as an unhandled
+    // rejection in whichever component forgot a `.catch` — the failure has to
+    // travel as a value.
+    await expect(downloadCsv([entry()])).resolves.toBeDefined();
   });
 });
 

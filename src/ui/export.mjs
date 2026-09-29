@@ -15,6 +15,7 @@ import { fieldLabel } from './field-labels.mjs';
 import { getTemplate, fieldOf as templateField, labelOf } from './field-template.mjs';
 import { proceduresFor } from './procedure.mjs';
 import { DISCLAIMER_POINTS } from './disclaimer.mjs';
+import { saveFile } from './save-file.mjs';
 import { zh } from './locales/zh.mjs';
 import { en } from './locales/en.mjs';
 
@@ -350,9 +351,9 @@ function markdownNotes(entries, locale = 'zh', fields = null) {
    */
   const L = zh
     ? { use: '用途限制', limits: '已校正的与未建模的', unc: '不确定度', verify: '核对结果',
-        software: '软件', records: '记录条数', fields: '记录字段' }
+        storage: '记录存放', software: '软件', records: '记录条数', fields: '记录字段' }
     : { use: 'Intended use', limits: 'Corrected and not modelled', unc: 'Uncertainty', verify: 'Verify results',
-        software: 'Software', records: 'Records', fields: 'Record fields' };
+        storage: 'Where the records live', software: 'Software', records: 'Records', fields: 'Record fields' };
   const section = (heading, p) => [`### ${heading}`, '', `**${zh ? p.titleZh : p.titleEn}**`, '', zh ? p.zh : p.en, ''];
 
   return [
@@ -363,6 +364,7 @@ function markdownNotes(entries, locale = 'zh', fields = null) {
     ...section(L.limits, limits),
     ...section(L.unc, DISCLAIMER_POINTS.find((p) => p.titleEn === 'Results carry an uncertainty')),
     ...section(L.verify, verify),
+    ...section(L.storage, DISCLAIMER_POINTS.find((p) => p.titleEn === 'Records are stored locally — back them up')),
     `- ${L.software}: Lab Calc${version ? ` ${version}` : ''}`,
     `- ${L.records}: ${entries?.length ?? 0}`,
     /*
@@ -504,6 +506,66 @@ function cell(v) {
   return String(v);
 }
 
+/**
+ * What the JSON backup would contain — as counts, not as rows.
+ *
+ * ## Why this is not the table preview
+ *
+ * The other formats go through `exportPreview` and show their first few rows.
+ * The bundle is excluded from that on purpose, and the reason was already
+ * written down before this function existed: it is the whole archive, deleted
+ * records included, and its shape is not tabular. A three-row preview of a file
+ * whose point is being **complete** misrepresents it — the reader sees three
+ * rows, infers "small", and the file is neither.
+ *
+ * But a screen with no confirmation at all was the other extreme: the bundle is
+ * the only export that can restore a history, and the only one that carries
+ * what was deleted, and it fired straight from the menu with nothing said.
+ *
+ * So this reports the properties that actually distinguish it — how many
+ * records, how many of them deleted, and how large the file will be. Counts and
+ * a size, no rows. That is enough to answer "is this the file I want", which is
+ * what a preview is for, without pretending a complete archive is a table.
+ *
+ * The numbers come from `toBundle` itself, by measuring the string it produces
+ * rather than estimating, so the size shown is the size written.
+ */
+export function bundlePreview(entries, now = new Date()) {
+  const all = entries ?? [];
+  const json = toBundle(all, now);
+  return {
+    format: 'json',
+    total: all.length,
+    deleted: all.filter((e) => e && e.deletedAt).length,
+    live: all.filter((e) => e && !e.deletedAt).length,
+    bytes: new TextEncoder().encode(json).length,
+    filename: exportFilename('json'),
+  };
+}
+
+/**
+ * A byte count a person can read: `12.4 KB`, not `12698`.
+ *
+ * Binary units, because that is what every file manager on every platform the
+ * app runs on shows — a size in the confirmation that disagreed with the size
+ * in the file manager would look like a bug in the app.
+ *
+ * One decimal below 100 units and none above: `9.7 MB` is a useful precision
+ * and `972.4 MB` is not, and the threshold is where the extra digit stops
+ * carrying information. Bytes are shown whole, because a fraction of a byte is
+ * not a thing.
+ */
+export function formatBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n < 0) return '';
+  if (n < 1024) return `${Math.round(n)} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = n / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) { value /= 1024; i += 1; }
+  return `${value < 100 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
+}
+
 function toXlsxRows(entries, locale = 'zh') {
   const fields = usedMetaFields(entries);
   const rows = [[...columnsFor(locale), ...metaLabels(fields, locale)]];
@@ -608,23 +670,15 @@ export function exportFilename(format, now = new Date()) {
 export const UTF8_BOM = '﻿';
 
 /**
- * Trigger a download in the browser.
+ * Hand an export to the platform's save route.
  *
- * Kept out of the pure functions above so they stay testable, and wrapped in a
- * guard because it touches DOM APIs that do not exist in Node.
+ * This used to be the browser download, written out here. It moved to
+ * `save-file.mjs` when the same three lines turned out to be in five places and
+ * to be wrong in all five on Android — see that module for the measurements.
+ * All this does now is name the file and the content type.
  */
 function downloadFile(content, filename, mime = 'text/plain;charset=utf-8') {
-  if (typeof document === 'undefined') return false;
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  return true;
+  return saveFile(content, filename, mime);
 }
 
 /** Download CSV with the BOM Excel needs to read Chinese correctly. */
@@ -639,7 +693,6 @@ export function downloadMarkdown(entries, locale = 'zh') {
 export function downloadBundle(entries) {
   return downloadFile(toBundle(entries), exportFilename('json'), 'application/json;charset=utf-8');
 }
-
 /**
  * The notes sheet, as rows.
  *
@@ -724,6 +777,16 @@ export function toXlsxNotes(locale, count, detail = {}) {
     [],
     [L.verify, ''],
     ...point(verify),
+    [],
+    /*
+     * Last, and it is the only section that is about the user's own data
+     * rather than about the arithmetic. The four above say what the numbers
+     * mean; this one says the file itself may be the last copy — which is the
+     * fact a reader opening it six months later most needs and the one no
+     * heading above can carry.
+     */
+    [L.storage, ''],
+    ...point(DISCLAIMER_POINTS.find((p) => p.titleEn === 'Records are stored locally — back them up')),
   ];
 }
 

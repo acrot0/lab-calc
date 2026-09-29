@@ -88,6 +88,7 @@ export const zh = {
     customImportErr_newerVersion: '这个主题来自更新版本的程序，请先升级再导入。',
     customImportErr_empty: '这个主题里没有任何自定义项。',
     customImportOtherPalette: '（这个主题是为「{palette}」调的，当前配色可能显示效果不同）',
+    customImportErr_saveFailed: '主题文件没能保存，请重试。',
     densityNote: '「紧凑 / 标准 / 宽松」同时调整间距与字号。',
     shortcuts: '键盘快捷键',
     scCalc: '打开 / 关闭计算器',
@@ -103,7 +104,14 @@ export const zh = {
   install: {
     action: '安装到本机',
     title: '安装 Lab Calc',
-    lead: '装到桌面或主屏幕后可以离线使用，实验室没网也不影响。',
+    /*
+     * 两个理由，第二个在 iOS 上才是关键。
+     *
+     * 「离线可用」是真理由，但在手机上是次要的。主要的那个是：WebKit 的
+     * ITP 会在 7 天无交互后清除全部可脚本写入的存储——记录也在内——而
+     * 主屏幕上的 Web App 不受这条限制。原来只讲离线，等于说了次要的那半。
+     */
+    lead: '装到桌面或主屏幕后可以离线使用，iOS 上还能保住你的记录 —— Safari 超过 7 天不打开会清掉网页数据，装到主屏幕的不受此限。',
     // The Chromium path: we hold the browser's own install event, so this
     // button opens the real dialog rather than explaining how to find it.
     prompt: '立即安装',
@@ -930,6 +938,16 @@ export const zh = {
   },
   history: {
     title: '计算记录',
+    /*
+     * 存储写入被拒绝时的常驻横幅。
+     *
+     * 措辞刻意不用「错误」：对用户来说这不是一个错误，是**历史停止增长**
+     * 这个事实。而且必须给出下一步动作 —— 导出是唯一自救手段，
+     * 只说「保存失败」等于让用户知道坏消息却不给出口。
+     */
+    saveFailedTitle: '历史已停止保存',
+    saveFailedBody: '存储空间已满，或浏览器不允许写入。新算的记录在刷新后会丢失 —— 请立即导出备份。',
+    saveFailedExport: '导出备份',
     untitled: '未命名计算',
     search: '搜索计算记录',
     searchPlaceholder: '搜索化学式或数值…',
@@ -1013,11 +1031,26 @@ export const zh = {
     restoreAll: '全部恢复',
     restored: '已恢复 {n} 条记录。',
     exportFailed: "导出失败，请重试。",
+    /*
+     * 手机上导出走系统分享，而不是浏览器下载 —— 安卓 WebView 没有下载通道。
+     * 措辞刻意不说「已保存」：分享面板弹出即返回，用户是否真存下来，
+     * 这行代码无从得知。
+     */
+    exportShare: "已生成文件，请在分享面板中选择保存位置。",
     previewTitle: '导出预览',
     previewCount: '共 {n} 条记录',
     previewMore: '另有 {n} 条未在此显示',
     previewConfirm: '确认导出',
     previewCancel: '取消',
+    /*
+     * JSON 备份的确认界面。刻意只给数字与体量，不给行——它是唯一能还原历史、
+     * 也是唯一连已删记录一起带走的导出，而它的形态不是表格，抽三行出来看
+     * 会让读的人以为它「很小」。
+     */
+    bundleLive: '{n} 条在用记录',
+    bundleDeleted: '{n} 条已删除记录（一并带走，可恢复）',
+    bundleSize: '文件约 {size}',
+    bundleRestorable: '这个文件可以在「导入」里还原，换设备也靠它。',
   },
   reaction: {
     mode: '计算类型',

@@ -52,8 +52,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * argument for scanning a list of files rather than the two that prompted the
  * script: the document that most needed checking was one nobody remembered,
  * and it is the one whose whole subject is "you can verify this project".
+ *
+ * `README.en.md` was added on the same argument, and it had the same history:
+ * it sits beside `README.md`, makes the same two claims in the same table, and
+ * was not scanned. Measured at v1.3.0 it said `v1.1.0 · 2534 tests passing /
+ * 126 files` — two versions and two suite sizes behind, on the front page of
+ * the repository, in the English half of a bilingual README.
  */
-const DOCS = ['README.md', 'docs/ROADMAP.md', 'docs/research-value.zh.md'];
+const DOCS = ['README.md', 'README.en.md', 'docs/ROADMAP.md', 'docs/research-value.zh.md'];
 
 function actualTestCount() {
   let out;

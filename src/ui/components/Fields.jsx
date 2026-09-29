@@ -6,6 +6,7 @@ import { fmt } from '../format.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { claimField } from '../field-bridge.mjs';
 import { useNumberReveal } from '../number-reveal.mjs';
+import { saveFile } from '../save-file.mjs';
 
 /** Shared form primitives. Kept separate so every tab renders inputs the same way. */
 
@@ -463,14 +464,7 @@ function ShareButton({ value, unit, rows, note, label }) {
       const blob = await renderShareCard(markup, {
         background: theme === 'light' ? '#fbfaf7' : '#12161f',
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = shareCardFilename({ title: label ?? '' });
-      a.click();
-      // Revoked on the next task rather than immediately: revoking before the
-      // browser has started the download cancels it in some engines.
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      await saveFile(blob, shareCardFilename({ title: label ?? '' }), 'image/png');
     } catch {
       // A failed card is not a failed calculation. The number is on screen
       // either way, so this stays silent rather than reporting an error against

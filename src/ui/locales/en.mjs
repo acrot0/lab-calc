@@ -93,6 +93,7 @@ export const en = {
     customImportErr_newerVersion: 'That theme comes from a newer version - please update first.',
     customImportErr_empty: 'That theme has no customisations in it.',
     customImportOtherPalette: '(That theme was tuned for {palette}; it may look different on the current one.)',
+    customImportErr_saveFailed: 'The theme file could not be saved. Try again.',
     densityNote: 'Compact, Standard and Spacious change the spacing and the type size together.',
     shortcuts: 'Keyboard shortcuts',
     scCalc: 'Open or close the calculator',
@@ -106,7 +107,16 @@ export const en = {
   install: {
     action: 'Install app',
     title: 'Install Lab Calc',
-    lead: 'Installed, it works offline — which is what a basement bench needs.',
+    /*
+     * Two reasons, and the second is the one that matters on iOS.
+     *
+     * Offline is the reason the app gives for installing, and it is real but
+     * secondary on a phone. The primary one is that WebKit's ITP deletes all
+     * script-writable storage — the history with it — after seven days without
+     * user interaction, and a web app on the home screen is exempt from that.
+     * Leading with "works offline" was telling users the smaller half.
+     */
+    lead: 'Installed, it works offline — and on iOS it also keeps your records. Safari clears web data after 7 days without a visit; an app on the home screen is exempt.',
     prompt: 'Install now',
     iosSteps: 'In Safari, tap Share, then "Add to Home Screen".',
     iosStepsChrome: 'Open this in Safari — Chrome on iOS cannot add to the Home Screen.',
@@ -934,6 +944,18 @@ export const en = {
   },
   history: {
     title: 'History',
+    /*
+     * The standing banner for a rejected write.
+     *
+     * Deliberately not worded as an error: to the user this is not a mistake,
+     * it is the fact that the history stopped growing. And it has to name the
+     * next action — exporting is the only way out, so saying "save failed"
+     * without saying what to do about it is telling someone bad news and
+     * nothing else.
+     */
+    saveFailedTitle: 'History has stopped saving',
+    saveFailedBody: 'Storage is full, or the browser is blocking writes. Calculations made now will be gone after a reload — export a backup immediately.',
+    saveFailedExport: 'Export backup',
     untitled: 'Untitled calculation',
     search: 'Search history',
     searchPlaceholder: 'Search a formula or a value…',
@@ -1014,11 +1036,28 @@ export const en = {
     restoreAll: 'Restore all',
     restored: 'Restored {n} entries.',
     exportFailed: "Export failed. Try again.",
+    /*
+     * On a phone the export goes through the system share sheet rather than a
+     * browser download — an Android WebView has no download path. The wording
+     * avoids "saved" deliberately: the sheet returning means it opened, not
+     * that the user kept the file, and nothing here can tell the difference.
+     */
+    exportShare: "File ready — choose where to save it in the share sheet.",
     previewTitle: 'Export preview',
     previewCount: '{n} records',
     previewMore: '{n} more not shown',
     previewConfirm: 'Download',
     previewCancel: 'Cancel',
+    /*
+     * The JSON backup's confirmation. Counts and a size, deliberately no rows —
+     * it is the only export that can restore a history and the only one that
+     * carries deleted records too, and its shape is not tabular. Showing three
+     * rows of a complete archive would read as "this file is small".
+     */
+    bundleLive: '{n} records in use',
+    bundleDeleted: '{n} deleted records (included, restorable)',
+    bundleSize: 'About {size}',
+    bundleRestorable: 'This file restores through Import, and it is how you move to another device.',
   },
   reaction: {
     mode: 'Calculation',

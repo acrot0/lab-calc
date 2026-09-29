@@ -2,6 +2,7 @@ import React, { useId, useRef, useState } from 'react';
 import { serializeDiagram, diagramFilename } from '../svg-export.mjs';
 import { useI18n } from '../LocaleContext.jsx';
 import { Icons, ICON_SIZE } from '../icons.jsx';
+import { saveFile, SAVE_FAILED } from '../save-file.mjs';
 
 /**
  * The shared drawing surface for explanatory diagrams.
@@ -63,7 +64,7 @@ export function Diagram({
    * theme token, because `prefers-color-scheme` and the density setting both
    * feed into what is on screen and only the rendered value has them resolved.
    */
-  function exportSvg() {
+  async function exportSvg() {
     const svg = svgRef.current;
     if (!svg) return;
     const figure = svg.closest('.diagram');
@@ -73,19 +74,14 @@ export function Diagram({
     const markup = serializeDiagram(svg, { background });
     if (!markup) return;
 
-    const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = diagramFilename(exportName ?? 'diagram', theme);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // Revoking immediately can cancel the download in some browsers; one tick
-    // is enough for the click to have been handled.
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-
-    setDone(true);
+    const result = await saveFile(
+      markup,
+      diagramFilename(exportName ?? 'diagram', theme),
+      'image/svg+xml;charset=utf-8',
+    );
+    // The tick is feedback for the click, which the user needs either way —
+    // what changed is that a failure no longer looks like a success.
+    setDone(result !== SAVE_FAILED);
     setTimeout(() => setDone(false), 1600);
   }
 

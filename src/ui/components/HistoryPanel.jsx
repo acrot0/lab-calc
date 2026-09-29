@@ -5,9 +5,10 @@ import { filterHistory, visibleEntries, replayInputs } from '../history.mjs';
 import { filterByGroup, groupCounts, ungroupedCount, ALL_GROUPS } from '../groups.mjs';
 import GroupPicker from './GroupPicker.jsx';
 import {
-  downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle,
-  detailColumns, exportPreview,
+  downloadCsv, downloadMarkdown, downloadBundle, downloadXlsx, parseBundle, detailColumns, exportPreview,
+  bundlePreview, formatBytes,
 } from '../export.mjs';
+import { SAVE_FAILED, SAVE_VIA_SHARE } from '../save-file.mjs';
 import EntryMeta from './EntryMeta.jsx';
 import ColumnPicker from './ColumnPicker.jsx';
 import { useI18n } from '../LocaleContext.jsx';
@@ -171,13 +172,23 @@ export default function HistoryPanel({
   /*
    * Show what the export would contain, instead of downloading it.
    *
-   * The JSON bundle is excluded on purpose. It is the whole archive, deleted
-   * records included, and its shape is not tabular — a three-row preview of a
-   * file whose point is being complete would misrepresent it rather than
-   * inform anyone. It keeps downloading directly from the menu.
+   * The JSON bundle does not go through the table preview and should not: it is
+   * the whole archive, deleted records included, and its shape is not tabular.
+   * A three-row preview of a file whose point is being **complete** would
+   * misrepresent it — the reader sees three rows, infers "small", and the file
+   * is neither.
+   *
+   * It does get a confirmation, of a different shape: counts and a byte size,
+   * no rows. See `bundlePreview`. Firing the backup straight from the menu with
+   * nothing said was the other extreme, and this is the only export that can
+   * restore a history.
    */
   function openPreview(format) {
     setMenuOpen(false);
+    if (format === 'json') {
+      setPreview({ format, bundle: bundlePreview(allEntries ?? entries) });
+      return;
+    }
     setPreview({
       format,
       plan: exportPreview(exportRows, {
@@ -189,27 +200,49 @@ export default function HistoryPanel({
     });
   }
 
-  // Export what is currently visible, not the whole history.
-  function doExport(format) {
+  /*
+   * Export what is currently visible, not the whole history.
+   *
+   * ## Why every branch is now awaited
+   *
+   * On Android there is no download at all — the WebView ignores `<a download>`
+   * and Capacitor sets no `DownloadListener` — so the old fire-and-forget calls
+   * produced no file and no error. `saveFile` goes through the share sheet
+   * there and reports what happened; a caller that ignores the report is back
+   * to the silent behaviour this replaced.
+   *
+   * The .xlsx case additionally waits on a lazily-imported writer, which is
+   * where the fetch can fail — worth telling the user about rather than
+   * swallowing, which was already the behaviour here.
+   */
+  async function doExport(format) {
     setMenuOpen(false);
     const rows = exportRows;
-    if (format === 'csv') downloadCsv(rows, locale);
+    let result = SAVE_VIA_SHARE;
+    if (format === 'csv') result = await downloadCsv(rows, locale);
     // The backup is the archive, deleted records included. Excluding them
     // would make "export a backup, then delete the app data" lose the very
     // records the audit trail exists to keep.
-    else if (format === 'json') downloadBundle(allEntries ?? entries);
+    else if (format === 'json') result = await downloadBundle(allEntries ?? entries);
     else if (format === 'xlsx' || format === 'xlsxData') {
-      // Async because the .xlsx writer is fetched on demand — see the note on
-      // `downloadXlsx`. A failure here is a fetch that did not arrive, which is
-      // worth telling the user rather than swallowing.
-      //
       // Two menu items, one call: the views are the same sheet written two
       // ways, and the only thing the menu decides is which. Record is listed
       // first because it is the one that fits on screen — see `xlsxPlan`.
       const view = format === 'xlsxData' ? 'data' : 'record';
-      downloadXlsx(rows, { locale, view, columns: columns ?? undefined })
-        .catch(() => setNotice({ kind: 'err', text: t('history.exportFailed') }));
-    } else downloadMarkdown(rows, locale);
+      try {
+        result = await downloadXlsx(rows, { locale, view, columns: columns ?? undefined });
+      } catch {
+        result = SAVE_FAILED;
+      }
+    } else result = await downloadMarkdown(rows, locale);
+
+    if (result === SAVE_FAILED) {
+      setNotice({ kind: 'err', text: t('history.exportFailed') });
+    } else if (result === SAVE_VIA_SHARE) {
+      // The sheet has opened; whether the user keeps the file is theirs to
+      // decide. Saying "saved" would be a claim this code cannot make.
+      setNotice({ kind: 'ok', text: t('history.exportShare') });
+    }
   }
 
   /*
@@ -299,7 +332,7 @@ export default function HistoryPanel({
                   <button role="menuitem" onClick={() => { setMenuOpen(false); setColsOpen((v) => !v); }}>
                     <Icons.meta size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.colPicker')}
                   </button>
-                  <button role="menuitem" onClick={() => doExport('json')}>
+                  <button role="menuitem" onClick={() => openPreview('json')}>
                     <Icons.json size={ICON_SIZE.inline} aria-hidden="true" /> {t('history.exportJson')}
                   </button>
                   <button role="menuitem" onClick={() => printReport()}>
@@ -374,31 +407,52 @@ export default function HistoryPanel({
           <div className="export-preview-head">
             <strong>{t('history.previewTitle')}</strong>
             <span className="export-preview-count">
-              {t('history.previewCount', { n: preview.plan.total })}
+              {preview.bundle
+                ? t('history.previewCount', { n: preview.bundle.total })
+                : t('history.previewCount', { n: preview.plan.total })}
             </span>
           </div>
-          <div className="export-preview-cols">
-            {preview.plan.columns.map((c, i) => (
-              <span className="export-preview-col" key={`${c}-${i}`}>{c}</span>
-            ))}
-          </div>
-          {preview.plan.rows.length > 0 && (
-            <div className="export-preview-table">
-              <table>
-                <tbody>
-                  {preview.plan.rows.map((row, r) => (
-                    <tr key={r}>
-                      {row.map((cellText, cIdx) => (
-                        <td key={cIdx} title={cellText}>{cellText}</td>
+          {/*
+            The bundle reports counts and a size rather than rows.
+
+            It is the only export that can restore a history, so it is the one
+            that most needs a confirmation — and the only one whose content
+            cannot be shown as a table without misrepresenting it. What a
+            reader needs to know is how much is in it and how big it is.
+          */}
+          {preview.bundle ? (
+            <ul className="export-preview-facts">
+              <li>{t('history.bundleLive', { n: preview.bundle.live })}</li>
+              <li>{t('history.bundleDeleted', { n: preview.bundle.deleted })}</li>
+              <li>{t('history.bundleSize', { size: formatBytes(preview.bundle.bytes) })}</li>
+              <li className="hint">{t('history.bundleRestorable')}</li>
+            </ul>
+          ) : (
+            <>
+              <div className="export-preview-cols">
+                {preview.plan.columns.map((c, i) => (
+                  <span className="export-preview-col" key={`${c}-${i}`}>{c}</span>
+                ))}
+              </div>
+              {preview.plan.rows.length > 0 && (
+                <div className="export-preview-table">
+                  <table>
+                    <tbody>
+                      {preview.plan.rows.map((row, r) => (
+                        <tr key={r}>
+                          {row.map((cellText, cIdx) => (
+                            <td key={cIdx} title={cellText}>{cellText}</td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {preview.plan.total > preview.plan.rows.length && (
-            <p className="hint">{t('history.previewMore', { n: preview.plan.total - preview.plan.rows.length })}</p>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {preview.plan.total > preview.plan.rows.length && (
+                <p className="hint">{t('history.previewMore', { n: preview.plan.total - preview.plan.rows.length })}</p>
+              )}
+            </>
           )}
           <div className="export-preview-actions">
             <button type="button" className="primary" onClick={() => { doExport(preview.format); setPreview(null); }}>

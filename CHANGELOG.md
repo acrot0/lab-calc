@@ -4,6 +4,59 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-09-29
+
+Every export was broken on Android, and three ways the history could be lost
+without saying so.
+
+### Fixed
+
+- **No export worked on Android.** All five export paths built a `Blob`, made
+  an object URL and clicked an `<a download>`. On the web that downloads; in an
+  Android WebView the `download` attribute is not implemented and Capacitor 7
+  sets no `DownloadListener`, so the click resolved and nothing happened —
+  no file, no error. Measured in the installed plugin rather than inferred: a
+  repository-wide search for `DownloadListener` in `@capacitor/android@7.6.9`
+  returns nothing. Export is the only way a record leaves the device, so this
+  left a history that could be neither backed up nor moved, on the platform
+  most users are on. Fixed by routing every export through one module
+  (`save-file.mjs`) that uses `@capacitor/filesystem` + `@capacitor/share` on a
+  native shell and the browser download everywhere else.
+- **A rejected storage write was silent.** `saveHistory` returns `false` when
+  the store refuses — a full quota, Safari private mode — and nothing checked
+  it. React state still held the record, so the list looked right until the
+  next load, when it was empty with no explanation. Now a standing banner
+  names the condition and offers the one way out.
+- **`addEntry` dropped tombstones once 500 live records existed.** It sliced
+  the whole array against `MAX_ENTRIES`, so the deleted records went with the
+  excess. The trash emptied, restore had nothing to restore, and the backup
+  export carried none of what it exists to carry. Nothing errored.
+- **Tombstones had no bound.** Kept without limit on the argument that they are
+  small; measured at 381 bytes each, ten "clear all" actions reached 2 MB
+  against a ~5 MB quota. Now capped at `MAX_TOMBSTONES` (300, most recent
+  first), counted independently of the live cap.
+
+### Added
+
+- **A confirmation for the JSON backup.** Counts and a file size rather than
+  rows — it is the whole archive and its shape is not tabular, so a three-row
+  preview would read as "this file is small". The size is measured from the
+  bytes the writer actually produces, not estimated.
+- **A sixth first-run notice: where the records live.** Every other point is
+  about the arithmetic; none said the history is in `localStorage` and the
+  browser may clear it. Carries through to the export, which is the file that
+  travels without the app.
+- **`navigator.storage.persist()`** is requested once, after the first
+  successful write. No interface: the result is not actionable, and the call
+  does **not** exempt an origin from Safari's ITP — WebKit rejected the change
+  that would have. The iOS remedy is a home-screen install, and the install
+  prompt now says so instead of leading with "works offline".
+
+### Changed
+
+- The iOS install prompt now gives the reason that matters: Safari clears web
+  data after seven days without a visit, and a home-screen web app is exempt.
+
 ## [0.9.2] — 2026-09-27
 
 Uncertainty reaches every tab that measures something with an instrument, and
