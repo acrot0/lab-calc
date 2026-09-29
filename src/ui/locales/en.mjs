@@ -934,6 +934,18 @@ export const en = {
   },
   history: {
     title: 'History',
+    /*
+     * The standing banner for a rejected write.
+     *
+     * Deliberately not worded as an error: to the user this is not a mistake,
+     * it is the fact that the history stopped growing. And it has to name the
+     * next action — exporting is the only way out, so saying "save failed"
+     * without saying what to do about it is telling someone bad news and
+     * nothing else.
+     */
+    saveFailedTitle: 'History has stopped saving',
+    saveFailedBody: 'Storage is full, or the browser is blocking writes. Calculations made now will be gone after a reload — export a backup immediately.',
+    saveFailedExport: 'Export backup',
     untitled: 'Untitled calculation',
     search: 'Search history',
     searchPlaceholder: 'Search a formula or a value…',

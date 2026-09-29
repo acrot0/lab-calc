@@ -2807,6 +2807,78 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .notice-ok { border-color: var(--ok); }
 .notice-err { border-color: var(--warn); }
 
+/*
+ * The standing banner for a rejected storage write.
+ *
+ * Between the topbar and the navigations, full width, and it does not scroll
+ * away — the topbar is sticky and this sits directly under it, so the message
+ * stays on screen while the user works. A condition that persists needs a
+ * banner that does too.
+ *
+ * Coloured with the error tokens rather than the warning ones: losing the
+ * history is not a caution, it is the app's central promise failing.
+ */
+.save-failed {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--err-line);
+  background: var(--err-soft);
+  color: var(--err-ink);
+}
+
+.save-failed > svg { flex: none; }
+
+/*
+ * The message block, allowed to shrink.
+ *
+ * `min-width: 0` on a flex child that holds text, so a long body wraps inside
+ * the banner instead of forcing the button off the side. The same rule the
+ * cells in the result tables need, and for the same reason.
+ */
+.save-failed-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+
+.save-failed-text strong { color: var(--err); }
+
+/*
+ * On a phone the button drops below the text.
+ *
+ * Side by side, a two-line message and a button do not both fit in 360px, and
+ * the button is the only way out — a squashed one is worse than a stacked one.
+ */
+@media (max-width: 560px) {
+  .save-failed { align-items: flex-start; flex-wrap: wrap; }
+  .save-failed-text { flex-basis: calc(100% - 32px); }
+  .save-failed-export { margin-left: 32px; }
+}
+
+.save-failed-export {
+  flex: none;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--err-line);
+  background: var(--err);
+  color: var(--bg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-failed-export:hover { filter: brightness(1.08); }
+.save-failed-export:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
+
+
 .search > svg {
   position: absolute;
   left: var(--s3);

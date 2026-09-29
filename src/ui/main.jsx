@@ -32,13 +32,7 @@ import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/geist/wght.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
 import './styles.css';
-import App from './App.jsx';
-import { LocaleProvider } from './LocaleContext.jsx';
-import { ThemeProvider } from './ThemeContext.jsx';
-import { MaterialProvider } from './MaterialContext.jsx';
-import { IconStyleProvider } from './IconStyleContext.jsx';
-import { DensityProvider } from './DensityContext.jsx';
-import { FieldsProvider } from './FieldsContext.jsx';
+import AppRoot from './AppRoot.jsx';
 import { resolveStore } from './history.mjs';
 
 // The locale store and the history store are the same localStorage; resolving
@@ -47,23 +41,7 @@ const store = resolveStore();
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <LocaleProvider store={store}>
-      <ThemeProvider store={store}>
-        <MaterialProvider store={store}>
-          <IconStyleProvider store={store}>
-            <DensityProvider store={store}>
-              {/* Inside the others and outside App: the record-field template
-                  has to be installed before App's mount effect reads the
-                  history, because `migrateHistory` drops metadata keys the
-                  template does not retain. */}
-              <FieldsProvider store={store}>
-                <App />
-              </FieldsProvider>
-            </DensityProvider>
-          </IconStyleProvider>
-        </MaterialProvider>
-      </ThemeProvider>
-    </LocaleProvider>
+    <AppRoot store={store} />
   </React.StrictMode>,
 );
 

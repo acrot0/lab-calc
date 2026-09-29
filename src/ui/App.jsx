@@ -9,7 +9,7 @@ import { recordSummary } from './summaries.mjs';
 import {
   loadGroups, saveGroups, createGroup, renameGroup, removeGroup, setGroupNote, assignGroup,
 } from './groups.mjs';
-import { mergeEntries } from './export.mjs';
+import { mergeEntries, downloadBundle } from './export.mjs';
 import { hasAcknowledged, acknowledge } from './disclaimer.mjs';
 import { useI18n } from './LocaleContext.jsx';
 import { useTheme } from './ThemeContext.jsx';
@@ -316,6 +316,22 @@ export default function App() {
    * `useMemo` anyway.
    */
   const [hydrated, setHydrated] = useState(false);
+  /*
+   * Whether the last write to storage was rejected.
+   *
+   * `saveHistory` returns `false` when the store refuses — a full quota, Safari
+   * private mode, a browser policy — and nothing checked it. The failure is
+   * invisible by construction: React state still holds the new record, so the
+   * list looks right and keeps looking right until the next page load, when it
+   * is empty and there is no explanation.
+   *
+   * That is the one way this app's promise breaks silently. Every other failure
+   * shows itself; a rejected write does not. So it is held here and rendered as
+   * a standing banner, not a toast — the condition persists until the user acts
+   * on it, and a message that disappears after three seconds is the wrong shape
+   * for a condition that does not.
+   */
+  const [saveFailed, setSaveFailed] = useState(false);
   useEffect(() => {
     setEntries(loadHistory(store));
     setGroups(loadGroups(store));
@@ -323,7 +339,7 @@ export default function App() {
   }, [store]);
   useEffect(() => {
     if (!hydrated) return;
-    saveHistory(store, entries);
+    setSaveFailed(!saveHistory(store, entries));
   }, [store, entries, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
@@ -554,6 +570,37 @@ export default function App() {
           <SettingsMenu open={settingsOpen} onOpenChange={setSettingsOpen} />
         </div>
       </header>
+
+      {/*
+        The standing banner for a rejected storage write.
+
+        Above the navigations rather than inside the history panel: the panel is
+        one column of one tab, and a user whose writes have stopped failing is
+        not necessarily looking at it. This has to be seen from anywhere in the
+        app, because "your calculations are no longer being kept" is a fact
+        about the whole app.
+
+        `role="alert"` rather than `status` — the notice rule for import
+        feedback uses `status`, which waits for a pause in speech. This one is
+        the app's core promise breaking, so it interrupts.
+
+        No dismiss button, on purpose. A condition that persists should not be
+        dismissible; the only thing that clears it is a successful write. The
+        export button is the way out, and it is right here rather than only in
+        the history panel's menu.
+      */}
+      {saveFailed && (
+        <div className="save-failed" role="alert">
+          <Icons.warning size={ICON_SIZE.inline} aria-hidden="true" />
+          <div className="save-failed-text">
+            <strong>{t('history.saveFailedTitle')}</strong>
+            <span>{t('history.saveFailedBody')}</span>
+          </div>
+          <button type="button" className="save-failed-export" onClick={() => downloadBundle(entries)}>
+            {t('history.saveFailedExport')}
+          </button>
+        </div>
+      )}
 
       {/* Two navigations, one shown at a time by a media query. The rail is the
           desktop shape — sixteen tabs fit down a column but not across a row —
