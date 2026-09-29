@@ -25,6 +25,19 @@ import {
 export const STORAGE_KEY = 'lab-calc.history.v1';
 export const MAX_ENTRIES = 500;
 
+/**
+ * How many deleted records are kept.
+ *
+ * Smaller than `MAX_ENTRIES`, because a tombstone answers a narrower question:
+ * "can I get back the thing I just deleted". 300 × 381 B ≈ 114 KB, which
+ * together with a full 500 live records comes to roughly 280 KB — eighteen
+ * times under a ~5 MB localStorage quota.
+ *
+ * The number that made this necessary: without a cap, ten "clear all" actions
+ * reached 2 MB. See the note on `saveHistory`.
+ */
+export const MAX_TOMBSTONES = 300;
+
 /** A minimal in-memory store, used by tests and as a fallback when storage is unavailable. */
 export function memoryStore(initial = {}) {
   const map = new Map(Object.entries(initial));
@@ -75,9 +88,13 @@ export function loadHistory(store, template = null) {
  * The cap counts **visible** records, not total rows. Counting tombstones
  * would mean a user who deleted a hundred records silently started losing live
  * ones — the cap exists to bound what the list shows, and a deleted record
- * shows nothing. The tombstones themselves are kept, which is the point of
- * them; they are small, and the quota is checked by the write failing rather
- * than by arithmetic that could be wrong.
+ * shows nothing. The tombstones are bounded separately, by `MAX_TOMBSTONES`.
+ *
+ * Returns `false` when the write fails — a full quota, Safari private mode, a
+ * browser policy. **The caller must check it.** The whole feature is "every
+ * calculation is kept", and a rejected write is the one way that promise
+ * breaks without anything on screen changing: React state still holds the new
+ * record, so the list looks right until the next load.
  */
 export function saveHistory(store, entries, max = MAX_ENTRIES) {
   try {
@@ -91,17 +108,49 @@ export function saveHistory(store, entries, max = MAX_ENTRIES) {
      * arm did not save it either. Records without ids do occur: they are what
      * the fixtures build, and an older hand-written bundle can produce them.
      *
-     * Walking once and counting is both correct and simpler: keep every
-     * tombstone, keep live records until the cap is reached, drop the rest.
+     * Walking once and counting is both correct and simpler: keep tombstones
+     * until their own cap is reached, keep live records until theirs is, drop
+     * the rest.
+     *
+     * ## Why tombstones need a cap at all
+     *
+     * They used to be kept without limit, on the argument that they are small.
+     * Measured: 381 bytes each, and one "clear all" mints one per visible
+     * record. Ten clears reached 2 MB against a ~5 MB quota — the deleted
+     * records, which the user believes are gone, were on track to become the
+     * thing that stops new ones being saved. The cap keeps the audit trail's
+     * purpose (a deletion is recoverable) without letting it evict the present.
+     *
+     * **Most recently deleted first.** The tombstone a user is about to want
+     * back is the one they deleted a moment ago, not one from months ago.
      */
-    const out = [];
-    let live = 0;
+    const live = [];
+    const dead = [];
     for (const e of all) {
       if (!e) continue;
-      if (e.deletedAt) { out.push(e); continue; }
-      if (live < max) { out.push(e); live += 1; }
+      if (e.deletedAt) dead.push(e);
+      else if (live.length < max) live.push(e);
     }
-    store.setItem(STORAGE_KEY, JSON.stringify(out));
+    const deadKept = dead.length <= MAX_TOMBSTONES
+      ? dead
+      : dead
+        .map((e, i) => ({ e, i }))
+        .sort((a, b) => {
+          const byStamp = String(b.e.deletedAt).localeCompare(String(a.e.deletedAt));
+          // Ties keep the original order, so the result is deterministic.
+          return byStamp !== 0 ? byStamp : a.i - b.i;
+        })
+        .slice(0, MAX_TOMBSTONES)
+        .map((x) => x.e);
+    /*
+     * Live records first, then tombstones.
+     *
+     * Order inside the file is not what any reader uses — the list sorts by
+     * `at` and the trash sorts by `deletedAt` — but keeping the two groups
+     * contiguous makes the stored file readable when someone opens it, which
+     * is the file the user is told to keep as a backup.
+     */
+    store.setItem(STORAGE_KEY, JSON.stringify([...live, ...deadKept]));
     return true;
   } catch {
     return false;
@@ -111,9 +160,24 @@ export function saveHistory(store, entries, max = MAX_ENTRIES) {
 /**
  * Prepend an entry, newest first.
  *
- * The cap is enforced on write so the list cannot grow without bound — an
- * unbounded history eventually exceeds the storage quota and then fails on
- * every subsequent save.
+ * ## What the slice actually counted
+ *
+ * `MAX_ENTRIES` is documented as bounding the **visible** list, and
+ * `saveHistory` honours that — it counts live records and keeps tombstones
+ * separately. This function did not: it sliced the whole array, tombstones
+ * included, so a user with 500 visible records and any deletion history lost
+ * every tombstone the moment they recorded the next calculation.
+ *
+ * That is the audit trail silently failing at exactly the size where it
+ * matters. The trash list went empty, "restore" had nothing to restore, and
+ * the backup export — which exists to carry what was deleted — carried
+ * nothing. Nothing errored; the records were simply gone.
+ *
+ * So the trim now counts the way the cap is documented: visible records
+ * against `MAX_ENTRIES`. Tombstones are **not** trimmed here at all —
+ * `saveHistory` owns that bound (`MAX_TOMBSTONES`), and having two places
+ * trim the same list is how the two counts drift apart. One bounder, against
+ * the records that survive, is the whole rule.
  */
 export function addEntry(entries, entry, now = new Date()) {
   const withMeta = {
@@ -121,7 +185,14 @@ export function addEntry(entries, entry, now = new Date()) {
     at: now.toISOString(),
     id: `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
   };
-  return [withMeta, ...entries].slice(0, MAX_ENTRIES);
+  const live = [];
+  const dead = [];
+  for (const e of [withMeta, ...(entries ?? [])]) {
+    if (!e) continue;
+    if (e.deletedAt) dead.push(e);
+    else if (live.length < MAX_ENTRIES) live.push(e);
+  }
+  return [...live, ...dead];
 }
 
 /**
