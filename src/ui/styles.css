@@ -1210,12 +1210,18 @@ select.control {
   color: var(--text-mid);
   font-size: var(--t-sm);
   /*
-   * `touch-action: none` is required for the pointer drag to work on a touch
-   * screen: without it the browser claims the vertical gesture for scrolling
-   * and the drag never receives a move event. Set on the row rather than on the
-   * list so a scroll that starts in the gap between rows still scrolls.
+   * No `touch-action` here, deliberately.
+   *
+   * A touch resolves `touch-action` against the element it lands on, not against
+   * the scrollable ancestor. The rows fill the list — 48px each with a 4px gap —
+   * so declaring `none` on the row meant a finger landing on a row could not
+   * scroll at all; only the 4px gaps between rows could. Measured on a phone
+   * that is a twenty-row list that will not scroll.
+   *
+   * It is not needed here either: `onPointerDown` is bound to the grip, so a
+   * drag can only start there, and the grip carries its own `touch-action:
+   * none`. See `test/nav-editor.test.mjs`, which asserts both halves.
    */
-  touch-action: none;
   /* Colour only. The row's `transform` belongs to the drag — a transition on it
      would make every frame of a drag chase the previous one. */
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);

@@ -6,6 +6,7 @@ import { LocaleProvider } from '../src/ui/LocaleContext.jsx';
 import { NavOrderProvider } from '../src/ui/NavOrderContext.jsx';
 import NavEditor from '../src/ui/components/NavEditor.jsx';
 import { NAV_STORAGE_KEY, memoryStore } from '../src/ui/nav-order.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The navigation editor, mounted.
@@ -235,5 +236,57 @@ describe('the navigation editor', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     });
     expect(closed, 'Escape with nothing held').toBe(1);
+  });
+});
+
+/*
+ * Where `touch-action` is declared, read out of the stylesheet.
+ *
+ * A touch that starts on an element resolves `touch-action` against that
+ * element, not against its scrollable ancestor. The editor's rows filled the
+ * list — 48px rows with a 4px gap — so putting `none` on the row meant a finger
+ * landing on a row could not scroll the list at all; only the 4px gaps between
+ * rows could. On a phone that is a list that will not scroll.
+ *
+ * The declaration is only needed where the drag starts, which is the grip: that
+ * is the only element `onPointerDown` is bound to. On the row it is both
+ * unnecessary and harmful.
+ */
+describe('the editor’s touch-action', () => {
+  const css = readFileSync('src/ui/styles.css', 'utf8');
+
+  /** The declarations of a rule, comments stripped. */
+  const rule = (selector) => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = new RegExp(`(?:^|\\})\\s*${escaped}\\s*\\{([^}]*)\\}`, 'm').exec(
+      css.replace(/\/\*[\s\S]*?\*\//g, ''),
+    );
+    return m ? m[1] : null;
+  };
+
+  it('should not stop the list scrolling from a touch that lands on a row', () => {
+    const body = rule('.nav-editor-item');
+    expect(body, '.nav-editor-item rule not found').not.toBeNull();
+    expect(body, 'touch-action on the row blocks scrolling the list')
+      .not.toMatch(/touch-action:\s*none/);
+  });
+
+  it('should keep touch-action on the grip, which is where a drag starts', () => {
+    // Without it the browser claims the gesture for scrolling and the drag
+    // never receives a move event.
+    const body = rule('.nav-editor-grip');
+    expect(body, '.nav-editor-grip rule not found').not.toBeNull();
+    expect(body).toMatch(/touch-action:\s*none/);
+  });
+
+  it('should bind the drag to the grip and not to the row', () => {
+    // The pairing the rule above depends on. If a drag could start on the row,
+    // the row would need `touch-action: none` back and the list would stop
+    // scrolling again.
+    const src = readFileSync('src/ui/components/NavEditor.jsx', 'utf8');
+    const grip = src.slice(src.indexOf('nav-editor-grip'), src.indexOf('nav-editor-grip') + 400);
+    expect(grip, 'the grip should start the drag').toMatch(/onPointerDown=\{handlers\.onPointerDown/);
+    const li = src.slice(src.indexOf('data-reorder-item'), src.indexOf('data-reorder-item') + 900);
+    expect(li, 'the row should not start a drag').not.toMatch(/onPointerDown=/);
   });
 });
