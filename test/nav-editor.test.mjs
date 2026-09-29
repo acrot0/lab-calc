@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { LocaleProvider } from '../src/ui/LocaleContext.jsx';
 import { NavOrderProvider } from '../src/ui/NavOrderContext.jsx';
 import NavEditor from '../src/ui/components/NavEditor.jsx';
+import { dragTarget, rowShift } from '../src/ui/use-drag-reorder.mjs';
 import { NAV_STORAGE_KEY, memoryStore } from '../src/ui/nav-order.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -332,11 +333,10 @@ describe('the drag slot', () => {
 
   it('should move the dragged row by the pointer travel, not by a snapped distance', () => {
     // It must be the raw travel: the displaced rows move in whole slots, and
-    // the dragged row has to stay consistent with them. Writing it as
-    // `snapped + (travel - snapped)` is the same number with the reasoning
-    // obscured — that version was in this file and read as though it aligned
-    // the row to a slot when it did not.
-    const branch = src.slice(src.indexOf('if (i === g.origin)'), src.indexOf('const between'));
+    // the dragged row has to stay consistent with them. The arithmetic itself
+    // is covered by `dragTarget` and `rowShift` above; this checks the hook
+    // still translates the dragged row by the travel it measured.
+    const branch = src.slice(src.indexOf('if (i === g.origin)'), src.indexOf('const shift = rowShift'));
     expect(branch).toMatch(/\$\{travel\}px/);
   });
 
@@ -434,5 +434,186 @@ describe('the transforms the drag writes', () => {
     // `offset` held `"0, 80px"`. Any variable interpolated into a translate
     // must be a single component.
     expect(src, 'a pre-joined offset fragment is back').not.toMatch(/const offset = vertical \? `0, \$\{/);
+  });
+});
+
+/*
+ * The drag's arithmetic, as pure functions.
+ *
+ * These three were the bugs' whole surface — the row under the finger, the rows
+ * that give way, and whether they overlap — and while the code lived inline in
+ * a `requestAnimationFrame` callback no test could reach it. Every failure was
+ * silent: a transform the browser discards is not an error, and a row that does
+ * not move looks like a rendering glitch rather than a wrong number.
+ *
+ * The invariant that matters is here: the dragged row is translated by the raw
+ * pointer distance and the displaced rows move in whole slots, so the two only
+ * agree if they share one slot size. A test for either alone would have passed
+ * while the rows piled up.
+ */
+describe('dragTarget', () => {
+  const SLOT = 52;
+  const N = 6;
+
+  it('should stay on the origin until the pointer passes half a slot', () => {
+    // The hysteresis. Without it the slot flickers between two as the pointer
+    // jitters on the boundary.
+    expect(dragTarget(0, 0, SLOT, N)).toBe(0);
+    expect(dragTarget(0, 25, SLOT, N)).toBe(0);
+    expect(dragTarget(0, 27, SLOT, N)).toBe(1);
+    expect(dragTarget(0, SLOT, SLOT, N)).toBe(1);
+  });
+
+  it('should round rather than truncate, in both directions', () => {
+    // Truncation would make a drag up need a whole slot before it moved, while
+    // a drag down needed half — the same gesture behaving differently by
+    // direction.
+    expect(dragTarget(3, -27, SLOT, N)).toBe(2);
+    expect(dragTarget(3, -25, SLOT, N)).toBe(3);
+    expect(dragTarget(3, SLOT * 2, SLOT, N)).toBe(5);
+    expect(dragTarget(3, -SLOT * 2, SLOT, N)).toBe(1);
+  });
+
+  it('should stop at both ends rather than running off', () => {
+    expect(dragTarget(0, -500, SLOT, N)).toBe(0);
+    expect(dragTarget(N - 1, 500, SLOT, N)).toBe(N - 1);
+    expect(dragTarget(2, SLOT * 100, SLOT, N)).toBe(N - 1);
+  });
+
+  it('should never return an index outside the list', () => {
+    for (let origin = 0; origin < N; origin += 1) {
+      for (let t = -400; t <= 400; t += 7) {
+        const at = dragTarget(origin, t, SLOT, N);
+        expect(at, `origin ${origin}, travel ${t}`).toBeGreaterThanOrEqual(0);
+        expect(at, `origin ${origin}, travel ${t}`).toBeLessThanOrEqual(N - 1);
+      }
+    }
+  });
+});
+
+describe('rowShift', () => {
+  const SLOT = 52;
+
+  it('should move the rows between the origin and the target up when dragging down', () => {
+    // origin 1 → target 3: rows 2 and 3 give way upward.
+    expect(rowShift(2, 1, 3, SLOT)).toBe(-SLOT);
+    expect(rowShift(3, 1, 3, SLOT)).toBe(-SLOT);
+  });
+
+  it('should move them down when dragging up', () => {
+    // origin 3 → target 1: rows 1 and 2 give way downward.
+    expect(rowShift(1, 3, 1, SLOT)).toBe(SLOT);
+    expect(rowShift(2, 3, 1, SLOT)).toBe(SLOT);
+  });
+
+  it('should leave the rows outside the range alone', () => {
+    expect(rowShift(0, 1, 3, SLOT)).toBe(0);
+    expect(rowShift(4, 1, 3, SLOT)).toBe(0);
+    expect(rowShift(5, 1, 3, SLOT)).toBe(0);
+  });
+
+  it('should leave the dragged row alone, so the caller can drive it', () => {
+    // The dragged row follows the pointer, not a slot. If this returned a
+    // shift for it the two would fight and the row would not track the finger.
+    expect(rowShift(1, 1, 3, SLOT)).toBe(0);
+    expect(rowShift(3, 3, 1, SLOT)).toBe(0);
+  });
+
+  it('should not move anything when the target is the origin', () => {
+    for (let i = 0; i < 6; i += 1) expect(rowShift(i, 2, 2, SLOT), `row ${i}`).toBe(0);
+  });
+
+  it('should give every displaced row the same magnitude as the slot', () => {
+    // The property the overlap violated: the dragged row travels the raw
+    // pointer distance and these rows travel whole slots, so a slot measured
+    // as anything but the pitch (row + gap) leaves them out of step.
+    for (let origin = 0; origin < 5; origin += 1) {
+      for (let target = 0; target < 5; target += 1) {
+        for (let i = 0; i < 5; i += 1) {
+          const shift = rowShift(i, origin, target, SLOT);
+          expect(Math.abs(shift), `row ${i}, ${origin}→${target}`).toBeLessThanOrEqual(SLOT);
+          if (shift) expect(Math.abs(shift)).toBe(SLOT);
+        }
+      }
+    }
+  });
+});
+
+/*
+ * The two together: the state at the moment of the drop must be the state the
+ * reorder produces.
+ *
+ * This is the property the user actually sees. A drag leaves the rows displaced
+ * by transforms; the drop reorders the DOM and drops the transforms. If the
+ * displacement and the new order disagree by even one slot, the list jumps at
+ * the moment of release — or, worse, the transforms are dropped and the rows
+ * land on top of each other.
+ */
+describe('the drop', () => {
+  const SLOT = 52;
+  const N = 5;
+
+  /** Where each row sits mid-drag, as a slot offset from its resting place. */
+  const displaced = (origin, travel) => {
+    const target = dragTarget(origin, travel, SLOT, N);
+    const out = [];
+    for (let i = 0; i < N; i += 1) {
+      out.push(i === origin ? travel : rowShift(i, origin, target, SLOT));
+    }
+    return { target, out };
+  };
+
+  /**
+   * Where each row sits after the reorder, as a slot offset.
+   *
+   * `order` holds original indices in their new positions, so a row's shift is
+   * its new position minus the index it started at — indexed by original index,
+   * because that is what the caller compares against.
+   */
+  const reordered = (origin, target) => {
+    const order = [...Array(N).keys()];
+    const [moved] = order.splice(origin, 1);
+    order.splice(target, 0, moved);
+    const out = new Array(N);
+    order.forEach((originalIndex, newPos) => {
+      out[originalIndex] = (newPos - originalIndex) * SLOT;
+    });
+    return out;
+  };
+
+  it('should place each displaced row exactly where the reorder puts it', () => {
+    for (let origin = 0; origin < N; origin += 1) {
+      for (let travel = -SLOT * 3; travel <= SLOT * 3; travel += 13) {
+        const { target, out } = displaced(origin, travel);
+        const after = reordered(origin, target);
+        for (let i = 0; i < N; i += 1) {
+          // The dragged row is exempt: it tracks the pointer, and the drop
+          // snaps it — that snap is what the settle effect hides.
+          if (i === origin) continue;
+          expect(out[i], `row ${i}: ${origin}→${target} at travel ${travel}`).toBe(after[i]);
+        }
+      }
+    }
+  });
+
+  it('should never leave two rows claiming the same slot', () => {
+    // The overlap, as arithmetic. Two rows at the same offset is exactly what
+    // the user saw: the row under the finger and the row that gave way.
+    for (let origin = 0; origin < N; origin += 1) {
+      for (let travel = -SLOT * 3; travel <= SLOT * 3; travel += 11) {
+        const { out } = displaced(origin, travel);
+        // Resting positions plus displacement, sorted; the dragged row is the
+        // only one allowed to sit between slots.
+        const settled = out
+          .map((shift, i) => ({ i, at: i * SLOT + shift }))
+          .filter((r) => r.i !== origin)
+          .map((r) => r.at)
+          .sort((a, b) => a - b);
+        for (let k = 1; k < settled.length; k += 1) {
+          expect(settled[k] - settled[k - 1], `origin ${origin}, travel ${travel}`)
+            .toBeGreaterThanOrEqual(SLOT);
+        }
+      }
+    }
   });
 });

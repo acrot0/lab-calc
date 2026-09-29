@@ -3,12 +3,12 @@
 Where this project is going, and why in this order. Written down because the
 sequencing has dependencies that are not obvious from the feature list.
 
-## Where it stands (v1.0.0)
+## Where it stands (v1.2.0)
 
 20 calculation tabs, a 118-element periodic table with exam properties, six
 charts drawn from the calculations themselves, bilingual UI, ten themes plus
 follow-the-system and a user override layer, PWA-installable, offline-capable,
-and signed desktop builds with a working update channel. 2,591 tests. No
+and signed desktop builds with a working update channel. 2,603 tests. No
 charting dependency — the charts are hand-drawn canvas, and the .xlsx writer is
 hand-written too.
 

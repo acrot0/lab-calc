@@ -62,6 +62,55 @@ const DRAG_THRESHOLD = 4;
 const SHIFT_MS = 120;
 
 /**
+ * Which slot a drag is currently over, and how far the row has moved.
+ *
+ * Pure, and separated from the hook because this is where the arithmetic that
+ * decides the whole animation lives — the row under the finger, the rows that
+ * give way, and whether they overlap. It was three bugs' worth of surface when
+ * it sat inline in a `requestAnimationFrame` callback: no test could reach it,
+ * and every failure was silent (a row that does not move, a transform the
+ * browser discards).
+ *
+ * `slot` is the pitch — the row plus the gap — never the row height. `travel`
+ * is the raw pointer distance, and it is what the dragged row is translated by:
+ * the displaced rows move in whole slots, and the two have to agree about where
+ * a slot is. Snapping the dragged row to its slot instead would make it lag the
+ * finger by up to half a slot.
+ *
+ * @param origin  the index the drag started from
+ * @param travel  pointer distance along the list's axis, in px
+ * @param slot    the pitch between two rows, in px
+ * @param count   how many rows the list has
+ */
+export function dragTarget(origin, travel, slot, count) {
+  // `Math.round` is the hysteresis: the slot changes at the halfway point of a
+  // neighbour rather than flickering between two as the pointer jitters on a
+  // boundary.
+  const slots = Math.round(travel / slot);
+  return clamp(origin + slots, 0, count - 1);
+}
+
+/**
+ * How far a row at `index` is displaced, in px.
+ *
+ * `0` for a row that stays put. The dragged row is handled by the caller — it
+ * follows the pointer rather than a slot — so this covers only the rows that
+ * give way.
+ *
+ * Dragging down pushes the rows below the origin up by one slot, and dragging
+ * up pushes the rows above it down by one. That shift is what opens the gap the
+ * dragged row drops into, and it is why the dragged row and these rows must
+ * share a slot size: if they disagree by even the gap, they overlap.
+ */
+export function rowShift(index, origin, target, slot) {
+  const between = origin < target
+    ? index > origin && index <= target // dragged down
+    : index >= target && index < origin; // dragged up
+  if (!between) return 0;
+  return origin < target ? -slot : slot;
+}
+
+/**
  * @param items      the current order (array of ids)
  * @param onReorder  called with (from, to) — the original index and the target
  */
@@ -144,16 +193,8 @@ export function useDragReorder(items, onReorder) {
     const nodes = nodesRef.current.length ? nodesRef.current : collect();
     const { vertical, slot } = geo;
 
-    /*
-     * How far the pointer has travelled, and which slot that lands on.
-     *
-     * `Math.round` is the hysteresis: the item changes slot at the halfway
-     * point of a neighbour rather than flickering between two as the pointer
-     * jitters on a boundary.
-     */
     const travel = vertical ? g.y - g.startY : g.x - g.startX;
-    const slots = Math.round(travel / slot);
-    const next = clamp(g.origin + slots, 0, items.length - 1);
+    const next = dragTarget(g.origin, travel, slot, items.length);
 
     for (let i = 0; i < nodes.length; i += 1) {
       const node = nodes[i];
@@ -181,13 +222,8 @@ export function useDragReorder(items, onReorder) {
           : `translate3d(${travel}px, 0, 0)`;
         continue;
       }
-      // Everyone between the origin and the destination moves one slot toward
-      // the origin: dragging down pushes the ones below up, and dragging up
-      // pushes the ones above down. This is the shift that opens the gap.
-      const between = g.origin < next
-        ? i > g.origin && i <= next // dragged down
-        : i >= next && i < g.origin; // dragged up
-      const shift = between ? (g.origin < next ? -slot : slot) : 0;
+      // Everyone between the origin and the destination gives way by one slot.
+      const shift = rowShift(i, g.origin, next, slot);
       // Three components spelled out, for the same reason as the dragged row's.
       if (!shift) node.style.transform = '';
       else if (vertical) node.style.transform = `translate3d(0, ${shift}px, 0)`;
