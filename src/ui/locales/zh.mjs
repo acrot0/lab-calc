@@ -1061,6 +1061,8 @@ export const zh = {
      */
     bundleLive: '{n} 条在用记录',
     bundleDeleted: '{n} 条已删除记录（一并带走，可恢复）',
+    bundleInventory: '{n} 瓶试剂（含批号、位置与效期）',
+    bundleTimers: '{n} 个在跑的计时',
     bundleSize: '文件约 {size}',
     bundleRestorable: '这个文件可以在「导入」里还原，换设备也靠它。',
   },

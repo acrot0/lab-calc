@@ -64,6 +64,24 @@ describe('what the bundle confirmation reports', () => {
     expect(p.filename).toBe('lab-calc-2026-09-29.json');
   });
 
+  it('should count the shelf and timers when the bundle carries them', () => {
+    const p = bundlePreview(live(1), new Date('2026-10-24T00:00:00Z'), {
+      inventory: [{ id: 'a', name: 'Tris' }, { id: 'b', name: 'NaCl' }],
+      timers: [{ id: 't', endAt: 1 }],
+    });
+    expect(p.inventory).toBe(2);
+    expect(p.timers).toBe(1);
+    // The size must include the sections — an understated size is a claim the
+    // written file disproves the moment it lands.
+    expect(p.bytes).toBeGreaterThan(bundlePreview(live(1), new Date('2026-10-24T00:00:00Z')).bytes);
+  });
+
+  it('should report zero extras and the legacy size when none are given', () => {
+    const p = bundlePreview(live(1));
+    expect(p.inventory).toBe(0);
+    expect(p.timers).toBe(0);
+  });
+
   it('should handle an empty history without lying about it', () => {
     const p = bundlePreview([]);
     expect(p.total).toBe(0);

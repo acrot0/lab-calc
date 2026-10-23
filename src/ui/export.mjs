@@ -537,14 +537,16 @@ function cell(v) {
  * The numbers come from `toBundle` itself, by measuring the string it produces
  * rather than estimating, so the size shown is the size written.
  */
-export function bundlePreview(entries, now = new Date()) {
+export function bundlePreview(entries, now = new Date(), extras = null) {
   const all = entries ?? [];
-  const json = toBundle(all, now);
+  const json = toBundle(all, now, extras);
   return {
     format: 'json',
     total: all.length,
     deleted: all.filter((e) => e && e.deletedAt).length,
     live: all.filter((e) => e && !e.deletedAt).length,
+    inventory: extras?.inventory?.length ?? 0,
+    timers: extras?.timers?.length ?? 0,
     bytes: new TextEncoder().encode(json).length,
     filename: exportFilename('json', now),
   };

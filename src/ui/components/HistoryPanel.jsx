@@ -267,7 +267,10 @@ export default function HistoryPanel({
   function openPreview(format) {
     setMenuOpen(false);
     if (format === 'json') {
-      setPreview({ format, bundle: bundlePreview(allEntries ?? entries) });
+      setPreview({
+        format,
+        bundle: bundlePreview(allEntries ?? entries, new Date(), onExportExtras?.() ?? null),
+      });
       return;
     }
     setPreview({
@@ -511,6 +514,12 @@ export default function HistoryPanel({
             <ul className="export-preview-facts">
               <li>{t('history.bundleLive', { n: preview.bundle.live })}</li>
               <li>{t('history.bundleDeleted', { n: preview.bundle.deleted })}</li>
+              {preview.bundle.inventory > 0 && (
+                <li>{t('history.bundleInventory', { n: preview.bundle.inventory })}</li>
+              )}
+              {preview.bundle.timers > 0 && (
+                <li>{t('history.bundleTimers', { n: preview.bundle.timers })}</li>
+              )}
               <li>{t('history.bundleSize', { size: formatBytes(preview.bundle.bytes) })}</li>
               <li className="hint">{t('history.bundleRestorable')}</li>
             </ul>

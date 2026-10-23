@@ -1068,6 +1068,8 @@ export const en = {
      */
     bundleLive: '{n} records in use',
     bundleDeleted: '{n} deleted records (included, restorable)',
+    bundleInventory: '{n} reagents (with lot, location and expiry)',
+    bundleTimers: '{n} running timers',
     bundleSize: 'About {size}',
     bundleRestorable: 'This file restores through Import, and it is how you move to another device.',
   },
