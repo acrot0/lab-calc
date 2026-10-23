@@ -4,6 +4,57 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The calculator grew a bench around it: a home overview, a reagent shelf,
+timers, record notes and tags — and the backup now carries all of it.
+
+### Added
+
+- **总览（Overview）home tab.** The app used to open on one weighing form with
+  twenty-two other destinations hidden in a rail. It now opens on what a
+  returning user is asking: recent calculations (click to replay), reagent
+  expiry alerts (expired and expiring, sorted first), and running timers —
+  three blocks, each linking to the tab where the thing can be acted on.
+- **试剂柜（Reagent shelf）.** Container-level records: name, lot, location,
+  opened-on, expiry, note. Expiry status is derived at read time rather than
+  stored, so a bottle crosses its own line on screen. Problems sort first
+  with a coloured edge and a badge (colour-blind dual channel).
+- **计时器（Bench timers）.** Named countdowns, several in parallel, derived
+  from wall-clock end times so a sleeping tab or a reload cannot make them
+  lie. When one ends the board keeps counting up in red, plays a chime
+  synthesised with the Web Audio API (no audio file), and flags the browser
+  tab title.
+- **Record notes and `#tags`.** Every record carries a free-text note — the
+  bench sentence the structured fields cannot hold ("cloudy, filtered before
+  making up"). Tags inside notes become filter chips (multiple tags AND);
+  the quick-jump palette accepts `#tag` queries and still finds tags as text
+  without the `#`.
+- **快速搜索（Quick jump, Ctrl+P）.** One box that searches all tabs (Chinese
+  and English aliases) and the history (summary, metadata, note, inputs);
+  Enter on a history row replays that calculation.
+- **Zero-state feature tour.** With no records, the history panel lists all
+  tabs with a one-line promise each in the words a person would search for.
+- **The JSON backup carries everything.** Inventory and timers are written
+  alongside history (sections omitted when empty, format version unchanged),
+  merged back by id on import, and counted in the backup preview so the
+  confirmation says what the file really holds.
+
+### Fixed
+
+- Two-step confirm on delete and clear-all: the first press arms the control
+  (red "sure?", 3-second disarm), the second commits. The undo bar stays as
+  the second layer.
+- `bundlePreview` ignored its `now` argument, so the previewed filename could
+  differ from the downloaded one by a day.
+- `daysLeft` assumed a `Date` and crashed the dashboard when handed epoch
+  milliseconds — found in a real browser, not in jsdom.
+- An import with shelf data threw `ReferenceError` because a callback prop was
+  passed but never destructured; history still saved, so the failure was
+  partial and silent.
+- A record with no summary translation rendered the raw locale key
+  (`kinds.weigh`) on the dashboard; it now falls back to the kind name.
+
 ## [1.3.0] — 2026-09-29
 
 Every export was broken on Android, and three ways the history could be lost

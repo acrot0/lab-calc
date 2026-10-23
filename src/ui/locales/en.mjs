@@ -101,7 +101,7 @@ export const en = {
     scTabs: 'Move to the next or previous calculator',
     scFocus: 'Move focus into the current calculator',
     scClose: 'Close the open layer (calculator, settings, dialog)',
-    scHelp: 'Show or hide this list',
+    scHelp: 'Show or hide the shortcut list (? or Ctrl+/)',
     // Injected at build time from package.json (see vite.config.js).
     footerVersion: `v${__APP_VERSION__} · open source · MIT`,
   },

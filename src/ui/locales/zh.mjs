@@ -96,7 +96,7 @@ export const zh = {
     scTabs: '按顺序切换到下一个 / 上一个功能',
     scFocus: '把焦点移到当前功能的内容区',
     scClose: '关闭当前弹层（计算器、设置、对话框）',
-    scHelp: '显示 / 隐藏这个列表',
+    scHelp: '显示 / 隐藏快捷键列表（? 或 Ctrl+/）',
     // The version is injected at build time from package.json (see
     // vite.config.js) — it was a literal here and in en.mjs, two strings that
     // nothing tied to the manifest.
