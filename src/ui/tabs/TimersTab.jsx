@@ -47,6 +47,28 @@ export default function TimersTab() {
   const shown = useMemo(() => sortTimers(timers, now), [timers, now]);
 
   /*
+   * Warm the AudioContext on the Start press — a genuine user gesture.
+   *
+   * Chrome's autoplay policy keeps a context created outside a gesture
+   * suspended, and `resume()` only reliably works from inside one. Waiting
+   * until the alarm fires is too late: by then the last gesture may be long
+   * past, and a `resume()` that does not take effect means a silent alarm —
+   * the one chime the tab exists to play. Creating (or resuming) the context
+   * inside the click that starts the timer means the alarm's oscillators run
+   * on a live context no matter when the countdown ends.
+   */
+  function primeAudio() {
+    try {
+      const Ctx = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+      if (!Ctx) return;
+      audioRef.current ??= new Ctx();
+      if (audioRef.current.state === 'suspended') audioRef.current.resume();
+    } catch {
+      /* No audio is a degraded alarm, not a failed timer. */
+    }
+  }
+
+  /*
    * The chime, once per timer. `acknowledged` holds ids already played so a
    * re-render (or a new timer becoming due) does not replay an old alarm.
    * The AudioContext is created on first use inside the effect rather than at
@@ -93,6 +115,7 @@ export default function TimersTab() {
     e.preventDefault();
     const ms = parseDuration(duration);
     if (ms === null) return;
+    primeAudio();
     write(addTimer(timers, { label, ms }));
     setLabel('');
     setDuration('');
