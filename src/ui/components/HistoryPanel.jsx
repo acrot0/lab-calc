@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons, ICON_SIZE } from '../icons.jsx';
-import { filterHistory, visibleEntries, replayInputs } from '../history.mjs';
+import { filterHistory, visibleEntries, replayInputs, noteTags, allNoteTags, filterByTags } from '../history.mjs';
 import { filterByGroup, groupCounts, ungroupedCount, ALL_GROUPS } from '../groups.mjs';
 import GroupPicker from './GroupPicker.jsx';
 import {
@@ -164,6 +164,12 @@ export default function HistoryPanel({
   // Which group the list is filtered to. `all` rather than null so the control
   // has a value to render on first paint.
   const [groupFilter, setGroupFilter] = useState(ALL_GROUPS);
+  /*
+   * The selected #tags. Multiple tags AND together: someone narrowing to
+   * `#失败 #重做` is asking for the failures that were redone, not for the
+   * union. A Set rather than an array so toggling is membership, not splice.
+   */
+  const [tagFilter, setTagFilter] = useState(() => new Set());
   const fileRef = useRef(null);
   // Which fields the data view carries. `null` means all of them — see the
   // note on ColumnPicker for why "everything" is the honest default.
@@ -209,9 +215,23 @@ export default function HistoryPanel({
    * the list describing the same set.
    */
   const inGroup = useMemo(() => filterByGroup(live, groupFilter), [live, groupFilter]);
-  const shown = useMemo(() => filterHistory(inGroup, query), [inGroup, query]);
+  const inTags = useMemo(
+    () => filterByTags(inGroup, [...tagFilter]),
+    [inGroup, tagFilter],
+  );
+  const shown = useMemo(() => filterHistory(inTags, query), [inTags, query]);
   const counts = useMemo(() => groupCounts(live), [live]);
   const ungrouped = useMemo(() => ungroupedCount(live), [live]);
+  const tags = useMemo(() => allNoteTags(live), [live]);
+
+  function toggleTag(tag) {
+    setTagFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  }
   // What the data view could offer, computed from the records actually being
   // exported rather than from the whole history — the picker must not offer a
   // column the file will not contain.
@@ -588,6 +608,35 @@ export default function HistoryPanel({
         </div>
       )}
 
+      {tags.length > 0 && (
+        <div className="tag-bar" role="group" aria-label={t('history.tagsLabel')}>
+          {[...tagFilter].map((tag) => (
+            <button
+              type="button"
+              key={tag}
+              className="tag-chip is-on"
+              aria-pressed="true"
+              onClick={() => toggleTag(tag)}
+            >
+              #{tag}
+            </button>
+          ))}
+          {tags.filter(({ tag }) => !tagFilter.has(tag)).map(({ tag, count }) => (
+            <button
+              type="button"
+              key={tag}
+              className="tag-chip"
+              aria-pressed="false"
+              title={t('history.tagFilter', { n: count })}
+              onClick={() => toggleTag(tag)}
+            >
+              #{tag}
+              <span className="tag-count">{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {live.length === 0 ? (
         <div className="empty">
           <ArtEmptyHistory />
@@ -619,7 +668,28 @@ export default function HistoryPanel({
                   <div className="summary">{summary}</div>
                   <div className="when">{new Date(e.at).toLocaleString()}</div>
                   {typeof e.note === 'string' && e.note.trim() !== '' && (
-                    <div className="history-note">{e.note}</div>
+                    <div className="history-note">
+                      {noteTags(e.note).length === 0
+                        ? e.note
+                        : e.note.split(/(#[\w\u4e00-\u9fff-]+)/g).map((part, i) => {
+                          const m = part.match(/^#(.+)$/);
+                          if (!m || !/[^\p{P}\p{S}]/u.test(m[1])) return part;
+                          const tag = m[1];
+                          const on = tagFilter.has(tag);
+                          return (
+                            <button
+                              type="button"
+                              key={i}
+                              className={`note-tag${on ? ' is-on' : ''}`}
+                              aria-pressed={on}
+                              title={t('history.tagToggle')}
+                              onClick={() => toggleTag(tag)}
+                            >
+                              #{tag}
+                            </button>
+                          );
+                        })}
+                    </div>
                   )}
                   {onMeta && (
                     <EntryMeta

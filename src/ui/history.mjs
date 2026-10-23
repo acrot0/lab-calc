@@ -308,6 +308,50 @@ export function setEntryNote(entries, id, note) {
   });
 }
 
+/**
+ * The `#tags` inside one note, in order of first appearance.
+ *
+ * A tag starts at `#` and runs over word characters, CJK ideographs and
+ * hyphens — the same convention hashtags use everywhere, so `#失败已处理` is
+ * one tag and `#done next` stops at the space. Pure punctuation is refused so
+ * a bare `#` (a heading someone pasted) does not become a filter.
+ */
+export function noteTags(note) {
+  const out = [];
+  const seen = new Set();
+  for (const m of String(note ?? '').matchAll(/#([\w\u4e00-\u9fff-]+)/g)) {
+    const tag = m[1];
+    // `\w` excludes CJK ideographs; a tag is anything non-empty after the
+    // boundary classes above have trimmed it, ASCII or not.
+    if (!tag || !/[^\p{P}\p{S}]/u.test(tag)) continue;
+    if (!seen.has(tag)) { seen.add(tag); out.push(tag); }
+  }
+  return out;
+}
+
+/** Every tag across a set of records, most used first, then alphabetical. */
+export function allNoteTags(entries) {
+  const counts = new Map();
+  for (const e of entries ?? []) {
+    for (const tag of noteTags(e?.note ?? '')) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
+    .map(([tag, count]) => ({ tag, count }));
+}
+
+/** Keep only the records carrying every selected tag. */
+export function filterByTags(entries, tags) {
+  const want = (Array.isArray(tags) ? tags : []).filter(Boolean);
+  if (want.length === 0) return entries ?? [];
+  return (entries ?? []).filter((e) => {
+    const have = new Set(noteTags(e?.note ?? ''));
+    return want.every((t) => have.has(t));
+  });
+}
+
 /** Re-run a stored calculation by feeding its inputs back to the same function. */
 export function replayInputs(entry) {
   return entry?.inputs ?? null;

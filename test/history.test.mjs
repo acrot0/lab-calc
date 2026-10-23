@@ -10,6 +10,7 @@ import {
   visibleEntries,
   filterHistory,
   setEntryNote,
+  noteTags, allNoteTags, filterByTags,
   MAX_NOTE_LENGTH,
   replayInputs,
   planReplay,
@@ -246,6 +247,56 @@ describe('setEntryNote', () => {
   it('should survive a missing id or a null list', () => {
     expect(setEntryNote([withId('a')], null, 'x')).toHaveLength(1);
     expect(setEntryNote(null, 'a', 'x')).toEqual([]);
+  });
+});
+
+describe('note tags', () => {
+  const note = '溶液浑浊 #失败 过滤后重做 #重做 ；换了一批 #试剂';
+
+  it('should read tags in order of first appearance, without duplicates', () => {
+    expect(noteTags(note)).toEqual(['失败', '重做', '试剂']);
+    expect(noteTags('#a #a #a')).toEqual(['a']);
+  });
+
+  it('should stop a tag at whitespace or a CJK ideograph', () => {
+    // Within Chinese prose a tag runs until punctuation — there are no spaces
+    // to stop it — and #失败已处理 reads as one three-character tag, the same
+    // way a long English hashtag does. That is the convention, not a bug.
+    expect(noteTags('#失败已处理')).toEqual(['失败已处理']);
+    expect(noteTags('#done next')).toEqual(['done']);
+  });
+
+  it('should refuse tags with no word character', () => {
+    expect(noteTags('# ## !!!')).toEqual([]);
+    expect(noteTags('')).toEqual([]);
+    expect(noteTags(undefined)).toEqual([]);
+  });
+
+  it('should count tags across records, most used first', () => {
+    const entries = [
+      { note: '#a #b' },
+      { note: '#a' },
+      { note: '#b #c' },
+      { note: 'no tags' },
+    ];
+    expect(allNoteTags(entries)).toEqual([
+      { tag: 'a', count: 2 },
+      { tag: 'b', count: 2 },
+      { tag: 'c', count: 1 },
+    ]);
+  });
+
+  it('should AND the selected tags when filtering', () => {
+    const entries = [
+      { id: '1', note: '#失败 #重做' },
+      { id: '2', note: '#失败' },
+      { id: '3', note: '#重做' },
+      { id: '4', note: '' },
+    ];
+    expect(filterByTags(entries, ['失败']).map((e) => e.id)).toEqual(['1', '2']);
+    expect(filterByTags(entries, ['失败', '重做']).map((e) => e.id)).toEqual(['1']);
+    expect(filterByTags(entries, [])).toHaveLength(4);
+    expect(filterByTags(entries, null)).toHaveLength(4);
   });
 });
 

@@ -3058,6 +3058,68 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
 /*
+ * The tag bar: every #tag across the visible records, selected ones first.
+ * The chips follow the group bar's pattern — pill, count, click to filter —
+ * because the two bars answer the same question at different levels: which
+ * experiment, and what state.
+ */
+.tag-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-bottom: var(--s3);
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  color: var(--text-mid);
+  font: inherit;
+  font-size: var(--t-xs);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.tag-chip:hover { border-color: var(--border-strong); color: var(--text); }
+
+.tag-chip .tag-count { color: var(--text-dim); }
+
+.tag-chip.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.tag-chip.is-on .tag-count { color: var(--accent); }
+
+/*
+ * A tag inside a note reads as part of the sentence until pressed, so it keeps
+ * the note's line height and only gains the affordance: dotted underline, the
+ * pointer, and the accent on hover/selected. A full pill here would break the
+ * prose the note is.
+ */
+.note-tag {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.note-tag.is-on { color: var(--text); text-decoration-style: solid; }
+
+/*
  * The deleted-records section.
  *
  * Visually recessed rather than hidden: a deleted record is still a record, and
