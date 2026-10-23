@@ -3,9 +3,10 @@ import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import Card from '../components/Card.jsx';
 import {
-  loadTimers, saveTimers, addTimer, removeTimer,
+  loadTimers, addTimer, removeTimer,
   parseDuration, formatRemaining, sortTimers, nextDue,
 } from '../timers.mjs';
+import { saveTimersLive } from '../use-storage-value.mjs';
 
 /**
  * The bench timer board.
@@ -30,7 +31,7 @@ export default function TimersTab() {
 
   const write = (next) => {
     setTimers(next);
-    setSaveFailed(!saveTimers(
+    setSaveFailed(!saveTimersLive(
       typeof localStorage !== 'undefined' ? localStorage : null,
       next,
     ));

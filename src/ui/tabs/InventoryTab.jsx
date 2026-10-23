@@ -3,9 +3,10 @@ import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import Card from '../components/Card.jsx';
 import {
-  loadInventory, saveInventory, addItem, updateItem, removeItem,
+  loadInventory, addItem, updateItem, removeItem,
   sortForDisplay, searchInventory, expiryStatus, daysLeft,
 } from '../inventory.mjs';
+import { saveInventoryLive } from '../use-storage-value.mjs';
 
 /**
  * The reagent inventory: where is it, is it open, has it expired.
@@ -32,7 +33,7 @@ export default function InventoryTab() {
 
   const write = (next) => {
     setItems(next);
-    setSaveFailed(!saveInventory(
+    setSaveFailed(!saveInventoryLive(
       typeof localStorage !== 'undefined' ? localStorage : null,
       next,
     ));

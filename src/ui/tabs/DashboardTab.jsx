@@ -3,8 +3,9 @@ import { Icons, ICON_SIZE } from '../icons.jsx';
 import { useI18n } from '../LocaleContext.jsx';
 import Card from '../components/Card.jsx';
 import { recordSummary } from '../summaries.mjs';
-import { loadInventory, sortForDisplay, expiryStatus, daysLeft } from '../inventory.mjs';
-import { loadTimers, formatRemaining } from '../timers.mjs';
+import { sortForDisplay, expiryStatus, daysLeft, INVENTORY_KEY, loadInventory } from '../inventory.mjs';
+import { formatRemaining, TIMERS_KEY, loadTimers } from '../timers.mjs';
+import { useStorageValue } from '../use-storage-value.mjs';
 
 /**
  * The home screen: what is happening, in the order a returning user asks it.
@@ -19,16 +20,28 @@ import { loadTimers, formatRemaining } from '../timers.mjs';
 export default function DashboardTab({ entries = [], onReplay, onGoTo }) {
   const { t } = useI18n();
   const [now, setNow] = useState(() => Date.now());
-  const [inventory, setInventory] = useState([]);
-  const [timers, setTimers] = useState([]);
-
+  /*
+   * The shelf and timer blocks read through useSyncExternalStore keyed on the
+   * raw strings: a write in this tab (another component) or in another tab
+   * (the browser storage event) re-reads the key and this screen follows
+   * without a mirror state of its own.
+   */
+  const invRaw = useStorageValue(INVENTORY_KEY);
+  const timerRaw = useStorageValue(TIMERS_KEY);
   const store = typeof localStorage !== 'undefined' ? localStorage : null;
   useEffect(() => {
-    setInventory(loadInventory(store));
-    setTimers(loadTimers(store, Date.now()));
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [store]);
+  }, []);
+
+  const inventory = useMemo(
+    () => (invRaw === null ? [] : loadInventory({ getItem: () => invRaw })),
+    [invRaw],
+  );
+  const timers = useMemo(
+    () => (timerRaw === null ? [] : loadTimers({ getItem: () => timerRaw })),
+    [timerRaw],
+  );
 
   const recent = useMemo(() => entries.slice(0, 5), [entries]);
   const shelfWarnings = useMemo(
@@ -37,7 +50,7 @@ export default function DashboardTab({ entries = [], onReplay, onGoTo }) {
     ), now).slice(0, 5),
     // Recomputed per tick so an expiring bottle crosses the line on screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [now, store],
+    [inventory, now],
   );
   const running = useMemo(
     () => timers.filter((x) => x.endAt > now).slice(0, 4),
