@@ -19,6 +19,43 @@ import { fieldLabel } from '../field-labels.mjs';
 import { ArtEmptyHistory, ArtEmptySearch } from './Illustrations.jsx';
 
 /*
+ * The zero-history feature tour.
+ *
+ * A first-time visitor sees one form and no reason to believe there are
+ * twenty tools behind it. This is the answer: one chip per tab, each naming
+ * what it answers in the words a person would search for — not the tab's own
+ * title again, which is already visible beside it.
+ *
+ * Rendered inside the empty state rather than as a modal, because a modal can
+ * be dismissed and forgotten while the empty state is exactly where the
+ * question "what does this do" is being asked.
+ */
+function FeatureTour({ tabs, onGoTo }) {
+  const { t } = useI18n();
+  return (
+    <div className="feature-tour">
+      <div className="feature-tour-title">{t('history.tourTitle')}</div>
+      <div className="feature-tour-grid">
+        {tabs.map((tab) => (
+          <button
+            type="button"
+            key={tab.id}
+            className="feature-tour-item"
+            onClick={() => onGoTo?.(tab.id)}
+          >
+            {tab.icon && <tab.icon size={ICON_SIZE.inline} aria-hidden="true" />}
+            <span>
+              <strong>{t(`tabs.${tab.id}`)}</strong>
+              <em>{t(`tour.${tab.id}`)}</em>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/*
  * The print report is loaded on demand.
  *
  * It is a sibling of the app, rendered into `document.body` and hidden by the
@@ -93,6 +130,8 @@ function ScaleMenu({ entry, summary, onScale }) {
 export default function HistoryPanel({
   entries, allEntries, deleted = [], groups = [],
   onRemove, onRestore, onReplay, onClear, onImport, onMeta, onScale,
+  onNote,
+  tour = false, tourTabs = [], onGoTo,
   onCreateGroup, onRenameGroup, onDeleteGroup, onGroupNote, onSetRecordGroup,
 }) {
   const { t, locale } = useI18n();
@@ -100,6 +139,28 @@ export default function HistoryPanel({
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  /*
+   * Two-step confirmation for the destructive actions.
+   *
+   * The first press arms the control rather than acting: the button changes
+   * to "sure?" and holds that state for a few seconds. A mis-tap therefore
+   * costs nothing — the arm times out and the control returns to normal —
+   * while a deliberate press is one extra click, not a modal in the way.
+   * `null` is disarmed; otherwise it holds the id of the record asking to
+   * be deleted, or 'all' for the clear-all button.
+   */
+  const [confirming, setConfirming] = useState(null);
+  const confirmTimer = useRef(null);
+  const armConfirm = (key) => {
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    setConfirming(key);
+    confirmTimer.current = setTimeout(() => setConfirming(null), 3000);
+  };
+  const disarmConfirm = () => {
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    confirmTimer.current = null;
+    setConfirming(null);
+  };
   // Which group the list is filtered to. `all` rather than null so the control
   // has a value to render on first paint.
   const [groupFilter, setGroupFilter] = useState(ALL_GROUPS);
@@ -359,6 +420,11 @@ export default function HistoryPanel({
             <button
               className="link-btn"
               onClick={() => {
+                if (confirming !== 'all') {
+                  armConfirm('all');
+                  return;
+                }
+                disarmConfirm();
                 /*
                  * The ids are captured *before* the clear, and the count is
                  * read from the same list the user is looking at.
@@ -386,7 +452,7 @@ export default function HistoryPanel({
               }}
               disabled={live.length === 0}
             >
-              {t('history.clearAll')}
+              {confirming === 'all' ? t('history.confirmClearAll') : t('history.clearAll')}
             </button>
           </div>
         )}
@@ -528,6 +594,7 @@ export default function HistoryPanel({
           {t('history.empty')}<br />
           {t('history.emptyHint1')}<br />
           {t('history.emptyHint2')}
+          {tour && <FeatureTour tabs={tourTabs} onGoTo={onGoTo} />}
         </div>
       ) : shown.length === 0 ? (
         <div className="empty">
@@ -551,9 +618,12 @@ export default function HistoryPanel({
                 <div className="body">
                   <div className="summary">{summary}</div>
                   <div className="when">{new Date(e.at).toLocaleString()}</div>
+                  {typeof e.note === 'string' && e.note.trim() !== '' && (
+                    <div className="history-note">{e.note}</div>
+                  )}
                   {onMeta && (
                     <EntryMeta
-                      entry={e} onSave={onMeta}
+                      entry={e} onSave={onMeta} onNote={onNote}
                       groups={groups} onGroupChange={onSetRecordGroup}
                     />
                   )}
@@ -584,6 +654,11 @@ export default function HistoryPanel({
                   title={t('history.remove')}
                   aria-label={`${t('history.remove')}: ${summary}`}
                   onClick={() => {
+                    if (confirming !== e.id) {
+                      armConfirm(e.id);
+                      return;
+                    }
+                    disarmConfirm();
                     onRemove(e.id);
                     // One record at a time, so the message names it rather than
                     // counting. "Undo" with no object is the version of this
@@ -591,7 +666,9 @@ export default function HistoryPanel({
                     undo.offer(t('history.undoRemoved'), () => onRestore(e.id));
                   }}
                 >
-                  <Icons.remove size={ICON_SIZE.inline} aria-hidden="true" />
+                  {confirming === e.id
+                    ? <span className="confirm-text">{t('history.confirmDel')}</span>
+                    : <Icons.remove size={ICON_SIZE.inline} aria-hidden="true" />}
                 </button>
               </div>
             );

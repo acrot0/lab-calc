@@ -30,12 +30,13 @@ import { activeFields, labelOf } from '../field-template.mjs';
  * screen has to follow. A hook is what makes that a re-render rather than a
  * stale closure.
  */
-export default function EntryMeta({ entry, onSave, groups = [], onGroupChange }) {
+export default function EntryMeta({ entry, onSave, onNote, groups = [], onGroupChange }) {
   const { t, locale } = useI18n();
   const { fields } = useFields();
   const [open, setOpen] = useState(false);
   // Local drafts, so typing does not round-trip through the store per keystroke.
   const [draft, setDraft] = useState({});
+  const [noteDraft, setNoteDraft] = useState('');
 
   const active = activeFields(fields);
   const meta = entry?.meta ?? {};
@@ -81,6 +82,7 @@ export default function EntryMeta({ entry, onSave, groups = [], onGroupChange })
           aria-expanded={false}
           onClick={() => {
             setDraft(Object.fromEntries(active.map((f) => [f.key, meta[f.key] ?? ''])));
+            setNoteDraft(typeof entry?.note === 'string' ? entry.note : '');
             setOpen(true);
           }}
         >
@@ -108,6 +110,35 @@ export default function EntryMeta({ entry, onSave, groups = [], onGroupChange })
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
+        </label>
+      )}
+      {onNote && (
+        <label className="entry-meta-field entry-meta-note">
+          <span className="entry-meta-label">{t('history.noteLabel')}</span>
+          <textarea
+            rows={2}
+            value={noteDraft}
+            maxLength={500}
+            placeholder={t('history.notePlaceholder')}
+            aria-label={t('history.noteLabel')}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            onBlur={() => {
+              if ((entry?.note ?? '') !== noteDraft.replace(/\s+$/, '')) {
+                onNote(entry.id, noteDraft);
+              }
+            }}
+            onKeyDown={(e) => {
+              // Enter without Shift commits and closes; Shift+Enter is a
+              // newline, because a bench note is a sentence but can be two.
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if ((entry?.note ?? '') !== noteDraft.replace(/\s+$/, '')) {
+                  onNote(entry.id, noteDraft);
+                }
+                setOpen(false);
+              }
+            }}
+          />
         </label>
       )}
       {active.map((f) => (

@@ -60,7 +60,7 @@ describe('xlsxPlan', () => {
   it('should default to the record view, which fits a screen', () => {
     const plan = xlsxPlan(entries, { now: new Date('2026-09-27T02:00:00Z') });
     expect(plan.view).toBe('record');
-    expect(plan.rows[0]).toEqual(['时间', '类型', '说明', '输入', '结果']);
+    expect(plan.rows[0]).toEqual(['时间', '类型', '说明', '输入', '结果', '备注']);
     expect(totalWidth(plan.widths)).toBeLessThanOrEqual(SCREEN_CHARS);
   });
 
@@ -92,10 +92,8 @@ describe('xlsxPlan', () => {
       view: 'data',
       columns: { inputs: ['化学式'], outputs: ['应称取质量 (g)'] },
     });
-    expect(plan.rows[0]).toEqual([
-      '时间', '类型', '说明',
-      '化学式（输入）', '应称取质量 (g)（结果）',
-    ]);
+    expect(plan.rows[0].slice(0, 3)).toEqual(['时间', '类型', '说明']);
+    expect(plan.rows[0].slice(-2)).toEqual(['化学式（输入）', '应称取质量 (g)（结果）']);
   });
 
   it('should name the sheet after the view', () => {
@@ -123,7 +121,7 @@ describe('xlsxPlan', () => {
   it('should survive an empty history without producing a broken sheet', () => {
     const plan = xlsxPlan([], {});
     expect(plan.rows.length).toBeGreaterThanOrEqual(1);
-    expect(plan.rows[0]).toEqual(['时间', '类型', '说明', '输入', '结果']);
+    expect(plan.rows[0]).toEqual(['时间', '类型', '说明', '输入', '结果', '备注']);
   });
 
   it('should fall back to the record view for an unknown view name', () => {

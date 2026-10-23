@@ -200,6 +200,8 @@ describe('clear all marks rather than erases', () => {
     const clearBtn = [...container.querySelectorAll('button')]
       .find((b) => /全部清除|Clear all/.test(b.textContent));
     expect(clearBtn, `no clear button; buttons=${[...container.querySelectorAll('button')].map((b) => b.textContent).join('|')}`).toBeTruthy();
+    // The first press arms the confirm; the second commits the clear.
+    await click(clearBtn);
     await click(clearBtn);
 
     const raw = JSON.parse(globalThis.localStorage.getItem(STORAGE_KEY));

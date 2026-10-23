@@ -196,7 +196,8 @@ export function localStamp(at, locale = 'zh') {
 
 export function toCsv(entries, locale = 'zh') {
   const fields = usedMetaFields(entries);
-  const rows = [[...columnsFor(locale), ...metaLabels(fields, locale)].join(',')];
+  const noteLabel = locale === 'en' ? 'Note' : '备注';
+  const rows = [[...columnsFor(locale), noteLabel, ...metaLabels(fields, locale)].join(',')];
   for (const e of entries ?? []) {
     rows.push([
       localStamp(e?.at, locale),
@@ -204,6 +205,7 @@ export function toCsv(entries, locale = 'zh') {
       e?.summary ?? '',
       flatten(e?.inputs, locale),
       flatten(e?.outputs, locale),
+      e?.note ?? '',
       ...metaValues(fields, e),
     ].map(escapeCsvField).join(','));
   }
@@ -228,7 +230,8 @@ const escapeMd = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' '
  */
 export function toMarkdown(entries, locale = 'zh', now = new Date()) {
   const fields = usedMetaFields(entries);
-  const columns = [...columnsFor(locale), ...metaLabels(fields, locale)];
+  const noteLabel = locale === 'en' ? 'Note' : '备注';
+  const columns = [...columnsFor(locale), noteLabel, ...metaLabels(fields, locale)];
   const header = `| ${columns.join(' | ')} |`;
   const sep = `|${columns.map(() => '---').join('|')}|`;
   const rows = (entries ?? []).map((e) => `| ${
@@ -238,6 +241,7 @@ export function toMarkdown(entries, locale = 'zh', now = new Date()) {
       e?.summary ?? '',
       flatten(e?.inputs, locale),
       flatten(e?.outputs, locale),
+      e?.note ?? '',
       ...metaValues(fields, e),
     ].map(escapeMd).join(' | ')
   } |`);
@@ -442,6 +446,7 @@ export function exportPreview(entries, {
   const list = entries ?? [];
   const fields = usedMetaFields(list);
   const meta = metaLabels(fields, locale);
+  const noteLabel = locale === 'en' ? 'Note' : '备注';
 
   if (format === 'xlsx' || format === 'xlsxData') {
     const which = format === 'xlsxData' ? 'data' : 'record';
@@ -469,7 +474,7 @@ export function exportPreview(entries, {
     // calls, so a previewed column cannot be missing from the file.
     return {
       format,
-      columns: [...columnsFor(locale), ...meta],
+      columns: [...columnsFor(locale), noteLabel, ...meta],
       total: list.length,
       rows: list.slice(0, limit).map((e) => [
         localStamp(e?.at, locale),
@@ -477,6 +482,7 @@ export function exportPreview(entries, {
         e?.summary ?? '',
         flatten(e?.inputs, locale),
         flatten(e?.outputs, locale),
+        e?.note ?? '',
         ...metaValues(fields, e),
       ]),
     };
@@ -484,7 +490,7 @@ export function exportPreview(entries, {
 
   return {
     format: 'csv',
-    columns: [...columnsFor(locale), ...meta],
+    columns: [...columnsFor(locale), noteLabel, ...meta],
     total: list.length,
     rows: list.slice(0, limit).map((e) => [
       localStamp(e?.at, locale),
@@ -492,6 +498,7 @@ export function exportPreview(entries, {
       e?.summary ?? '',
       flatten(e?.inputs, locale),
       flatten(e?.outputs, locale),
+      e?.note ?? '',
       ...metaValues(fields, e),
     ]),
   };
@@ -539,7 +546,7 @@ export function bundlePreview(entries, now = new Date()) {
     deleted: all.filter((e) => e && e.deletedAt).length,
     live: all.filter((e) => e && !e.deletedAt).length,
     bytes: new TextEncoder().encode(json).length,
-    filename: exportFilename('json'),
+    filename: exportFilename('json', now),
   };
 }
 
@@ -568,7 +575,8 @@ export function formatBytes(bytes) {
 
 function toXlsxRows(entries, locale = 'zh') {
   const fields = usedMetaFields(entries);
-  const rows = [[...columnsFor(locale), ...metaLabels(fields, locale)]];
+  const noteLabel = locale === 'en' ? 'Note' : '备注';
+  const rows = [[...columnsFor(locale), noteLabel, ...metaLabels(fields, locale)]];
   for (const e of entries ?? []) {
     rows.push([
       localStamp(e?.at, locale),
@@ -576,6 +584,7 @@ function toXlsxRows(entries, locale = 'zh') {
       e?.summary ?? '',
       flatten(e?.inputs, locale),
       flatten(e?.outputs, locale),
+      e?.note ?? '',
       ...metaValues(fields, e),
     ]);
   }
@@ -603,8 +612,10 @@ function toXlsxDetailedRows(entries, locale = 'zh', only) {
   const outputKeys = only?.outputKeys ?? derived.outputKeys;
   const io = locale === 'en' ? { in: 'in', out: 'out' } : { in: '输入', out: '结果' };
   const fields = usedMetaFields(entries);
+  const noteLabel = locale === 'en' ? 'Note' : '备注';
   const header = [
     ...detailMeta(locale),
+    noteLabel,
     ...inputKeys.map((k) => `${fieldLabel(k, locale)}（${io.in}）`),
     ...outputKeys.map((k) => `${fieldLabel(k, locale)}（${io.out}）`),
     // Metadata last, and with no (输入)/(结果) suffix: it is neither, and a
@@ -617,6 +628,7 @@ function toXlsxDetailedRows(entries, locale = 'zh', only) {
       localStamp(e?.at, locale),
       kindName(e?.kind, locale),
       e?.summary ?? '',
+      e?.note ?? '',
       ...inputKeys.map((k) => cell(e?.inputs?.[k])),
       ...outputKeys.map((k) => cell(e?.outputs?.[k])),
       ...metaValues(fields, e),

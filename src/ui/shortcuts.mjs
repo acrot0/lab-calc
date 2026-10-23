@@ -23,9 +23,9 @@
  * instead of moving the cursor.
  *
  * The distinction that actually holds is whether the combination *produces
- * text or has a native meaning in the field*. `Ctrl+K` and `Ctrl+J` do neither,
- * so they are safe everywhere; `Ctrl+Arrow` moves the caret, and a bare `?` is
- * a character, so both are suppressed while typing.
+ * text or has a native meaning in the field*. `Ctrl+K`, `Ctrl+J` and `Ctrl+P`
+ * do neither, so they are safe everywhere; `Ctrl+Arrow` moves the caret, and
+ * a bare `?` is a character, so both are suppressed while typing.
  */
 
 /** Elements whose keystrokes belong to them and not to the app. */
@@ -68,6 +68,7 @@ export function matchShortcut(event) {
   if (!event) return null;
   const key = String(event.key ?? '');
   if (event.ctrlKey && !event.shiftKey && key.toLowerCase() === 'k') return 'calc';
+  if (event.ctrlKey && !event.shiftKey && key.toLowerCase() === 'p') return 'quickJump';
   if (event.ctrlKey && !event.shiftKey && key === '/') return 'help';
   if (event.ctrlKey && !event.shiftKey && key === 'ArrowRight') return 'nextTab';
   if (event.ctrlKey && !event.shiftKey && key === 'ArrowLeft') return 'prevTab';
@@ -88,6 +89,7 @@ export function matchShortcut(event) {
  * other.
  */
 export const SHORTCUTS = [
+  { action: 'quickJump', keys: ['Ctrl', 'P'], label: 'app.scQuickJump' },
   { action: 'calc', keys: ['Ctrl', 'K'], label: 'app.scCalc' },
   { action: 'focusWork', keys: ['Ctrl', 'J'], label: 'app.scFocus' },
   { action: 'nextTab', keys: ['Ctrl', '→'], label: 'app.scTabs', typing: true },

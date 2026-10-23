@@ -50,12 +50,21 @@ describe('topLayer', () => {
     expect(topLayer({ notice: true, calc: true })).toBe('notice');
     expect(LAYER_ORDER.indexOf('notice')).toBeLessThan(LAYER_ORDER.indexOf('calc'));
   });
+
+  it('should close the quick-jump palette before the calculator drawer', () => {
+    // The palette is a modal over the whole app; the calculator drawer is a
+    // side panel. Both open together means the palette is what the user sees,
+    // and a back press must peel the topmost layer first.
+    expect(topLayer({ quickJump: true, calc: true })).toBe('quickJump');
+    expect(LAYER_ORDER.indexOf('quickJump')).toBeLessThan(LAYER_ORDER.indexOf('calc'));
+  });
 });
 
 describe('ownedEntries', () => {
   it('should count one history entry per open layer', () => {
     expect(ownedEntries({})).toBe(0);
     expect(ownedEntries({ calc: true })).toBe(1);
+    expect(ownedEntries({ quickJump: true })).toBe(1);
     expect(ownedEntries({ notice: true, calc: true })).toBe(2);
   });
 });

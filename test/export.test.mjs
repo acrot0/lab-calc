@@ -100,7 +100,7 @@ describe('escapeCsvField', () => {
 describe('toCsv', () => {
   it('should emit a header row', () => {
     const csv = toCsv([entry()]);
-    expect(csv.split('\n')[0]).toBe(CSV_COLUMNS.join(','));
+    expect(csv.split('\n')[0]).toBe([...CSV_COLUMNS, '备注'].join(','));
   });
 
   it('should emit one row per entry', () => {
@@ -123,7 +123,7 @@ describe('toCsv', () => {
     // Not an empty string: a spreadsheet opening a zero-byte file shows an
     // error, while a header-only file opens cleanly and shows the columns.
     const csv = toCsv([]);
-    expect(csv.trim()).toBe(CSV_COLUMNS.join(','));
+    expect(csv.trim()).toBe([...CSV_COLUMNS, '备注'].join(','));
   });
 
   it('should not throw on an entry with missing fields', () => {
@@ -351,8 +351,8 @@ describe('export labels and units', () => {
 
   it('should head the columns in the reader\'s language', () => {
     // The English export used to carry Chinese column headings.
-    expect(toCsv([entry()], 'en').split('\n')[0]).toBe('Time,Type,Summary,Inputs,Results');
-    expect(toCsv([entry()], 'zh').split('\n')[0]).toBe(CSV_COLUMNS.join(','));
+    expect(toCsv([entry()], 'en').split('\n')[0]).toBe('Time,Type,Summary,Inputs,Results,Note');
+    expect(toCsv([entry()], 'zh').split('\n')[0]).toBe([...CSV_COLUMNS, '备注'].join(','));
   });
 
   it('should name the record kind in the reader\'s language', () => {
@@ -387,7 +387,9 @@ describe('export labels and units', () => {
     // The data row, found by shape rather than by position: the document now
     // ends with a notes footer, so "the last line" is no longer the record.
     const dataRow = md.split('\n').find((l) => l.startsWith('|') && l.includes('质量 (g)='));
-    const results = dataRow.split('|').at(-2).trim();
+    // The note column was added after the results; the results cell is two
+    // from the end now, with the trailing empty cell from the closing pipe.
+    const results = dataRow.split('|').at(-3).trim();
     expect(results).toContain('质量 (g)=14.61');
     // Scoped to the results cell: the summary is prose and may say "14.61 g"
     // in a sentence, which is correct there and is not what this asserts.

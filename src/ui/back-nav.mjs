@@ -31,7 +31,7 @@
  * while both are open closes the modal, and a second press closes the drawer.
  * A single press closing both would make a two-step stack feel like one.
  */
-export const LAYER_ORDER = ['notice', 'calc'];
+export const LAYER_ORDER = ['notice', 'quickJump', 'calc'];
 
 /**
  * Which layer a back press should close, or `null` if the app should exit.

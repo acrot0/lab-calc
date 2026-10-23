@@ -82,7 +82,7 @@ describe('toCsv stays clean', () => {
     // every strict RFC 4180 reader and every `read_csv` default then sees the
     // notes as data rows, and the file that was going to be parsed is not.
     const csv = toCsv(entries);
-    expect(csv.split('\n')[0]).toBe('时间,类型,说明,输入,结果');
+    expect(csv.split('\n')[0]).toBe('时间,类型,说明,输入,结果,备注');
     expect(csv).not.toContain('已校正的与未建模的');
   });
 });

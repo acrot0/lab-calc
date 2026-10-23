@@ -2347,6 +2347,12 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
     animation: value-fade-soft 220ms ease both !important;
   }
 
+  /* The palette arrives like the export menu: the fade is the arrival, the
+     4px rise is the motion that has to go. */
+  .quick-jump {
+    animation: value-fade-soft 220ms ease both !important;
+  }
+
   /*
    * A tab switch is a status change too — the user asked for a different view
    * and needs to see that it arrived. So it keeps a fade, and loses the 4px
@@ -3004,11 +3010,47 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .history-item .summary { font-size: var(--t-sm); line-height: 1.55; word-break: break-word; }
 
+/*
+ * The armed state of a delete button.
+ *
+ * The first press changes the glyph into a word and tints it with the error
+ * tokens: "sure?" is a question the user must answer, and the colour says
+ * what the answer will do. It stays an icon-btn in size and position so the
+ * second press lands on the same spot the first one did.
+ */
+.icon-btn .confirm-text {
+  color: var(--err);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.icon-btn:has(.confirm-text) { width: auto; padding: 0 var(--s1); }
+
 .history-item .when {
   margin-top: var(--s1);
   color: var(--text-dim);
   font-size: var(--t-xs);
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The record's free-text note, on the collapsed line.
+ *
+ * Prose rather than a chip: the structured fields above are what a record can
+ * be *filtered* by, and this is what it *says*. A rounded-left border marks it
+ * as a quotation of the bench rather than another field, and the normal text
+ * colour — not dim — because six months later this line is often the only
+ * thing that explains why the number beside it looks wrong.
+ */
+.history-note {
+  margin-top: var(--s1);
+  padding-left: var(--s2);
+  border-left: 2px solid var(--accent-line);
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 /*
@@ -3218,12 +3260,125 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   box-shadow: var(--focus-ring) var(--accent-soft);
 }
 
+/*
+ * The note editor spans the whole grid rather than one 160px column, because
+ * a sentence does not fit a column and wrapping it into a tall narrow box
+ * makes a paragraph look like five one-word fields.
+ */
+.entry-meta-note { grid-column: 1 / -1; }
+
+.entry-meta-field textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: var(--s1) var(--s2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.entry-meta-field textarea:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: var(--focus-ring) var(--accent-soft);
+}
+
 .empty {
   padding: var(--s8) var(--s4);
   color: var(--text-dim);
   font-size: var(--t-sm);
   line-height: 1.9;
   text-align: center;
+}
+
+/*
+ * The zero-history feature tour.
+ *
+ * Lives inside the empty state, so it is exactly as wide as the panel and
+ * disappears the moment there is something real to show. Two columns on a
+ * desktop panel, one on a phone; each item is a real button, not a decorated
+ * list row, because the whole point is that pressing it takes you there.
+ */
+.feature-tour {
+  margin-top: var(--s6);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.feature-tour-title {
+  margin-bottom: var(--s3);
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.feature-tour-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s1);
+}
+
+@media (max-width: 720px) {
+  .feature-tour-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.feature-tour-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  min-height: 48px;
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  color: var(--text-mid);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.feature-tour-item > svg { flex: none; margin-top: 2px; color: var(--text-dim); }
+
+.feature-tour-item:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.feature-tour-item:hover > svg { color: var(--accent); }
+
+.feature-tour-item span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.feature-tour-item strong {
+  color: var(--text);
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+
+/*
+ * The one-liner under the tab name is the whole point of the tour: the name is
+ * a noun ("Spectroscopy"), and this is what it answers in the words a person
+ * would have searched for. It stays readable at two lines rather than
+ * clipping, because a clipped promise is worse than a wrapped one.
+ */
+.feature-tour-item em {
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  font-style: normal;
+  line-height: 1.45;
 }
 
 /* ==========================================================================
@@ -5935,6 +6090,160 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .settings-action { color: var(--text-mid); }
+
+/* ==========================================================================
+   Quick-jump palette
+   ========================================================================== */
+
+/*
+ * A command palette, not a menu.
+ *
+ * Centred near the top rather than the middle: the eye lands on the input
+ * first, and the results below it are what the input is about to produce.
+ * `place-items: start center` on the existing `.scrim` would fight every
+ * other modal, so the palette re-anchors itself here.
+ */
+.quick-jump {
+  width: min(560px, calc(100vw - var(--s5)));
+  align-self: start;
+  margin-top: min(14dvh, 120px);
+  display: flex;
+  flex-direction: column;
+  max-height: min(64dvh, 540px);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  animation: rise var(--dur) var(--ease);
+}
+
+/*
+ * The search box is the palette. Everything else is its consequences, so it
+ * gets the modal's full width, a taller target than a form field (the hand
+ * that opens this is reaching for the keyboard, but the one that taps the
+ * topbar button is not), and the focus ring the form fields use.
+ */
+.quick-jump-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-jump-input > svg { flex: none; color: var(--text-dim); }
+
+.quick-jump-input input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-md);
+}
+
+.quick-jump-input input:focus { outline: none; }
+
+.quick-jump-input kbd,
+.quick-jump-foot kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: var(--text-mid);
+  font-family: var(--font-num);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.quick-jump-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s2);
+}
+
+.quick-jump-group {
+  padding: var(--s2) var(--s3) var(--s1);
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.quick-jump-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: none;
+  border-radius: var(--r-md);
+  color: var(--text-mid);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  text-align: left;
+}
+
+.quick-jump-item > svg { flex: none; color: var(--text-dim); }
+
+.quick-jump-item:hover,
+.quick-jump-item.is-selected {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.quick-jump-item.is-selected > svg { color: var(--accent); }
+
+.quick-jump-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-jump-now {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.quick-jump-empty {
+  padding: var(--s5) var(--s4);
+  color: var(--text-dim);
+  font-size: var(--t-sm);
+  text-align: center;
+}
+
+.quick-jump-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s4);
+  padding: var(--s2) var(--s4);
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.quick-jump-foot span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* An icon-only control in the topbar: same 34px box as its labelled
+   neighbours, so the row's rhythm holds, with the label available to screen
+   readers through the span the CSS hides. */
+.icon-control { padding: 0 var(--s2); }
 
 /* ==========================================================================
    Theme picker

@@ -76,6 +76,11 @@ async function mount(list, handlers = {}) {
 }
 
 const click = async (el) => { await act(async () => { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
+/*
+ * A delete as a person now performs it: the first press arms the confirm,
+ * the second commits. Both presses land on the same element.
+ */
+const confirmClick = async (el) => { await click(el); await click(el); };
 const byLabel = (container, re) => [...container.querySelectorAll('[aria-label]')]
   .filter((el) => re.test(el.getAttribute('aria-label')));
 const findButton = (container, re) => [...container.querySelectorAll('button')]
@@ -90,7 +95,7 @@ describe('HistoryPanel undo bar', () => {
 
   it('should offer an undo after a single record is deleted', async () => {
     const c = await mount([entry('a'), entry('b')], { onRemove: () => {} });
-    await click(byLabel(c, /删除这条记录|Delete this entry/)[0]);
+    await confirmClick(byLabel(c, /删除这条记录|Delete this entry/)[0]);
     const bar = c.querySelector('.undo-bar');
     expect(bar).not.toBeNull();
     expect(bar.textContent).toMatch(/撤销|Undo/);
@@ -101,14 +106,14 @@ describe('HistoryPanel undo bar', () => {
     // nothing — is worse than no bar, because it teaches the user to trust it.
     const onRestore = vi.fn();
     const c = await mount([entry('a'), entry('b')], { onRemove: () => {}, onRestore });
-    await click(byLabel(c, /删除这条记录|Delete this entry/)[0]);
+    await confirmClick(byLabel(c, /删除这条记录|Delete this entry/)[0]);
     await click(findButton(c.querySelector('.undo-bar'), /撤销|Undo/));
     expect(onRestore).toHaveBeenCalledWith('a');
   });
 
   it('should dismiss the bar once the undo has run', async () => {
     const c = await mount([entry('a')], { onRemove: () => {}, onRestore: () => {} });
-    await click(byLabel(c, /删除这条记录|Delete this entry/)[0]);
+    await confirmClick(byLabel(c, /删除这条记录|Delete this entry/)[0]);
     await click(findButton(c.querySelector('.undo-bar'), /撤销|Undo/));
     expect(c.querySelector('.undo-bar')).toBeNull();
   });
@@ -118,7 +123,7 @@ describe('HistoryPanel undo bar', () => {
     // unreadable. A message reading "cleared 0 records" after clearing three is
     // the failure this catches.
     const c = await mount([entry('a'), entry('b'), entry('c')], { onClear: () => {} });
-    await click(findButton(c, /全部清除|Clear all/));
+    await confirmClick(findButton(c, /全部清除|Clear all/));
     expect(c.querySelector('.undo-bar').textContent).toMatch(/3/);
   });
 
@@ -127,7 +132,7 @@ describe('HistoryPanel undo bar', () => {
     // a partial undo, which reads as data loss.
     const onRestore = vi.fn();
     const c = await mount([entry('a'), entry('b'), entry('c')], { onClear: () => {}, onRestore });
-    await click(findButton(c, /全部清除|Clear all/));
+    await confirmClick(findButton(c, /全部清除|Clear all/));
     await click(findButton(c.querySelector('.undo-bar'), /撤销|Undo/));
     expect(onRestore.mock.calls.map(([id]) => id).sort()).toEqual(['a', 'b', 'c']);
   });
@@ -139,14 +144,14 @@ describe('HistoryPanel undo bar', () => {
     const onRestore = vi.fn();
     const list = removeEntry([entry('a'), entry('b')], 'a');
     const c = await mount(list, { onClear: () => {}, onRestore });
-    await click(findButton(c, /全部清除|Clear all/));
+    await confirmClick(findButton(c, /全部清除|Clear all/));
     await click(findButton(c.querySelector('.undo-bar'), /撤销|Undo/));
     expect(onRestore.mock.calls.map(([id]) => id)).toEqual(['b']);
   });
 
   it('should drop the bar when the countdown expires', async () => {
     const c = await mount([entry('a')], { onRemove: () => {} });
-    await click(byLabel(c, /删除这条记录|Delete this entry/)[0]);
+    await confirmClick(byLabel(c, /删除这条记录|Delete this entry/)[0]);
     expect(c.querySelector('.undo-bar')).not.toBeNull();
     await act(async () => { vi.advanceTimersByTime(UNDO_MS); });
     expect(c.querySelector('.undo-bar')).toBeNull();
@@ -155,7 +160,7 @@ describe('HistoryPanel undo bar', () => {
   it('should not undo anything when the bar is dismissed by hand', async () => {
     const onRestore = vi.fn();
     const c = await mount([entry('a')], { onRemove: () => {}, onRestore });
-    await click(byLabel(c, /删除这条记录|Delete this entry/)[0]);
+    await confirmClick(byLabel(c, /删除这条记录|Delete this entry/)[0]);
     await click(byLabel(c.querySelector('.undo-bar'), /关闭提示|Dismiss/)[0]);
     expect(onRestore).not.toHaveBeenCalled();
     expect(c.querySelector('.undo-bar')).toBeNull();
@@ -175,7 +180,7 @@ describe('HistoryPanel undo bar', () => {
     // The suite's own rule: a React warning about an unmounted update or a
     // missing key is a failure here, not noise.
     const c = await mount([entry('a')], { onRemove: () => {} });
-    await click(byLabel(c, /删除这条记录|Delete this entry/)[0]);
+    await confirmClick(byLabel(c, /删除这条记录|Delete this entry/)[0]);
     await act(async () => { vi.advanceTimersByTime(UNDO_MS); });
     expect(logged).toEqual([]);
   });

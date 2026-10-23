@@ -71,10 +71,11 @@ describe('isTyping', () => {
 });
 
 describe('worksWhileTyping', () => {
-  it('should let the calculator shortcut through while a field has focus', () => {
+  it('should let the overlay shortcuts through while a field has focus', () => {
     // Otherwise the window cannot be closed from the keyboard: it focuses its
     // own entry when it opens, and the key that opened it would be dead.
     expect(worksWhileTyping('calc')).toBe(true);
+    expect(worksWhileTyping('quickJump')).toBe(true);
     expect(worksWhileTyping('focusWork')).toBe(true);
   });
 
@@ -92,6 +93,11 @@ describe('matchShortcut', () => {
   it('should recognise the calculator shortcut in either case', () => {
     expect(matchShortcut(key('k', { ctrlKey: true }))).toBe('calc');
     expect(matchShortcut(key('K', { ctrlKey: true }))).toBe('calc');
+  });
+
+  it('should recognise the quick-jump shortcut in either case', () => {
+    expect(matchShortcut(key('p', { ctrlKey: true }))).toBe('quickJump');
+    expect(matchShortcut(key('P', { ctrlKey: true }))).toBe('quickJump');
   });
 
   it('should cycle tabs on the arrows, not on digits', () => {
@@ -156,6 +162,7 @@ describe('the shortcut list', () => {
     // `matchShortcut` can produce.
     const reachable = new Set([
       matchShortcut(key('k', { ctrlKey: true })),
+      matchShortcut(key('p', { ctrlKey: true })),
       matchShortcut(key('ArrowRight', { ctrlKey: true })),
       matchShortcut(key('ArrowLeft', { ctrlKey: true })),
       matchShortcut(key('j', { ctrlKey: true })),

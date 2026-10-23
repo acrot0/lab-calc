@@ -154,6 +154,6 @@ describe('toCsv is unchanged by recipes', () => {
     const { toCsv } = await import('../src/ui/export.mjs');
     const csv = toCsv([weigh]);
     expect(csv).not.toContain('容量瓶');
-    expect(csv.split('\n')[0]).toBe('时间,类型,说明,输入,结果');
+    expect(csv.split('\n')[0]).toBe('时间,类型,说明,输入,结果,备注');
   });
 });

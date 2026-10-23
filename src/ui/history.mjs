@@ -26,6 +26,16 @@ export const STORAGE_KEY = 'lab-calc.history.v1';
 export const MAX_ENTRIES = 500;
 
 /**
+ * The cap on a record's free-text note.
+ *
+ * A note is the one place a record carries prose — "溶液浑浊，过滤后定容"
+ * — and 500 characters is about a paragraph, which is what a bench note is.
+ * The bound exists for the same reason `MAX_GROUP_NOTE` does: 500 records
+ * each carrying a note must stay inside a localStorage quota.
+ */
+export const MAX_NOTE_LENGTH = 500;
+
+/**
  * How many deleted records are kept.
  *
  * Smaller than `MAX_ENTRIES`, because a tombstone answers a narrower question:
@@ -271,8 +281,30 @@ export function filterHistory(entries, query) {
     // its values rather than as JSON so a search for `EXP-1` does not have to
     // match the quotes and braces around it.
     const meta = Object.values(e.meta ?? {}).join(' ');
-    const hay = `${e.summary ?? ''} ${meta} ${JSON.stringify(e.inputs ?? {})}`.toLowerCase();
+    const hay = `${e.summary ?? ''} ${meta} ${e.note ?? ''} ${JSON.stringify(e.inputs ?? {})}`.toLowerCase();
     return hay.includes(q);
+  });
+}
+
+/**
+ * Set one record's free-text note.
+ *
+ * Same conventions as `setEntryMeta`: immutable in shape, trimmed on write,
+ * and a value that becomes empty is removed rather than stored blank — an
+ * empty note on the collapsed line would read as "wrote something and deleted
+ * it", which is a different claim from "never wrote one".
+ */
+export function setEntryNote(entries, id, note) {
+  if (!id) return entries;
+  const value = String(note ?? '').replace(/\s+$/,'').slice(0, MAX_NOTE_LENGTH);
+  return (entries ?? []).map((e) => {
+    if (!e || e.id !== id) return e;
+    if (value === '') {
+      if (!('note' in e)) return e;
+      const { note: _drop, ...rest } = e;
+      return rest;
+    }
+    return { ...e, note: value };
   });
 }
 
@@ -429,6 +461,19 @@ export function migrateHistory(entries, tpl = null) {
   if (!Array.isArray(entries)) return [];
   return entries.map((e) => {
     if (!e || typeof e !== 'object') return e;
+    // A note that is not a non-empty string is dropped the same way a bad
+    // `meta` is: the UI reads `e.note` as prose, and anything else there
+    // renders as garbage beside the summary it annotates.
+    let noteFixed = false;
+    if (e.note !== undefined && (typeof e.note !== 'string' || e.note.trim() === '')) {
+      noteFixed = true;
+    }
+    if (noteFixed) {
+      const { note: _noteDrop, ...noteRest } = e;
+      e = noteRest;
+    } else if (typeof e.note === 'string' && e.note.length > MAX_NOTE_LENGTH) {
+      e = { ...e, note: e.note.slice(0, MAX_NOTE_LENGTH) };
+    }
     const cleanDeleted = typeof e.deletedAt === 'string' && e.deletedAt !== ''
       ? e.deletedAt
       : undefined;

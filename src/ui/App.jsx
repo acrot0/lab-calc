@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspens
 import { Icons, ICON_SIZE } from './icons.jsx';
 import {
   resolveStore, loadHistory, saveHistory, addEntry, removeEntry, restoreEntry, clearHistory,
-  planReplay, replayInputs, setEntryMeta, visibleEntries, deletedEntries, MAX_ENTRIES,
+  planReplay, replayInputs, setEntryMeta, setEntryNote, visibleEntries, deletedEntries, MAX_ENTRIES,
 } from './history.mjs';
 import { scaleInputs, recompute } from './scale-inputs.mjs';
 import { recordSummary } from './summaries.mjs';
@@ -28,6 +28,7 @@ import NavEditor from './components/NavEditor.jsx';
 import { NavOrderProvider } from './NavOrderContext.jsx';
 import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
+import QuickJump from './components/QuickJump.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
 import { installBackNav } from './back-nav.mjs';
 import {
@@ -165,6 +166,7 @@ export default function App() {
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [ackd, setAckd] = useState(true);
   const [calcOpen, setCalcOpen] = useState(false);
+  const [quickJumpOpen, setQuickJumpOpen] = useState(false);
   // Lifted out of `SettingsMenu` so the `?` shortcut can open it. The menu owns
   // its own outside-click and Escape handling; it just no longer owns whether
   // it is open.
@@ -224,6 +226,7 @@ export default function App() {
       if (isTyping(document.activeElement) && !worksWhileTyping(action)) return;
       e.preventDefault();
       switch (action) {
+        case 'quickJump': setQuickJumpOpen((v) => !v); break;
         case 'calc': setCalcOpen((v) => !v); break;
         case 'nextTab': latest.current.goTo(cycleTab(TAB_IDS, tabRef.current, 1)); break;
         case 'prevTab': latest.current.goTo(cycleTab(TAB_IDS, tabRef.current, -1)); break;
@@ -260,7 +263,7 @@ export default function App() {
    * was read.
    */
   const openRef = useRef({});
-  openRef.current = { notice: noticeOpen && ackd, calc: calcOpen };
+  openRef.current = { notice: noticeOpen && ackd, quickJump: quickJumpOpen, calc: calcOpen };
   const backNavRef = useRef(null);
   useEffect(() => {
     const nav = installBackNav({
@@ -268,6 +271,7 @@ export default function App() {
       getOpen: () => openRef.current,
       close: (layer) => {
         if (layer === 'notice') setNoticeOpen(false);
+        else if (layer === 'quickJump') setQuickJumpOpen(false);
         else if (layer === 'calc') setCalcOpen(false);
       },
     });
@@ -275,7 +279,7 @@ export default function App() {
     return () => { nav.stop(); backNavRef.current = null; };
   }, []);
 
-  useEffect(() => { backNavRef.current?.resync(); }, [noticeOpen, calcOpen, ackd]);
+  useEffect(() => { backNavRef.current?.resync(); }, [noticeOpen, quickJumpOpen, calcOpen, ackd]);
 
   /*
    * Load once, and do not save until the load has landed.
@@ -511,6 +515,15 @@ export default function App() {
     setEntries((prev) => setEntryMeta(prev, id, patch));
   }, []);
 
+  /*
+   * A record's free-text note, written through the same state path as the
+   * structured fields. Blur commits, so the history serialises once per note
+   * rather than once per keystroke.
+   */
+  const setNote = useCallback((id, note) => {
+    setEntries((prev) => setEntryNote(prev, id, note));
+  }, []);
+
   // Import merges rather than replaces: a backup is usually one machine's
   // history being added to another's, and overwriting would destroy work the
   // user never agreed to lose.
@@ -568,6 +581,20 @@ export default function App() {
           </div>
         </div>
         <div className="topbar-actions">
+          {/* Search is a first-class control, not a hidden keyboard trick:
+              Ctrl+P is the fast path, and this button is how everyone else
+              finds out the palette exists. Icon-only to keep the topbar at
+              one button per action on a phone. */}
+          <button
+            type="button"
+            className="control icon-control"
+            onClick={() => setQuickJumpOpen(true)}
+            aria-haspopup="dialog"
+            title={`${t('quickJump.title')} (Ctrl+P)`}
+          >
+            <Icons.search size={ICON_SIZE.control} aria-hidden="true" />
+            <span className="sr-only">{t('quickJump.title')}</span>
+          </button>
           {/*
             The worked example for the tab you are on.
 
@@ -698,7 +725,8 @@ export default function App() {
           </div>
           <HistoryPanel entries={visible} allEntries={entries} deleted={deleted}
             groups={groups} onRemove={remove} onRestore={restore} onReplay={replay} onClear={clear}
-            onImport={importEntries} onMeta={setMeta} onScale={scaleRecord}
+            onImport={importEntries} onMeta={setMeta} onNote={setNote} onScale={scaleRecord}
+            tour={visible.length === 0} tourTabs={TABS} onGoTo={goTo}
             onCreateGroup={makeGroup} onRenameGroup={rename} onDeleteGroup={dropGroup}
             onGroupNote={noteGroup} onSetRecordGroup={setRecordGroup} />
         </main>
@@ -727,6 +755,16 @@ export default function App() {
       />
 
       <CalculatorDrawer open={calcOpen} onClose={() => setCalcOpen(false)} store={store} />
+
+      <QuickJump
+        open={quickJumpOpen}
+        onClose={() => setQuickJumpOpen(false)}
+        tabs={TABS}
+        current={tab}
+        entries={visible}
+        onGoTo={goTo}
+        onReplay={replay}
+      />
 
       {navEditorOpen && (
         <NavEditor tabs={TABS} onClose={() => setNavEditorOpen(false)} />

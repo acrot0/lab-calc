@@ -9,6 +9,8 @@ import {
   clearHistory,
   visibleEntries,
   filterHistory,
+  setEntryNote,
+  MAX_NOTE_LENGTH,
   replayInputs,
   planReplay,
   KIND_TO_TAB,
@@ -200,6 +202,50 @@ describe('filterHistory', () => {
 
   it('should not throw on entries with missing fields', () => {
     expect(() => filterHistory([{ kind: 'x' }], 'a')).not.toThrow();
+  });
+
+  it('should match a record by its free-text note', () => {
+    // The note is the one field a user writes in their own words; searching
+    // for those words is the whole reason it is searchable.
+    const noted = { ...entry('massForMolarity'), note: 'cloudy, filtered before making up' };
+    expect(filterHistory([noted, entry('dilution')], 'cloudy')).toEqual([noted]);
+  });
+});
+
+describe('setEntryNote', () => {
+  const withId = (id, note) => ({
+    id, kind: 'massForMolarity', inputs: {}, outputs: {}, summary: 's', ...(note !== undefined ? { note } : {}),
+  });
+
+  it('should write a note on the named record and no other', () => {
+    const list = [withId('a'), withId('b')];
+    const out = setEntryNote(list, 'a', '溶液浑浊，过滤后定容');
+    expect(out[0].note).toBe('溶液浑浊，过滤后定容');
+    expect(out[1].note).toBeUndefined();
+    // The input list is untouched, as every setter here promises.
+    expect(list[0].note).toBeUndefined();
+  });
+
+  it('should remove the key entirely when the note is emptied', () => {
+    const out = setEntryNote([withId('a', 'old')], 'a', '   ');
+    expect('note' in out[0]).toBe(false);
+  });
+
+  it('should trim trailing whitespace and cap the length', () => {
+    const out = setEntryNote([withId('a')], 'a', `x${' '.repeat(10)}`);
+    expect(out[0].note).toBe('x');
+    const long = setEntryNote([withId('a')], 'a', 'a'.repeat(MAX_NOTE_LENGTH + 50));
+    expect(long[0].note).toHaveLength(MAX_NOTE_LENGTH);
+  });
+
+  it('should not add a note key to a record that had none and got none', () => {
+    const out = setEntryNote([withId('a')], 'a', '');
+    expect('note' in out[0]).toBe(false);
+  });
+
+  it('should survive a missing id or a null list', () => {
+    expect(setEntryNote([withId('a')], null, 'x')).toHaveLength(1);
+    expect(setEntryNote(null, 'a', 'x')).toEqual([]);
   });
 });
 
