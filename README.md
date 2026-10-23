@@ -8,7 +8,7 @@
 
 [English](README.en.md)
 
-![称量配制标签页：化学式 NaCl 解析出摩尔质量 58.440 g/mol，目标浓度 0.5 mol/L、定容 500 mL 算出需称取 14.61 g](docs/images/app-weigh.webp)
+![总览首页：最近计算（点击可回放）、试剂提醒（临期/过期红色标注）、在跑的计时一屏看全](docs/images/app-dashboard.png)
 
 *不需要注册，不需要上传，打开就能算——算完的记录留在右侧，不会随页面刷新消失。*
 
@@ -268,7 +268,7 @@ SHA-1    B8:2E:6B:A6:7F:FB:8D:34:31:37:FE:50:C3:AD:26:F3:69:C0:DB:D1
 npm install
 npm run dev      # 开发服务器
 npm run build    # 构建到 dist/，纯静态，可直接托管
-npm test         # 2760 个测试
+npm test         # 2762 个测试
 npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项计算对已知答案的冒烟检查
 ```
 
@@ -279,7 +279,7 @@ npm run verify   # 导入完整性 + 图标测量 + 许可证 + 署名 + 20 项�
 | **主题** | 10 套（含 Catppuccin、Rosé Pine、Gruvbox、Solarized）+ 跟随系统 + 自定义强调色/圆角/密度/动效 |
 | **导出** | Excel（.xlsx）· CSV · Markdown · PDF 报告 · JSON 备份（可再导入）|
 | **许可** | MIT |
-| **状态** | v1.3.0 · 测试 2760 通过 / 139 文件 · 三平台 CI 全绿 |
+| **状态** | v1.3.0 · 测试 2762 通过 / 139 文件 · 三平台 CI 全绿 |
 
 ## 结构
 

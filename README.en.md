@@ -8,7 +8,7 @@ Built for everyday preparation and calculation work in chemistry, biology and ph
 
 [中文说明](README.md)
 
-![The weighing tab: the formula NaCl resolves to a molar mass of 58.440 g/mol, and a target of 0.5 mol/L in 500 mL gives 14.61 g to weigh](docs/images/app-weigh.webp)
+![The overview home screen: recent calculations (click to replay), reagent alerts (expiring and expired in red), and running timers at a glance](docs/images/app-dashboard.png)
 
 *No sign-up, no upload. The record of what you did stays in the panel on the right and survives a page reload.*
 
@@ -269,7 +269,7 @@ On a phone the calculator is a bottom sheet, with touch targets ≥44px, and the
 npm install
 npm run dev      # dev server
 npm run build    # build to dist/, plain static files, hostable anywhere
-npm test         # 2760 tests
+npm test         # 2762 tests
 npm run verify   # import integrity + icon metrics + licences + authorship + 20 smoke checks against known answers
 ```
 
@@ -280,7 +280,7 @@ npm run verify   # import integrity + icon metrics + licences + authorship + 20 
 | **Themes** | 10 (Catppuccin, Rosé Pine, Gruvbox, Solarized) + follow-system + custom accent, radius, density and motion |
 | **Export** | Excel (.xlsx) · CSV · Markdown · PDF report · JSON backup (re-importable) |
 | **Licence** | MIT |
-| **Status** | v1.3.0 · 2760 tests passing / 139 files · all three platforms green in CI |
+| **Status** | v1.3.0 · 2762 tests passing / 139 files · all three platforms green in CI |
 
 ## Structure
 

@@ -10,6 +10,18 @@ const tEn = makeTranslator(en);
 
 const sum = (record) => recordSummary(record, t);
 
+describe('recordSummary — unknown kinds', () => {
+  it('should use the translated kind name when there is one', () => {
+    expect(sum({ kind: 'nonsense-but-named' })).toBe('nonsense-but-named');
+  });
+
+  it('should never leak an unsubstituted locale key', () => {
+    // `kinds.weigh` appeared on the dashboard once and read as a crash.
+    const out = sum({ kind: 'weigh' });
+    expect(out).not.toContain('kinds.');
+  });
+});
+
 describe('recordSummary — reagent', () => {
   it('should name the percentage and density for a stock conversion', () => {
     // The density is the number people skip, so the summary repeats it back:

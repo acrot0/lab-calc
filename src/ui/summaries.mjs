@@ -329,8 +329,16 @@ const BY_KIND = {
 export function recordSummary(record, t) {
   const kind = record?.kind ?? 'unknown';
   const summary = BY_KIND[kind];
-  // An unknown kind renders as its translated name rather than throwing: a
-  // history list that dies on one bad row loses all of them.
-  if (!summary) return t(`kinds.${kind}`);
+  /*
+   * An unknown kind renders as its translated name rather than throwing: a
+   * history list that dies on one bad row loses all of them. When even the
+   * name is missing — the record came from a hand-edited bundle — the raw kind
+   * beats the un-substituted key: `kinds.weigh` on the dashboard read as a
+   * crash, `weigh` reads as an unlabeled record.
+   */
+  if (!summary) {
+    const named = t(`kinds.${kind}`);
+    return named === `kinds.${kind}` ? kind : named;
+  }
   return summary(record?.inputs ?? {}, record?.outputs ?? {}, t);
 }
