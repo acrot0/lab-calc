@@ -131,7 +131,7 @@ export default function TimersTab() {
       {saveFailed && <div className="msg err" role="alert">{t('timers.saveFailed')}</div>}
 
       {timers.length === 0 ? (
-        <div className="timer-empty">{t('timers.empty')}</div>
+        <div className="timer-empty" role="status">{t('timers.empty')}</div>
       ) : (
         <ul className="timer-list">
           {shown.map((timer) => {
@@ -141,7 +141,18 @@ export default function TimersTab() {
               <li key={timer.id} className={`timer-item${isDue ? ' is-due' : ''}`}>
                 <div className="timer-body">
                   <strong className="timer-label">{timer.label}</strong>
-                  <span className="timer-time" aria-live={isDue ? 'assertive' : undefined}>
+                  {/*
+                   * role=timer is silent by default (aria-live off): a
+                   * per-second announcement would drown everything else. When
+                   * a timer ends the span becomes an assertive alert for one
+                   * render, so the moment is announced exactly once and the
+                   * counting-up that follows stays quiet.
+                   */}
+                  <span
+                    className="timer-time"
+                    role={isDue ? 'alert' : 'timer'}
+                    aria-live={isDue ? 'assertive' : 'off'}
+                  >
                     {isDue
                       ? t('timers.overdue', { time: formatRemaining(-left) })
                       : formatRemaining(left)}

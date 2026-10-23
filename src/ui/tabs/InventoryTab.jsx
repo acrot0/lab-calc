@@ -118,9 +118,9 @@ export default function InventoryTab() {
       )}
 
       {items.length === 0 ? (
-        <div className="inv-empty">{t('inv.empty')}</div>
+        <div className="inv-empty" role="status">{t('inv.empty')}</div>
       ) : shown.length === 0 ? (
-        <div className="inv-empty">{t('inv.noMatch')}</div>
+        <div className="inv-empty" role="status">{t('inv.noMatch')}</div>
       ) : (
         <ul className="inv-list">
           {shown.map((item) => {

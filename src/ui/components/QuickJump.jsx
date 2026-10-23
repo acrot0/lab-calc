@@ -150,8 +150,15 @@ export default function QuickJump({ open, onClose, tabs, current, entries, onGoT
           role="listbox"
           aria-label={t('quickJump.results', { n: rows.length })}
         >
+          {/*
+           * Groups inside a listbox are `role=group` with their own label —
+           * a bare presentation div between the options is invalid APG and
+           * drops the heading from the accessibility tree.
+           */}
           {results.tabs.length > 0 && (
-            <div className="quick-jump-group" role="presentation">{t('quickJump.tabsGroup')}</div>
+            <div className="quick-jump-group" role="group" aria-label={t('quickJump.tabsGroup')}>
+              {t('quickJump.tabsGroup')}
+            </div>
           )}
           {results.tabs.map((r, i) => {
             const TabIcon = tabs.find((tab) => tab.id === r.id)?.icon;
@@ -176,7 +183,9 @@ export default function QuickJump({ open, onClose, tabs, current, entries, onGoT
           })}
 
           {results.history.length > 0 && (
-            <div className="quick-jump-group" role="presentation">{t('quickJump.historyGroup')}</div>
+            <div className="quick-jump-group" role="group" aria-label={t('quickJump.historyGroup')}>
+              {t('quickJump.historyGroup')}
+            </div>
           )}
           {results.history.map((r, j) => {
             const i = results.tabs.length + j;
@@ -198,7 +207,7 @@ export default function QuickJump({ open, onClose, tabs, current, entries, onGoT
           })}
 
           {rows.length === 0 && (
-            <div className="quick-jump-empty">{t('quickJump.noMatch', { query })}</div>
+            <div className="quick-jump-empty" role="status">{t('quickJump.noMatch', { query })}</div>
           )}
         </div>
 
