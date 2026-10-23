@@ -18,6 +18,7 @@
  * it here.
  */
 import { recordSummary } from './summaries.mjs';
+import { noteTags } from './history.mjs';
 
 /**
  * Extra names a tab answers to, beyond its title.
@@ -140,11 +141,23 @@ export function searchQuickJump(tabs, entries, query, t) {
   tabResults.sort((a, b) => a.score - b.score);
   out.tabs = tabResults.slice(0, 7).map(({ id, score }) => ({ id, score }));
 
+  const tagMode = q.startsWith('#');
   const historyResults = [];
   for (const entry of Array.isArray(entries) ? entries : []) {
     if (!entry || typeof entry.id !== 'string') continue;
     let summary = '';
     try { summary = recordSummary(entry, t); } catch { summary = String(entry.kind ?? ''); }
+    // In tag mode the tags are the only haystack; every other mode searches
+    // them alongside everything else, so `失败` without the # still finds a
+    // tagged record through its note text.
+    if (tagMode) {
+      // Inline: the function is only used here, and keeping the predicate
+      // beside the loop it gates reads better than an export for one caller.
+      const want = q.replace(/^#/, '').trim();
+      if (!want || !noteTags(entry.note ?? '').includes(want)) continue;
+      historyResults.push({ id: entry.id, score: q.length, entry, summary });
+      continue;
+    }
     const score = scoreCandidates(q, entryHaystack(entry, summary));
     if (score !== null) historyResults.push({ id: entry.id, score, entry, summary });
   }

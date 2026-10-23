@@ -118,6 +118,23 @@ describe('searchQuickJump', () => {
     const r = searchQuickJump(tabs, [], 'serial', te);
     expect(r.tabs.map((x) => x.id)).toContain('series');
   });
+
+  it('should switch history search to tag mode on a leading #', () => {
+    const entries = [
+      entry('a', 'weigh', { formula: 'NaCl' }),
+      { ...entry('b', 'dilution'), note: 'cloudy #失败 redone' },
+      { ...entry('c', 'buffer'), note: '#失败 #重做' },
+    ];
+    const r = searchQuickJump(tabs, entries, '#失败', t);
+    expect(r.tabs).toEqual([]); // a tag names a record, not a calculator
+    expect(r.history.map((x) => x.id).sort()).toEqual(['b', 'c']);
+  });
+
+  it('should find tagged records without the # through the note text', () => {
+    const entries = [{ ...entry('c', 'buffer'), note: '#重做' }];
+    const r = searchQuickJump(tabs, entries, '重做', t);
+    expect(r.history.map((x) => x.id)).toEqual(['c']);
+  });
 });
 
 describe('entryHaystack', () => {

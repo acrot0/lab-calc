@@ -2351,6 +2351,10 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   /* A breathing number is motion; the timer keeps its information without it. */
   .timer-item:not(.is-due) .timer-time { animation: none !important; }
 
+  /* The dashboard's staggered entrance carries no information beyond
+     arrival; under reduced motion the rows simply appear. */
+  .dash-list li { animation: value-fade-soft 200ms ease both !important; animation-delay: 0ms !important; }
+
   /* The palette arrives like the export menu: the fade is the arrival, the
      4px rise is the motion that has to go. */
   .quick-jump {
@@ -3760,6 +3764,29 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/*
+ * Rows arrive one after another rather than all at once, so the eye is led
+ * down the list instead of being handed a finished block. Staggered only on
+ * entrance: the delay applies once (no infinite alternation), and the loop
+ * caps at eight rows, which is the most the dashboard ever shows.
+ */
+.dash-list li {
+  animation: dash-row-in 240ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+.dash-list li:nth-child(1) { --i: 0; }
+.dash-list li:nth-child(2) { --i: 1; }
+.dash-list li:nth-child(3) { --i: 2; }
+.dash-list li:nth-child(4) { --i: 3; }
+.dash-list li:nth-child(5) { --i: 4; }
+.dash-list li:nth-child(n+6) { --i: 5; }
+
+@keyframes dash-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
 
 /*
