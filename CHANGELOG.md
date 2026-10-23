@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] — 2026-10-24
 
 The calculator grew a bench around it: a home overview, a reagent shelf,
 timers, record notes and tags — and the backup now carries all of it.

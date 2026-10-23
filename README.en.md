@@ -280,7 +280,7 @@ npm run verify   # import integrity + icon metrics + licences + authorship + 20 
 | **Themes** | 10 (Catppuccin, Rosé Pine, Gruvbox, Solarized) + follow-system + custom accent, radius, density and motion |
 | **Export** | Excel (.xlsx) · CSV · Markdown · PDF report · JSON backup (re-importable) |
 | **Licence** | MIT |
-| **Status** | v1.3.0 · 2766 tests passing / 139 files · all three platforms green in CI |
+| **Status** | v1.4.0 · 2766 tests passing / 139 files · all three platforms green in CI |
 
 ## Structure
 
