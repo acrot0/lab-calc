@@ -248,6 +248,7 @@
   --accent-line: rgba(90, 169, 255, 0.35);
   --accent-hover: #7cbbff;
   --warn-soft: rgba(240, 180, 41, 0.1);
+  --ok-soft: rgba(69, 209, 154, 0.1);
   --warn-line: rgba(240, 180, 41, 0.32);
   --warn-ink: #f7d488;
   --err-soft: rgba(255, 122, 122, 0.1);
@@ -3379,6 +3380,163 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   font-size: var(--t-xs);
   font-style: normal;
   line-height: 1.45;
+}
+
+/* ==========================================================================
+   Reagent inventory
+   ========================================================================== */
+
+/*
+ * The form is two-per-row for the paired facts (lot + location,
+ * opened + expiry) and full-width for the ones that read better long.
+ * Inputs reuse the panel field conventions rather than the calculation
+ * form's, because this is a record editor like the metadata editor, not a
+ * form whose answer appears to the right.
+ */
+.inv-form { display: flex; flex-direction: column; gap: var(--s3); }
+
+.inv-form label,
+.inv-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.inv-form label > span,
+.inv-edit label > span {
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.inv-form input,
+.inv-edit input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--s2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+}
+
+.inv-form input:focus,
+.inv-edit input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: var(--focus-ring) var(--accent-soft);
+}
+
+.inv-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+
+@media (max-width: 560px) {
+  .inv-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+.inv-search { margin-top: var(--s5); }
+
+.inv-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inv-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--r-sm);
+}
+
+/*
+ * The status speaks through the left edge: green is fine, amber is soon,
+ * red is past. The badges repeat it for colour-blind readers, and the
+ * border alone would also be lost on a narrow phone.
+ */
+.inv-item.is-ok { border-left-color: var(--ok); }
+.inv-item.is-expiring { border-left-color: var(--warn); }
+.inv-item.is-expired { border-left-color: var(--err); }
+.inv-item.is-none { border-left-color: var(--border-strong); }
+
+.inv-body { flex: 1; min-width: 0; }
+
+.inv-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.inv-head strong { font-size: var(--t-sm); word-break: break-word; }
+
+.inv-badge {
+  padding: 1px var(--s2);
+  border-radius: var(--r-full);
+  font-size: var(--t-xs);
+}
+
+.inv-badge.is-ok { background: var(--ok-soft); color: var(--ok); }
+.inv-badge.is-expiring { background: var(--warn-soft); color: var(--warn); }
+.inv-badge.is-expired { background: var(--err-soft); color: var(--err); }
+
+.inv-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s3);
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.inv-note {
+  margin-top: var(--s1);
+  padding-left: var(--s2);
+  border-left: 2px solid var(--accent-line);
+  color: var(--text-mid);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.inv-actions { display: flex; gap: var(--s1); flex: none; }
+
+.inv-edit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+  width: 100%;
+}
+
+.inv-edit input { min-height: 28px; font-size: var(--t-xs); }
+
+.inv-edit .control { grid-column: 1 / -1; justify-self: end; }
+
+.inv-empty {
+  padding: var(--s6) var(--s4);
+  color: var(--text-dim);
+  font-size: var(--t-sm);
+  line-height: 1.7;
+  text-align: center;
+}
+
+.inv-save-failed {
+  margin-top: var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--err-line);
+  border-radius: var(--r-sm);
+  background: var(--err-soft);
+  color: var(--err-ink);
+  font-size: var(--t-sm);
 }
 
 /* ==========================================================================

@@ -68,6 +68,7 @@ const AnalyticalTab = lazy(() => import('./tabs/AnalyticalTab.jsx'));
 const PhysicalTab = lazy(() => import('./tabs/PhysicalTab.jsx'));
 const StatsTab = lazy(() => import('./tabs/StatsTab.jsx'));
 const UncertaintyTab = lazy(() => import('./tabs/UncertaintyTab.jsx'));
+const InventoryTab = lazy(() => import('./tabs/InventoryTab.jsx'));
 
 /**
  * What shows while a tab's chunk is in flight.
@@ -124,6 +125,7 @@ const TABS = [
   { id: 'stats', icon: Icons.stats, Component: StatsTab },
   { id: 'analytical', icon: Icons.analytical, Component: AnalyticalTab },
   { id: 'physical', icon: Icons.physical, Component: PhysicalTab },
+  { id: 'inventory', icon: Icons.beaker, Component: InventoryTab },
 ];
 
 /** The tab ids, in order — what the arrow shortcuts cycle through. */
