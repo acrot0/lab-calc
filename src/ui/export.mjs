@@ -702,8 +702,8 @@ export function downloadMarkdown(entries, locale = 'zh') {
   return downloadFile(toMarkdown(entries, locale), exportFilename('markdown'), 'text/markdown;charset=utf-8');
 }
 
-export function downloadBundle(entries) {
-  return downloadFile(toBundle(entries), exportFilename('json'), 'application/json;charset=utf-8');
+export function downloadBundle(entries, extras = null) {
+  return downloadFile(toBundle(entries, new Date(), extras), exportFilename('json'), 'application/json;charset=utf-8');
 }
 /**
  * The notes sheet, as rows.
@@ -932,12 +932,19 @@ export const BUNDLE_VERSION = 1;
  * yet. A format that gains a version only when it first breaks has already
  * shipped files nobody can migrate.
  */
-export function toBundle(entries, now = new Date()) {
+export function toBundle(entries, now = new Date(), extras = null) {
   return JSON.stringify({
     format: BUNDLE_FORMAT,
     version: BUNDLE_VERSION,
     exportedAt: now.toISOString(),
     entries: entries ?? [],
+    // v1.4 additions, kept behind a null default so an older reader that
+    // ignores unknown keys still accepts the file (the version stays 1: every
+    // v1 file remains readable, which was the rule the version was for).
+    ...(extras ? {
+      inventory: Array.isArray(extras.inventory) ? extras.inventory : [],
+      timers: Array.isArray(extras.timers) ? extras.timers : [],
+    } : {}),
   }, null, 2);
 }
 
@@ -980,7 +987,20 @@ export function parseBundle(text) {
     return { ok: false, code: 'notBundle', entries: [], dropped: 0 };
   }
   const entries = data.entries.filter(isUsableEntry);
-  return { ok: true, code: null, entries, dropped: data.entries.length - entries.length };
+  return {
+    ok: true,
+    code: null,
+    entries,
+    dropped: data.entries.length - entries.length,
+    // v1.4 sections; absent in older files, which is not an error — a backup
+    // from before the shelf existed simply had nothing on the shelf.
+    inventory: Array.isArray(data.inventory)
+      ? data.inventory.filter((x) => x && typeof x === 'object' && typeof x.name === 'string')
+      : [],
+    timers: Array.isArray(data.timers)
+      ? data.timers.filter((x) => x && typeof x === 'object' && Number.isFinite(Number(x.endAt)))
+      : [],
+  };
 }
 
 /**

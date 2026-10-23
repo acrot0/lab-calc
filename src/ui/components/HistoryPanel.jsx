@@ -131,7 +131,7 @@ export default function HistoryPanel({
   entries, allEntries, deleted = [], groups = [],
   onRemove, onRestore, onReplay, onClear, onImport, onMeta, onScale,
   onNote,
-  tour = false, tourTabs = [], onGoTo,
+  tour = false, tourTabs = [], onGoTo, onExportExtras, onImportExtras,
   onCreateGroup, onRenameGroup, onDeleteGroup, onGroupNote, onSetRecordGroup,
 }) {
   const { t, locale } = useI18n();
@@ -304,7 +304,7 @@ export default function HistoryPanel({
     // The backup is the archive, deleted records included. Excluding them
     // would make "export a backup, then delete the app data" lose the very
     // records the audit trail exists to keep.
-    else if (format === 'json') result = await downloadBundle(allEntries ?? entries);
+    else if (format === 'json') result = await downloadBundle(allEntries ?? entries, onExportExtras?.() ?? null);
     else if (format === 'xlsx' || format === 'xlsxData') {
       // Two menu items, one call: the views are the same sheet written two
       // ways, and the only thing the menu decides is which. Record is listed
@@ -363,6 +363,7 @@ export default function HistoryPanel({
     } else {
       const before = source.length;
       onImport(result.entries);
+      onImportExtras?.(result);
       // The count reported is what the merge actually kept, not what the file
       // held — otherwise importing the same file twice claims new records.
       const dup = before + result.entries.length - new Set(

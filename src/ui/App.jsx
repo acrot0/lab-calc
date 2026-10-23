@@ -29,6 +29,7 @@ import { NavOrderProvider } from './NavOrderContext.jsx';
 import BrandMark from './components/BrandMark.jsx';
 import CalculatorDrawer from './components/CalculatorDrawer.jsx';
 import QuickJump from './components/QuickJump.jsx';
+import { loadInventory, saveInventory, loadTimers, saveTimers, mergeById } from './storage-backup.mjs';
 import InstallPrompt from './components/InstallPrompt.jsx';
 import { installBackNav } from './back-nav.mjs';
 import {
@@ -530,6 +531,27 @@ export default function App() {
     setEntries((prev) => setEntryNote(prev, id, note));
   }, []);
 
+  /*
+   * The JSON backup carries everything the app keeps: history (always) plus
+   * the shelf and any running timers. The history panel owns the export
+   * button, but it cannot read other tabs' storage keys — those live here,
+   * where the app already owns the localStorage handle.
+   */
+  const exportExtras = useCallback(() => ({
+    inventory: loadInventory(store),
+    timers: loadTimers(store),
+  }), [store]);
+
+  const importExtras = useCallback((result) => {
+    if (!result?.ok) return;
+    if (result.inventory?.length) {
+      saveInventory(store, mergeById(loadInventory(store), result.inventory));
+    }
+    if (result.timers?.length) {
+      saveTimers(store, mergeById(loadTimers(store), result.timers));
+    }
+  }, [store]);
+
   // Import merges rather than replaces: a backup is usually one machine's
   // history being added to another's, and overwriting would destroy work the
   // user never agreed to lose.
@@ -742,6 +764,7 @@ export default function App() {
             groups={groups} onRemove={remove} onRestore={restore} onReplay={replay} onClear={clear}
             onImport={importEntries} onMeta={setMeta} onNote={setNote} onScale={scaleRecord}
             tour={visible.length === 0} tourTabs={TABS} onGoTo={goTo}
+            onExportExtras={exportExtras} onImportExtras={importExtras}
             onCreateGroup={makeGroup} onRenameGroup={rename} onDeleteGroup={dropGroup}
             onGroupNote={noteGroup} onSetRecordGroup={setRecordGroup} />
         </main>

@@ -288,6 +288,44 @@ describe('parseBundle', () => {
   });
 });
 
+describe('bundle extras (v1.4 sections)', () => {
+  it('should write the shelf and timers when provided', () => {
+    const json = toBundle([entry()], new Date('2026-10-24T00:00:00Z'), {
+      inventory: [{ id: 'a', name: 'Tris', lot: '', location: '', openedAt: '', expiry: '', note: '', createdAt: 'x' }],
+      timers: [{ id: 't1', label: 'run', endAt: 1800000100000, totalMs: 60000 }],
+    });
+    const data = JSON.parse(json);
+    expect(data.inventory).toHaveLength(1);
+    expect(data.timers[0].label).toBe('run');
+  });
+
+  it('should omit the sections entirely when not provided', () => {
+    // An older shape stays an older shape; nothing writes empty arrays that
+    // would make a reader believe the file promised an empty shelf.
+    const data = JSON.parse(toBundle([entry()]));
+    expect('inventory' in data).toBe(false);
+    expect('timers' in data).toBe(false);
+  });
+
+  it('should read the sections back, dropping malformed rows', () => {
+    const r = parseBundle(JSON.stringify({
+      format: BUNDLE_FORMAT, version: 1, entries: [entry()],
+      inventory: [{ name: 'ok' }, { noName: true }, 'junk'],
+      timers: [{ endAt: 123 }, { endAt: 'x' }],
+    }));
+    expect(r.ok).toBe(true);
+    expect(r.inventory).toHaveLength(1);
+    expect(r.timers).toHaveLength(1);
+  });
+
+  it('should accept a v1 file with no sections', () => {
+    const r = parseBundle(JSON.stringify({ format: BUNDLE_FORMAT, version: 1, entries: [entry()] }));
+    expect(r.ok).toBe(true);
+    expect(r.inventory).toEqual([]);
+    expect(r.timers).toEqual([]);
+  });
+});
+
 describe('mergeEntries', () => {
   it('should be idempotent when the same file is imported twice', () => {
     // Distinct timestamps so the assertion is about deduplication rather than
