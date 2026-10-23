@@ -205,6 +205,7 @@ export default function QuickJump({ open, onClose, tabs, current, entries, onGoT
         <div className="quick-jump-foot" role="presentation">
           <span><kbd>↑</kbd><kbd>↓</kbd> {t('quickJump.navigate')}</span>
           <span><kbd>↵</kbd> {t('quickJump.open')}</span>
+          <span className="quick-jump-taghint">{t('quickJump.tagHint')}</span>
         </div>
       </div>
     </div>

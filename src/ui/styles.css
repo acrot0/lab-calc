@@ -6702,6 +6702,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .quick-jump-foot span { display: inline-flex; align-items: center; gap: 4px; }
 
+/*
+ * The tag hint sits on the growing side of the footer so the keys stay right,
+ * and is dimmer than them: it is a capability to discover once, not an action
+ * the fingers need every time.
+ */
+.quick-jump-taghint { color: var(--text-dim); }
+
 /* An icon-only control in the topbar: same 34px box as its labelled
    neighbours, so the row's rhythm holds, with the label available to screen
    readers through the span the CSS hides. */

@@ -1387,6 +1387,7 @@ export const en = {
     results: '{n} results',
     navigate: 'Choose',
     open: 'Open',
+    tagHint: 'search #tags to filter records',
   },
   summaries: {
     weigh: 'Weigh {mass} g of {formula}, make up to {volume} mL ({molarity} mol/L)',

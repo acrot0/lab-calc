@@ -1400,6 +1400,7 @@ export const zh = {
     results: '{n} 条结果',
     navigate: '选择',
     open: '打开',
+    tagHint: '搜 #标签 只查记录标签',
   },
   summaries: {
     weigh: '称取 {mass} g {formula}，定容至 {volume} mL（{molarity} mol/L）',
