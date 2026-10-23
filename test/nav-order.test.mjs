@@ -27,6 +27,30 @@ describe('reconcile', () => {
     expect(reconcile(['c', 'a'], ['a', 'b', 'c', 'd'])).toEqual(['c', 'a', 'b', 'd']);
   });
 
+  it('should place a newly shipped tab by the live list, not the storage order', () => {
+    /*
+     * The dashboard shipped after some users had saved an order. The append
+     * rule above would bury the new home tab at the end of the rail and out
+     * of the phone bar entirely — the one tab that is now the front door.
+     * A saved order that predates a live tab still defers to where the live
+     * list puts it.
+     */
+    const live = ['dashboard', 'a', 'b', 'c'];
+    expect(reconcile(['c', 'a'], live)[0]).toBe('dashboard');
+    // Only the first tab is promoted; other new tabs still append (below).
+    expect(reconcile(['c', 'a'], ['a', 'dashboard', 'b', 'c'])).toEqual(['c', 'a', 'dashboard', 'b']);
+  });
+
+  it('should never produce a duplicate when promoting the first tab', () => {
+    // The append loop adds the missing first tab at the end; promoting it by
+    // prepending alone would render the home tab twice and React would warn
+    // about the duplicate key.
+    const live = ['dashboard', 'a', 'b'];
+    const out = reconcile(['a', 'b'], live);
+    expect(out).toEqual(['dashboard', 'a', 'b']);
+    expect(new Set(out).size).toBe(out.length);
+  });
+
   it('should ignore duplicates after the first', () => {
     // A hand-edited or corrupted store. A duplicate would render one tab twice
     // and drop another entirely, since the result must be a permutation.

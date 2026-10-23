@@ -97,7 +97,24 @@ export function reconcile(saved, allIds) {
     seen.add(id);
     out.push(id);
   }
+  const savedAny = out.length > 0;
   for (const id of allIds) if (!seen.has(id)) out.push(id);
+  /*
+   * One exception to the append rule: the first tab of the live list — the
+   * home screen — goes to the front rather than the end. The case that forced
+   * this: the dashboard shipped as tab one and the front door of the app, but
+   * any user with a saved order got it appended — last in the rail, out of
+   * the phone bar, and the new home effectively did not exist for exactly the
+   * people who had used the app before. Every other missing tab keeps the
+   * append behaviour the test suite already pins down.
+   */
+  const first = allIds[0];
+  // `seen` only holds ids from `saved`; when nothing was saved the loop above
+  // already built the full default order and `first` is in `out`.
+  if (savedAny && !seen.has(first)) {
+    const withoutFirst = out.filter((id) => id !== first);
+    return [first, ...withoutFirst];
+  }
   return out;
 }
 
