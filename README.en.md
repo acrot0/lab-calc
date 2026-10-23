@@ -101,6 +101,7 @@ Before any real preparation, **check against a textbook, a pharmacopoeia or the 
 | **Analytical chemistry** | 7 sub-calculations: EDTA complexometric titration, redox titration, gravimetric analysis, recovery and spiking, LOD and LOQ, chromatographic separation, solubility and complexation equilibria |
 | **Physical chemistry** | 5 sub-calculations: reaction kinetics, Arrhenius activation energy, conductivity, thermodynamics, phase diagrams and eutectic points |
 | **Reagent shelf** | Where a bottle is, how long it has been open, whether it has expired: one row per container with lot, location, opened-on and expiry; expiring items sort first |
+| **Timers** | Bench countdowns: several in parallel, a synthesised chime when one ends (no audio file), plus a title-bar alert; bare numbers mean minutes, 90s / 2h also work |
 
 History exports as **Excel (.xlsx)**, **CSV** (with a BOM so Chinese text survives), **Markdown** (paste straight into a lab notebook), a **PDF report** (browser print, selectable vector text) or a **JSON backup** (re-importable, so a new machine loses nothing).
 
@@ -267,7 +268,7 @@ On a phone the calculator is a bottom sheet, with touch targets ≥44px, and the
 npm install
 npm run dev      # dev server
 npm run build    # build to dist/, plain static files, hostable anywhere
-npm test         # 2735 tests
+npm test         # 2749 tests
 npm run verify   # import integrity + icon metrics + licences + authorship + 20 smoke checks against known answers
 ```
 
@@ -278,7 +279,7 @@ npm run verify   # import integrity + icon metrics + licences + authorship + 20 
 | **Themes** | 10 (Catppuccin, Rosé Pine, Gruvbox, Solarized) + follow-system + custom accent, radius, density and motion |
 | **Export** | Excel (.xlsx) · CSV · Markdown · PDF report · JSON backup (re-importable) |
 | **Licence** | MIT |
-| **Status** | v1.3.0 · 2735 tests passing / 138 files · all three platforms green in CI |
+| **Status** | v1.3.0 · 2749 tests passing / 139 files · all three platforms green in CI |
 
 ## Structure
 

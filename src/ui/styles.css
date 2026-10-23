@@ -2348,6 +2348,9 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
     animation: value-fade-soft 220ms ease both !important;
   }
 
+  /* A breathing number is motion; the timer keeps its information without it. */
+  .timer-item:not(.is-due) .timer-time { animation: none !important; }
+
   /* The palette arrives like the export menu: the fade is the arrival, the
      4px rise is the motion that has to go. */
   .quick-jump {
@@ -3537,6 +3540,128 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   background: var(--err-soft);
   color: var(--err-ink);
   font-size: var(--t-sm);
+}
+
+/* ==========================================================================
+   Bench timers
+   ========================================================================== */
+
+.timer-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 180px) auto;
+  gap: var(--s3);
+  align-items: end;
+}
+
+@media (max-width: 720px) {
+  .timer-form { grid-template-columns: minmax(0, 1fr); }
+}
+
+.timer-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.timer-form label > span {
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+
+.timer-form input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--s2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+}
+
+.timer-form input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: var(--focus-ring) var(--accent-soft);
+}
+
+.timer-parse { margin-top: var(--s3); }
+
+.timer-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: var(--s4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The number is the whole interface: tabular figures at display size, so two
+ * running timers can be compared at a glance from across the bench.
+ */
+.timer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.timer-item.is-due {
+  border-color: var(--err-line);
+  background: var(--err-soft);
+}
+
+.timer-body {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s4);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.timer-label {
+  font-size: var(--t-sm);
+  word-break: break-word;
+}
+
+.timer-time {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-family: var(--font-num);
+  font-size: var(--t-xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/*
+ * A gentle pulse while a timer runs says "alive"; the same pulse on a due
+ * timer would say "fine", so the due state drops it for a steady, red number.
+ */
+.timer-item:not(.is-due) .timer-time {
+  animation: timer-breathe 2s ease-in-out infinite;
+}
+
+@keyframes timer-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+.timer-item.is-due .timer-time { color: var(--err); }
+
+.timer-empty {
+  padding: var(--s6) var(--s4);
+  color: var(--text-dim);
+  font-size: var(--t-sm);
+  line-height: 1.7;
+  text-align: center;
 }
 
 /* ==========================================================================

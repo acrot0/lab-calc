@@ -160,6 +160,7 @@ export const zh = {
     analytical: '分析化学',
     physical: '物理化学',
     inventory: '试剂柜',
+    timers: '计时器',
   },
   report: {
     docType: '实验室计算记录',
@@ -1081,6 +1082,7 @@ export const zh = {
     analytical: '校准曲线、回归、检出限、色谱',
     physical: '阿伦尼乌斯、动力学、热力学',
     inventory: '试剂在哪、开瓶多久、过没过期，一瓶一条',
+    timers: '台面倒计时，多个并行，到点响铃并在标题栏提醒',
   },
   inv: {
     name: '名称',
@@ -1107,6 +1109,21 @@ export const zh = {
     remove: '从试剂柜移除',
     done: '完成',
     saveFailed: '存储不可用，本次改动没有被记住。请先导出备份。',
+  },
+  timers: {
+    label: '在计什么',
+    labelHint: '如 摇床 65 °C、转膜',
+    duration: '时长',
+    durationHint: '如 10、90s、1h30（纯数字按分钟）',
+    start: '开始计时',
+    parseErr: '看不懂这个时长。写分钟数字（10），或带单位：90s、1h30 里的 h/m/s。',
+    empty: '没有在跑的计时。台面同时等几件事时，这里一人一位。',
+    overdue: '已到时 {time}',
+    stop: '停掉这个计时',
+    saveFailed: '存储不可用，计时只在本次打开期间有效。',
+  },
+  doc: {
+    title: 'Lab Calc — 实验室溶液计算器',
   },
   reaction: {
     mode: '计算类型',

@@ -161,6 +161,7 @@ export const en = {
     analytical: 'Analytical',
     physical: 'Physical',
     inventory: 'Reagent shelf',
+    timers: 'Timers',
   },
   report: {
     docType: 'Laboratory calculation record',
@@ -1088,6 +1089,7 @@ export const en = {
     analytical: 'Calibration curves, regression, LOD, chromatography',
     physical: 'Arrhenius, kinetics, thermodynamics',
     inventory: 'Where a bottle is, how long open, whether expired',
+    timers: 'Bench countdowns, several at once, chime and title alert',
   },
   inv: {
     name: 'Name',
@@ -1114,6 +1116,21 @@ export const en = {
     remove: 'Remove from shelf',
     done: 'Done',
     saveFailed: 'Storage unavailable, this change was not kept. Export a backup first.',
+  },
+  timers: {
+    label: 'What',
+    labelHint: 'e.g. shaker 65 °C, membrane transfer',
+    duration: 'Duration',
+    durationHint: 'e.g. 10, 90s, 1h30 (bare number = minutes)',
+    start: 'Start',
+    parseErr: 'Could not read that duration. Use minutes (10) or a unit: 90s, h/m/s.',
+    empty: 'No timers running. When the bench waits on several things, keep one row per thing.',
+    overdue: 'done {time} ago',
+    stop: 'Stop this timer',
+    saveFailed: 'Storage unavailable, timers only last for this visit.',
+  },
+  doc: {
+    title: 'Lab Calc — lab calculator',
   },
   reaction: {
     mode: 'Calculation',
