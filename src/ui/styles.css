@@ -3727,6 +3727,96 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
 /* ==========================================================================
+   Dashboard
+   ========================================================================== */
+
+/*
+ * Three blocks, each a question ("what did I do", "what needs attention",
+ * "what is running"), separated by rules rather than boxes — the dashboard is
+ * one screen of answers, not three panels.
+ */
+.dash-block + .dash-block {
+  margin-top: var(--s5);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--border);
+}
+
+.dash-block h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0 0 var(--s3);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.dash-block h2 > svg { color: var(--text-dim); }
+
+.dash-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A row is a button because every row leads somewhere: a calculation can be
+ * replayed, a bottle or a timer opens its tab. The two-tone layout keeps the
+ * summary scannable and the status right-aligned where comparisons happen.
+ */
+.dash-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--text-mid);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-sm);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.dash-row:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.dash-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-aside {
+  flex: none;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-row.is-expired .dash-aside { color: var(--err); font-weight: 600; }
+.dash-row.is-expiring .dash-aside { color: var(--warn); }
+
+.dash-empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--t-sm);
+  line-height: 1.7;
+}
+
+/* ==========================================================================
    Curve
    ========================================================================== */
 

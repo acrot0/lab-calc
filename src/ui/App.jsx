@@ -70,6 +70,7 @@ const StatsTab = lazy(() => import('./tabs/StatsTab.jsx'));
 const UncertaintyTab = lazy(() => import('./tabs/UncertaintyTab.jsx'));
 const InventoryTab = lazy(() => import('./tabs/InventoryTab.jsx'));
 const TimersTab = lazy(() => import('./tabs/TimersTab.jsx'));
+const DashboardTab = lazy(() => import('./tabs/DashboardTab.jsx'));
 
 /**
  * What shows while a tab's chunk is in flight.
@@ -99,6 +100,7 @@ function CardSkeleton({ label }) {
  * identical in a navigation bar are not navigation.
  */
 const TABS = [
+  { id: 'dashboard', icon: Icons.dashboard, Component: DashboardTab },
   { id: 'weigh', icon: Icons.weigh, Component: WeighTab },
   { id: 'dilute', icon: Icons.dilute, Component: DiluteTab },
   { id: 'buffer', icon: Icons.buffer, Component: BufferTab },
@@ -144,7 +146,7 @@ const TAB_IDS = TABS.map((t) => t.id);
 function initialTab() {
   try {
     const want = new URLSearchParams(globalThis.location?.search ?? '').get('tab');
-    return TABS.some((x) => x.id === want) ? want : 'weigh';
+    return TABS.some((x) => x.id === want) ? want : 'dashboard';
   } catch {
     return 'weigh';
   }
@@ -707,7 +709,7 @@ export default function App() {
         {/* The tab panel is the page's main content; the topbar and footer are
             chrome around it. Without this landmark a screen reader can only jump
             by heading, and every tab change re-announces the whole page. */}
-        <main className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
+          <main className={`split${active.id === 'elements' ? ' is-wide' : ''}`}>
           {/* `.work` is the query container the tab cards measure themselves
               against, which is why it is a wrapper rather than the <main>
               itself: the history panel is a `.card` too, and a container on
@@ -724,7 +726,16 @@ export default function App() {
                 real one replaces it — a spinner that collapses to nothing and
                 then expands is worse than no spinner. */}
             <Suspense fallback={<CardSkeleton label={t(`tabs.${active.id}`)} />}>
-              <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
+              {active.id === 'dashboard' ? (
+                <ActiveTab
+                  key={nonce}
+                  entries={visible}
+                  onReplay={replay}
+                  onGoTo={goTo}
+                />
+              ) : (
+                <ActiveTab key={nonce} onRecord={record} restored={restored} theme={resolved} />
+              )}
             </Suspense>
           </div>
           <HistoryPanel entries={visible} allEntries={entries} deleted={deleted}

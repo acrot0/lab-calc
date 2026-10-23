@@ -87,6 +87,8 @@ describe('expiry', () => {
     expect(daysLeft(inDays(3), NOW)).toBe(3);
     expect(daysLeft(inDays(-3), NOW)).toBe(-3);
     expect(daysLeft('', NOW)).toBeNull();
+    // The dashboard passes epoch milliseconds, not a Date.
+    expect(daysLeft(inDays(3), NOW.getTime())).toBe(3);
   });
 
   it('should sort problems first, then newest', () => {

@@ -70,6 +70,7 @@ import { ChartScatter } from '@phosphor-icons/react/dist/csr/ChartScatter';
 import { WaveSine } from '@phosphor-icons/react/dist/csr/WaveSine';
 import { Ruler } from '@phosphor-icons/react/dist/csr/Ruler';
 import { Alarm } from '@phosphor-icons/react/dist/csr/Alarm';
+import { SquaresFour } from '@phosphor-icons/react/dist/csr/SquaresFour';
 
 /*
  * React is imported explicitly, not left to the JSX transform.
@@ -275,6 +276,7 @@ export const Icons = {
   physical: styled(WaveSine, 'physical'),
   uncertainty: styled(Ruler, 'uncertainty'),
   timers: styled(Alarm, 'timers'),
+  dashboard: styled(SquaresFour, 'dashboard'),
 
   // --- Reserved for the visualisation phases ---
   // Declared here so the set stays the one place an icon is chosen.

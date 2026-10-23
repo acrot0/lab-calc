@@ -129,9 +129,11 @@ function banner() {
  * the tab's own controls never render. Importing it once here makes the lazy
  * resolution a microtask, so `settle()` can drain it.
  *
- * Only the first tab is needed: it is the one the app opens on.
+ * Only the tabs the app can open on in this test are needed: the dashboard
+ * (the default) and the weighing tab (the calculation the test runs).
  */
 async function loadWeighTab() {
+  await import('../src/ui/tabs/DashboardTab.jsx');
   await import('../src/ui/tabs/WeighTab.jsx');
 }
 
@@ -264,6 +266,11 @@ describe('the banner clears when writes work again', () => {
       await settle();
 
       s.state.refuse = false;
+      // The calculation lives on the weighing tab; go there through the
+      // palette-free route the app itself offers in tests: a direct tab id.
+      const weighBtn = click(/称量配制|Weigh out/);
+      if (weighBtn) await act(async () => { weighBtn.click(); });
+      await settle();
       const calc = click(/^Calculate$|^计算$/);
       expect(calc).toBeTruthy();
       await act(async () => { calc.click(); });

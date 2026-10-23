@@ -140,6 +140,7 @@ export const en = {
     switch: 'Cycle the icon style',
   },
   tabs: {
+    dashboard: 'Overview',
     weigh: 'Weigh out',
     dilute: 'Dilute',
     buffer: 'Buffer',
@@ -1071,6 +1072,7 @@ export const en = {
     bundleRestorable: 'This file restores through Import, and it is how you move to another device.',
   },
   tour: {
+    dashboard: 'Last calculations, expiring reagents and running timers at a glance',
     weigh: 'Formula in, grams to weigh and volume to make up',
     dilute: 'Stock dilution C1V1=C2V2 - fill any three',
     buffer: 'H-H with activity and temperature correction, 11 systems',
@@ -1131,6 +1133,18 @@ export const en = {
     overdue: 'done {time} ago',
     stop: 'Stop this timer',
     saveFailed: 'Storage unavailable, timers only last for this visit.',
+  },
+  dash: {
+    recent: 'Recent calculations',
+    recentEmpty: 'Nothing calculated yet. Run any calculator once and it is kept here.',
+    shelf: 'Reagent alerts',
+    shelfOk: 'Nothing on the shelf is expiring or expired.',
+    timers: 'Running timers',
+    timersEmpty: 'No timers running.',
+    justNow: 'just now',
+    minAgo: '{n} min ago',
+    hourAgo: '{n} h ago',
+    dayAgo: '{n} d ago',
   },
   doc: {
     title: 'Lab Calc — lab calculator',

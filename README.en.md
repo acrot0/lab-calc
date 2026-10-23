@@ -80,6 +80,7 @@ Before any real preparation, **check against a textbook, a pharmacopoeia or the 
 
 | Tab | What it works out |
 |---|---|
+| **Overview** | The screen you return to: recent calculations (click to replay), expiring reagent alerts, running timers |
 | **Weighing** | How many grams of solid to weigh for a given concentration and volume |
 | **Dilution** | How much stock and how much diluent for a target concentration |
 | **Buffer** | Henderson–Hasselbalch: the acid/base ratio at a target pH |

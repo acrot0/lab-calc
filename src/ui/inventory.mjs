@@ -165,7 +165,11 @@ export function daysLeft(iso, now = new Date()) {
   if (!iso) return null;
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return null;
-  return Math.floor((t - now.getTime()) / 86400000);
+  // `now` may arrive as a Date or as epoch milliseconds — the timers module
+  // speaks milliseconds and passing one straight through must keep working.
+  const at = now instanceof Date ? now.getTime() : Number(now);
+  if (!Number.isFinite(at)) return null;
+  return Math.floor((t - at) / 86400000);
 }
 
 /**

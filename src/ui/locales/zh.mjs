@@ -139,6 +139,7 @@ export const zh = {
     switch: '切换图标风格',
   },
   tabs: {
+    dashboard: '总览',
     weigh: '称量配制',
     dilute: '稀释',
     buffer: '缓冲液',
@@ -1064,6 +1065,7 @@ export const zh = {
     bundleRestorable: '这个文件可以在「导入」里还原，换设备也靠它。',
   },
   tour: {
+    dashboard: '最近算过什么、哪些试剂快到期、什么还在计时，一屏看全',
     weigh: '输入化学式和浓度，算出称多少克、定容到多少',
     dilute: '母液稀释 C₁V₁=C₂V₂，四个量任填三个',
     buffer: 'H-H 方程加活度与温度校正，含 11 种缓冲体系',
@@ -1124,6 +1126,18 @@ export const zh = {
     overdue: '已到时 {time}',
     stop: '停掉这个计时',
     saveFailed: '存储不可用，计时只在本次打开期间有效。',
+  },
+  dash: {
+    recent: '最近的计算',
+    recentEmpty: '还没有计算记录。随便打开一个功能算一次，这里就会记着它。',
+    shelf: '试剂提醒',
+    shelfOk: '试剂柜里没有临期或过期的。',
+    timers: '在跑的计时',
+    timersEmpty: '没有在跑的计时。',
+    justNow: '刚刚',
+    minAgo: '{n} 分钟前',
+    hourAgo: '{n} 小时前',
+    dayAgo: '{n} 天前',
   },
   doc: {
     title: 'Lab Calc — 实验室溶液计算器',
