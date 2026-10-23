@@ -170,6 +170,15 @@ export default function HistoryPanel({
    * union. A Set rather than an array so toggling is membership, not splice.
    */
   const [tagFilter, setTagFilter] = useState(() => new Set());
+  /*
+   * How many rows are mounted. The full history caps at 500, and a search or
+   * filter narrows it long before then — but "all records" on a phone mounts
+   * 500 interactive rows at once (annotation editor, tag buttons, two-step
+   * delete per row). Rendering the first page and growing it on demand is the
+   * pagination answer for "a few hundred items"; virtualisation is the tool
+   * for thousands and this list never reaches them.
+   */
+  const [page, setPage] = useState(50);
   const fileRef = useRef(null);
   // Which fields the data view carries. `null` means all of them — see the
   // note on ColumnPicker for why "everything" is the honest default.
@@ -220,6 +229,7 @@ export default function HistoryPanel({
     [inGroup, tagFilter],
   );
   const shown = useMemo(() => filterHistory(inTags, query), [inTags, query]);
+  const visibleRows = useMemo(() => shown.slice(0, page), [shown, page]);
   const counts = useMemo(() => groupCounts(live), [live]);
   const ungrouped = useMemo(() => ungroupedCount(live), [live]);
   const tags = useMemo(() => allNoteTags(live), [live]);
@@ -670,7 +680,7 @@ export default function HistoryPanel({
         </div>
       ) : (
         <div className="history-list">
-          {shown.map((e) => {
+          {visibleRows.map((e) => {
             const summary = recordSummary(e, t);
             return (
               <div className="history-item" key={e.id}>
@@ -753,6 +763,15 @@ export default function HistoryPanel({
               </div>
             );
           })}
+          {shown.length > visibleRows.length && (
+            <button
+              type="button"
+              className="link-btn history-more"
+              onClick={() => setPage((n) => n + 100)}
+            >
+              {t('history.more', { n: shown.length - visibleRows.length })}
+            </button>
+          )}
         </div>
       )}
 

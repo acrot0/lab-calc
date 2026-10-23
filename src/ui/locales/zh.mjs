@@ -1042,6 +1042,7 @@ export const zh = {
     confirmClearAll: '再点一次清除全部',
     restoreAll: '全部恢复',
     restored: '已恢复 {n} 条记录。',
+    more: '再显示 100 条（还有 {n} 条）',
     exportFailed: "导出失败，请重试。",
     /*
      * 手机上导出走系统分享，而不是浏览器下载 —— 安卓 WebView 没有下载通道。

@@ -3014,6 +3014,20 @@ button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .history-item:hover { border-color: var(--border-strong); background: var(--surface-3); }
 
+/*
+ * The grow-the-page control sits inside the list so scrolling to the end
+ * reaches it, and spans the row: it is the list's footer, not a row's action.
+ */
+.history-more {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--s2);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+}
+
 .history-item .body { flex: 1; min-width: 0; }
 
 .history-item .summary { font-size: var(--t-sm); line-height: 1.55; word-break: break-word; }

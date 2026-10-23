@@ -1047,6 +1047,7 @@ export const en = {
     confirmClearAll: 'Tap again to clear all',
     restoreAll: 'Restore all',
     restored: 'Restored {n} entries.',
+    more: 'Show 100 more ({n} left)',
     exportFailed: "Export failed. Try again.",
     /*
      * On a phone the export goes through the system share sheet rather than a
