@@ -57,6 +57,7 @@ const ConvertTab = lazy(() => import('./tabs/ConvertTab.jsx'));
 const PhTab = lazy(() => import('./tabs/PhTab.jsx'));
 const PercentTab = lazy(() => import('./tabs/PercentTab.jsx'));
 const CurveTab = lazy(() => import('./tabs/CurveTab.jsx'));
+const KineticsTab = lazy(() => import('./tabs/KineticsTab.jsx'));
 const ReagentTab = lazy(() => import('./tabs/ReagentTab.jsx'));
 const SpectroTab = lazy(() => import('./tabs/SpectroTab.jsx'));
 const LabTab = lazy(() => import('./tabs/LabTab.jsx'));
@@ -109,6 +110,7 @@ const TABS = [
   { id: 'ph', icon: Icons.ph, Component: PhTab },
   { id: 'percent', icon: Icons.percent, Component: PercentTab },
   { id: 'curve', icon: Icons.curve, Component: CurveTab },
+  { id: 'kinetics', icon: Icons.stats, Component: KineticsTab },
   { id: 'reagent', icon: Icons.reagent, Component: ReagentTab },
   { id: 'spectro', icon: Icons.spectro, Component: SpectroTab },
   { id: 'lab', icon: Icons.lab, Component: LabTab },

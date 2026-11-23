@@ -51,6 +51,7 @@ export const TAB_ALIASES = {
   stats: ['统计', 'statistics', '均值', 'mean', 'sd', 'rsd'],
   analytical: ['分析', 'analytical', '校准', 'calibration', '回归', 'regression'],
   physical: ['物理化学', 'physical', '动力学', 'kinetics', 'arrhenius', '热力学'],
+  kinetics: ['酶动力学', '米氏方程', 'michaelis', 'kinetics', 'nanozyme', '纳米酶', '初速度'],
 };
 
 /**

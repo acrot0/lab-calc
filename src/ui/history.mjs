@@ -395,6 +395,7 @@ export const KIND_TO_TAB = {
   stats: 'stats',
   analytical: 'analytical',
   physical: 'physical',
+  kinetics: 'kinetics',
 };
 
 /**

@@ -197,6 +197,38 @@ export function serializeDiagram(svg, { background } = {}) {
 }
 
 /**
+ * Standard journal physical width presets (mm) for vector SVG export.
+ */
+export const JOURNAL_PRESETS = {
+  natureSingle: { widthMm: 89, label: 'Nature Single (89 mm)' },
+  natureDouble: { widthMm: 183, label: 'Nature Double (183 mm)' },
+  acsSingle: { widthMm: 84, label: 'ACS Single (84 mm)' },
+  acsDouble: { widthMm: 178, label: 'ACS Double (178 mm)' },
+};
+
+/**
+ * Serialise a diagram element with explicit physical journal dimensions (mm)
+ * and publication-safe sans-serif font stack.
+ */
+export function serializeJournalDiagram(svg, { preset = 'natureSingle', background } = {}) {
+  const base = serializeDiagram(svg, { background });
+  if (!base) return '';
+  const spec = JOURNAL_PRESETS[preset] ?? JOURNAL_PRESETS.natureSingle;
+  const vb = svg.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
+  const ratio = vb && vb.length === 4 && vb[2] > 0 ? vb[3] / vb[2] : 0.6;
+  const heightMm = +(spec.widthMm * ratio).toFixed(2);
+  return base.replace(
+    /<svg\b([^>]*)>/,
+    (_, attrs) => {
+      const cleaned = attrs
+        .replace(/\s+width="[^"]*"/g, '')
+        .replace(/\s+height="[^"]*"/g, '');
+      return `<svg${cleaned} width="${spec.widthMm}mm" height="${heightMm}mm">`;
+    },
+  );
+}
+
+/**
  * The filename for a diagram export.
  *
  * Named after the diagram and the theme, because a notebook accumulates these
